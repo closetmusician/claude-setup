@@ -1,8 +1,9 @@
+<!-- Implements the engineering principles defined in CLAUDE.md -->
 ## Design Philosophy
 - YAGNI: no code > code. Extensibility only when it doesn't conflict.
 - TDD MANDATORY: Red (failing test) → Green (minimal code to pass) → Refactor. No implementation without failing test.
 - DRY: flag repetition aggressively.
-- 80/20 edge cases: handle common ones, don't go overboard.
+- Handle common edge cases thoroughly (80/20). When in doubt, err toward handling it but don't build a rocketship.
 - Explicit > clever. "Engineered enough" — not fragile, not over-abstracted.
 
 ## Code Style
