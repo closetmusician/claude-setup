@@ -89,19 +89,19 @@ Audit date: 2026-03-20. Generated from 4 parallel analysis agents scanning all o
 
 ## Tier 4: Project Configuration Improvements
 
-- [ ] **4.1 Add CLAUDE.md to boardroom-ai (root)**
+- [x] **4.1 Add CLAUDE.md to boardroom-ai (root)**
   Currently only exists at `DiligentGPT/boardroom-ai/CLAUDE.md` which is a different path from the working directory `~/Code/boardroom-ai/`. Has complex settings, skills, and security concerns.
 
-- [ ] **4.2 Add CLAUDE.md to nextgen**
+- [x] **4.2 Add CLAUDE.md to nextgen**
   Active project with MCP config (chrome-devtools), complex permissions. 79 file-not-found errors in one session suggest the agent needs better project context.
 
-- [ ] **4.3 Add CLAUDE.md to maple-web**
+- [x] **4.3 Add CLAUDE.md to maple-web**
   Has project settings.json with LSP plugins (TypeScript + C#), suggesting a mixed-stack project that would benefit from documented conventions.
 
-- [ ] **4.4 Add CLAUDE.md to portco_insights**
+- [x] **4.4 Add CLAUDE.md to portco_insights**
   Has orchestrator-state, vibe-protocol, and rules already — but no CLAUDE.md to tie them together.
 
-- [ ] **4.5 Clean up stale project settings.local.json files**
+- [x] **4.5 Clean up stale project settings.local.json files**
   `deck_extractor` and `diligent-platinum` use old-style granular Bash permissions (`Bash(tree:*)`, `Bash(git add:*)`) that are unnecessary given the global `"allow": ["Bash"]`. Simplify.
 
 - [ ] **4.6 Remove commented-out pseudocode from deck_extractor CLAUDE.md**
@@ -113,23 +113,23 @@ Audit date: 2026-03-20. Generated from 4 parallel analysis agents scanning all o
 - [ ] **4.8 Remove overlapping testing rules from boardroom-ai CLAUDE.md**
   "NO mocks in E2E tests" and "All failures are your fault" are already in global `code-style.md`. Keep only project-specific additions (Playwright structure, test user credentials, auth test naming).
 
-- [ ] **4.9 Standardize chrome-devtools MCP config**
-  `deck_benchmarks` has `-y` flag and explicit `type: "stdio"`. `nextgen` has neither. Standardize both.
+- [x] **4.9 Standardize chrome-devtools MCP config**
+  `deck_benchmarks` standardized to match `nextgen` format (added `-y` flag, removed redundant `type: "stdio"` and empty `env`). Chrome-devtools tools (16+) are auto-deferred via `ENABLE_TOOL_SEARCH: "auto:5"`.
 
 ---
 
 ## Tier 5: New Capabilities & Creative Ideas
 
-- [ ] **5.1 Add PreToolCall hook for git safety enforcement**
-  code-style.md bans `git add -A` without `git status` and `--no-verify`. Instead of relying on prompt compliance, add a hook that catches banned git patterns and warns before execution.
+- [x] **5.1 Add PreToolUse hook for git safety enforcement**
+  PreToolUse hook catches 5 banned git patterns (add -A/., --no-verify, push --force, reset --hard, checkout/restore .) and blocks with deny JSON. Includes heredoc/string stripping to avoid false positives.
 
-- [ ] **5.2 Enhance statusline with session health indicators**
+- [x] **5.2 Enhance statusline with session health indicators**
   Current statusline is excellent. Add: compaction count (information loss indicator), active skill name, last scheduled job status.
 
-- [ ] **5.3 Create auto-journaling hook**
-  code-style.md mandates "journal frequently" but nothing enforces it. A Stop hook could auto-append session summaries (key decisions, files changed, errors encountered) to a structured, searchable journal file.
+- [x] **5.3 Create auto-journaling hook**
+  Stop hook auto-appends session summaries (files changed, tools used, errors) to `memory/journal.md`. Script parses transcript JSONL on session stop.
 
-- [ ] **5.4 Create a debugging skill**
+- [x] **5.4 Create a debugging skill**
   Formalize the 4-step debugging protocol (Investigate, Pattern, Hypothesize, Fix) from code-style.md into an interactive skill that enforces the steps. Prevents jumping to fixes before understanding root cause.
 
 - [ ] **5.5 Create a refactoring skill**
