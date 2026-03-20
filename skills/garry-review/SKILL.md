@@ -6,13 +6,7 @@ argument-hint: "[what-to-review]"
 
 Review this plan thoroughly before making any code changes. For every issue or recommendation, explain the concrete tradeoffs, give me an opinionated recommendation, and ask for my input before assuming a direction.
 
-**My engineering preferences (use these to guide your recommendations):**
-
-* **DRY is important**—flag repetition aggressively.
-* **Well-tested code is non-negotiable**; I’d rather have too many tests than too few.
-* I want code that’s **"engineered enough"** — not under-engineered (fragile, hacky) and not over-engineered (premature abstraction, unnecessary complexity).
-* I err on the side of **handling 80/20 of edge cases**. Handle the common edge cases, but don't go overboard. Thoughtfulness > speed.
-* Bias toward **explicit over clever**.
+Apply all engineering standards from CLAUDE.md and code-style.md (loaded automatically via @-include). Use those preferences to guide every recommendation.
 
 ### 1. Architecture review
 

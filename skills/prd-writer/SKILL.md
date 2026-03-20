@@ -3,6 +3,11 @@ name: prd-writer
 description: "Helps product managers write high-quality, data-driven PRDs (Product Requirements Documents). Use this skill whenever a user wants to create a PRD, product spec, product brief, feature spec, or requirements document — including when they say 'write a PRD', 'help me spec this out', 'I need a product doc', 'turn this into a PRD', 'product requirements', or share rough notes/briefs asking to formalize them into a structured product document. Also trigger when the user wants to review, critique, or improve an existing PRD. This skill enforces data-driven rigor, testable hypotheses, prior-art honesty, and structured engineering estimates. Do NOT use for pure engineering design docs, architecture docs, or technical RFCs that aren't product-facing."
 ---
 
+## Required Files
+- `references/quality-patterns.md` — Quality patterns reverse-engineered from exemplary PRDs (scoring criteria for each section)
+- `references/discovery-brief-format.md` — Condensed 1-pager format for early-stage exploration
+- `templates/diligent-prd-template.md` — Default PRD structure template (Diligent Boards conventions)
+
 # PRD Writer
 
 A skill for creating high-quality, data-driven Product Requirements Documents that move teams to action.
