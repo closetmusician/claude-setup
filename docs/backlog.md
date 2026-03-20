@@ -6,44 +6,44 @@ Audit date: 2026-03-20. Generated from 4 parallel analysis agents scanning all o
 
 ## Tier 1: Quick Wins (high impact, low effort)
 
-- [ ] **1.1 Fix phantom plugin errors on startup**
+- [x] **1.1 Fix phantom plugin errors on startup**
   `pyright-lsp`, `pr-review-toolkit`, `typescript-lsp`, `code-review` are enabled in `settings.json` but missing from marketplace cache. Every startup logs 12+ warning lines. Reinstall or toggle off in `enabledPlugins`.
 
-- [ ] **1.2 Fix dead MCP server auth errors on startup**
+- [x] **1.2 Fix dead MCP server auth errors on startup**
   `claude.ai Gmail`, `Google Calendar`, `Notion` fail OAuth every session. `Glean` fails auth too. Re-authenticate or remove from MCP config. Adds 6+ error lines and connection overhead per startup.
 
-- [ ] **1.3 Resolve CLAUDE.md vs code-style.md edge-case contradiction**
+- [x] **1.3 Resolve CLAUDE.md vs code-style.md edge-case contradiction**
   CLAUDE.md says "err on the side of handling more edge cases, not fewer." code-style.md says "80/20 edge cases: handle common ones, don't go overboard." Unify to: "Handle common edge cases thoroughly (80/20). When in doubt, err toward handling it."
 
 - [ ] **1.4 Fix sandbox security theater**
   `settings.json` has `sandbox.enabled: true` + `allowUnsandboxedCommands: true`, and every project overrides to `enabled: false`. Either commit to sandboxing (set `allowUnsandboxedCommands: false`) or disable globally. Current state is noise.
 
-- [ ] **1.5 Deduplicate CLAUDE.md and code-style.md**
+- [x] **1.5 Deduplicate CLAUDE.md and code-style.md**
   DRY, "explicit > clever", "engineered enough", and testing importance appear in both files. Since code-style.md is @-included, both are always in context. Keep philosophy in CLAUDE.md, concrete rules in code-style.md. Add one-liner to code-style.md: "Implements the engineering principles defined in CLAUDE.md."
 
-- [ ] **1.6 Delete stale project-level code-style.md copies**
+- [x] **1.6 Delete stale project-level code-style.md copies**
   `deck_benchmarks/.claude/rules/code-style.md` (109 lines) and `portco_insights/.claude/rules/code-style.md` (109 lines) are old verbose versions that diverge from the current 48-line global version. They shadow global rules. Delete both.
 
 ---
 
 ## Tier 2: Disk & Hygiene (~2 GB reclaimable)
 
-- [ ] **2.1 Purge old debug logs (>14 days)**
+- [x] **2.1 Purge old debug logs (>14 days)**
   264 files, ~195 MB. Purely diagnostic, no functional purpose after session ends. Safe to delete.
   ```bash
   find ~/.claude/debug -name "*.txt" -mtime +14 -delete
   ```
 
-- [ ] **2.2 Delete the 50 MB Chrome retry log**
+- [x] **2.2 Delete the 50 MB Chrome retry log**
   `~/.claude/debug/53b8bf85*.txt` — 19-hour session where 12,187 of 12,194 lines are Chrome bridge auth retry loops. 16% of entire debug directory in one file.
 
-- [ ] **2.3 Purge failed telemetry (9.6 MB)**
+- [x] **2.3 Purge failed telemetry (9.6 MB)**
   All 24 files in `~/.claude/telemetry/` are `1p_failed_events` that will never be retransmitted.
   ```bash
   rm -rf ~/.claude/telemetry/*
   ```
 
-- [ ] **2.4 Clean empty session artifacts**
+- [x] **2.4 Clean empty session artifacts**
   858 of 898 todo files are empty `[]`. 460 session-env dirs are completely empty. 107 stale empty task lock files. ~1,400 dead filesystem entries.
   ```bash
   find ~/.claude/todos -name "*.json" -empty -delete
@@ -57,8 +57,8 @@ Audit date: 2026-03-20. Generated from 4 parallel analysis agents scanning all o
   - `boardroom-ai-wt-agents` (623 MB)
   - `deck-benchmarks-wt-api` (44 MB)
 
-- [ ] **2.6 Investigate plugin cache bloat (510 MB)**
-  `~/.claude/plugins/cache/` is 510 MB. Check if old plugin versions are being retained unnecessarily.
+- [x] **2.6 Investigate plugin cache bloat (510 MB)**
+  `~/.claude/plugins/cache/` is 510 MB. episodic-memory is 92% (471MB). ~213MB recoverable from dev deps + wrong-platform binaries. Root cause: `npm install` includes devDependencies.
 
 - [ ] **2.7 Create a cleanup cron or session-exit hook**
   Automate debug log rotation (7-day retention), empty artifact cleanup, and stale telemetry purge. Prevents re-accumulation. Could be a Stop hook or a weekly cron.
@@ -73,16 +73,16 @@ Audit date: 2026-03-20. Generated from 4 parallel analysis agents scanning all o
 - [ ] **3.2 Deduplicate browser/E2E skills (extract browser-patterns)**
   React-safe fill pattern and wait/retry patterns are copy-pasted across `browser-testing`, `e2e-qa-runner`, `e2e-test-writer`, `e2e-testing`. Extract into a shared `browser-patterns` reference file. Target: eliminate 200-300 duplicated lines.
 
-- [ ] **3.3 Strip garry-review of duplicated engineering preferences**
+- [x] **3.3 Strip garry-review of duplicated engineering preferences**
   Re-enumerates preferences already in CLAUDE.md and code-style.md. Keep only its unique value: the BIG CHANGE/SMALL CHANGE interactive workflow and review structure template. Replace duplicated preferences with "Apply all standards from CLAUDE.md and code-style.md."
 
 - [ ] **3.4 Reassess autocompact threshold after skill size reductions**
   Currently `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=60`. Sessions hit 108-124K tokens before compaction. 15 frustrated back-to-back `/compact` attempts observed. After reducing skill sizes (3.1-3.3), evaluate whether 60% is still right or bump to 65-70%.
 
-- [ ] **3.5 Move lead-orchestrator subagent prompt templates to separate files**
-  At 753 lines, the skill contains full prompt templates inline that are only needed when spawning subagents. Load on demand to reduce initial token cost.
+- [x] **3.5 Move lead-orchestrator subagent prompt templates to separate files**
+  Extracted 5 templates to templates/ dir. SKILL.md reduced from 753→476 lines (37% reduction).
 
-- [ ] **3.6 Add explicit "Required Files" section to prd-writer**
+- [x] **3.6 Add explicit "Required Files" section to prd-writer**
   Skill references `references/` subdirectory files but the dependency chain is not obvious. Add a clear "Required Files" section at the top with full paths.
 
 ---
