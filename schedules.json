@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "pm-morning",
+      "name": "PM-OS Morning Triage",
+      "description": "Automated daily morning triage - scans Teams, Glean, JIRA for overnight activity and produces prioritized action report",
+      "enabled": true,
+      "trigger": {
+        "type": "cron",
+        "expression": "0 7 * * 1-5",
+        "timezone": "local"
+      },
+      "execution": {
+        "command": "Run /pm-morning for today. Write report and drafts.",
+        "workingDirectory": "/Users/yklin",
+        "timeout": 1800,
+        "skipPermissions": true
+      },
+      "tags": ["pm-os", "daily"],
+      "createdAt": "2026-02-23T01:00:00.000Z",
+      "updatedAt": "2026-02-23T01:00:00.000Z"
+    },
+    {
+      "id": "pm-jira",
+      "name": "PM-OS JIRA Monitor",
+      "description": "Automated JIRA/Confluence monitoring - tracks ticket status changes, new comments, and sprint progress",
+      "enabled": true,
+      "trigger": {
+        "type": "cron",
+        "expression": "0 9 * * 1-5",
+        "timezone": "local"
+      },
+      "execution": {
+        "command": "Run /pm-jira for today. Write report and drafts.",
+        "workingDirectory": "/Users/yklin",
+        "timeout": 1800,
+        "skipPermissions": true
+      },
+      "tags": ["pm-os", "daily"],
+      "createdAt": "2026-02-23T01:00:00.000Z",
+      "updatedAt": "2026-02-23T01:00:00.000Z"
+    },
+    {
+      "id": "pm-weekly",
+      "name": "PM-OS Weekly Email",
+      "description": "Automated weekly summary email for ELT - synthesizes week activity into executive briefing",
+      "enabled": true,
+      "trigger": {
+        "type": "cron",
+        "expression": "0 16 * * 5",
+        "timezone": "local"
+      },
+      "execution": {
+        "command": "Run /pm-weekly for this week. Write report and drafts.",
+        "workingDirectory": "/Users/yklin",
+        "timeout": 2700,
+        "skipPermissions": true
+      },
+      "tags": ["pm-os", "weekly"],
+      "createdAt": "2026-02-23T01:00:00.000Z",
+      "updatedAt": "2026-02-23T01:00:00.000Z"
+    },
+    {
+      "id": "pm-pulse-reminder",
+      "name": "PM-OS Pulse Reminder",
+      "description": "Biweekly reminder to fill Oracle Pulse NPS survey",
+      "enabled": true,
+      "trigger": {
+        "type": "cron",
+        "expression": "0 9 1,15 * *",
+        "timezone": "local"
+      },
+      "execution": {
+        "command": "Notify user: Time to fill Oracle Pulse NPS survey. Run /pm-pulse when ready.",
+        "workingDirectory": "/Users/yklin",
+        "timeout": 30,
+        "skipPermissions": false
+      },
+      "tags": ["pm-os", "biweekly"],
+      "createdAt": "2026-02-23T01:00:00.000Z",
+      "updatedAt": "2026-02-23T01:00:00.000Z"
+    }
+  ],
+  "settings": {
+    "defaultTimezone": "local",
+    "logRetentionDays": 30,
+    "maxExecutionHistory": 100
+  }
+}

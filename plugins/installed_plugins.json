@@ -1,0 +1,219 @@
+{
+  "version": 2,
+  "plugins": {
+    "superpowers@superpowers-marketplace": [
+      {
+        "scope": "user",
+        "installPath": "/Users/yklin/.claude/plugins/cache/superpowers-marketplace/superpowers/4.0.3",
+        "version": "4.0.3",
+        "installedAt": "2026-01-18T01:10:41.433Z",
+        "lastUpdated": "2026-01-18T01:10:41.433Z",
+        "gitCommitSha": "a08f088968d0789a44a4f5f5f7d8d6bbe46a0b44"
+      }
+    ],
+    "episodic-memory@superpowers-marketplace": [
+      {
+        "scope": "project",
+        "installPath": "/Users/yklin/.claude/plugins/cache/superpowers-marketplace/episodic-memory/1.0.15",
+        "version": "1.0.15",
+        "installedAt": "2026-01-19T03:49:47.677Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "6feaa5bd8752ae104c88d251e68ce19c30a1bd2f",
+        "projectPath": "/Users/yklin/Code/boardroom-ai"
+      }
+    ],
+    "pdlc-discovery@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-discovery/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:19:43.737Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "pdlc-orchestrator@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-orchestrator/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:21:19.740Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "pdlc-documentation@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-documentation/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:21:42.492Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "pdlc-implementation@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-implementation/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:22:00.863Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "pdlc-planning@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-planning/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:28:02.700Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "pdlc-security@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-security/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:28:37.957Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "pdlc-tar@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-tar/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:33:35.853Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "pdlc-quality@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-quality/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:34:21.638Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "pdlc-prd@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-prd/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:34:36.821Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "pdlc-operations@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-operations/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:35:04.692Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "pdlc-research@diligent-shared-marketplace": [
+      {
+        "scope": "local",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/diligent-shared-marketplace/pdlc-research/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-21T05:35:47.854Z",
+        "lastUpdated": "2026-03-17T19:41:46.222Z",
+        "gitCommitSha": "53202e5e10e5f2809633c3a47e722abdabb6c220"
+      }
+    ],
+    "product-management@pm-os-local": [
+      {
+        "scope": "user",
+        "installPath": "/Users/yklin/.claude/plugins/cache/pm-os-local/product-management/41aa620",
+        "version": "41aa620",
+        "installedAt": "2026-02-23T00:35:00.000Z",
+        "lastUpdated": "2026-02-23T00:35:00.000Z",
+        "gitCommitSha": "41aa620256750d1129d9ca973d4f6d8c99e33e7a"
+      }
+    ],
+    "scheduler@claude-scheduler": [
+      {
+        "scope": "user",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-scheduler/scheduler/0.2.0",
+        "version": "0.2.0",
+        "installedAt": "2026-02-23T00:38:44.264Z",
+        "lastUpdated": "2026-02-23T00:38:44.264Z",
+        "gitCommitSha": "f44464eacf7f159407aec0e7fe83a4d6f9d4e026"
+      }
+    ],
+    "pr-review-toolkit@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/pr-review-toolkit/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-03-13T23:30:00.000Z",
+        "lastUpdated": "2026-03-13T23:45:00.000Z",
+        "gitCommitSha": "b36fd4b753018b0b340803579399992a32e43502"
+      }
+    ],
+    "code-review@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/code-review/b36fd4b75301",
+        "version": "b36fd4b75301",
+        "installedAt": "2026-03-13T13:21:20.540Z",
+        "lastUpdated": "2026-03-13T13:21:20.540Z",
+        "gitCommitSha": "b36fd4b753018b0b340803579399992a32e43502"
+      }
+    ],
+    "typescript-lsp@claude-plugins-official": [
+      {
+        "scope": "project",
+        "projectPath": "/Users/yklin/Code/maple-web",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/typescript-lsp/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-03-17T03:26:09.624Z",
+        "lastUpdated": "2026-03-17T03:26:09.624Z",
+        "gitCommitSha": "d5c15b861cd23e3102215c26020368ad5134dc47"
+      }
+    ],
+    "csharp-lsp@claude-plugins-official": [
+      {
+        "scope": "project",
+        "projectPath": "/Users/yklin/Code/maple-web",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/csharp-lsp/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-03-17T03:26:42.097Z",
+        "lastUpdated": "2026-03-17T03:26:42.097Z",
+        "gitCommitSha": "d5c15b861cd23e3102215c26020368ad5134dc47"
+      }
+    ],
+    "pyright-lsp@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/pyright-lsp/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-03-17T03:26:59.139Z",
+        "lastUpdated": "2026-03-17T03:26:59.139Z",
+        "gitCommitSha": "d5c15b861cd23e3102215c26020368ad5134dc47"
+      }
+    ]
+  }
+}

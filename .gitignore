@@ -1,0 +1,55 @@
+# === Transient / session data (large, changes every session) ===
+debug/
+todos/
+session-env/
+file-history/
+paste-cache/
+telemetry/
+shell-snapshots/
+cache/
+stats-cache.json
+mcp-needs-auth-cache.json
+history.jsonl
+
+# Plans and tasks are session artifacts
+plans/
+tasks/
+
+# Plugin caches and cloned repos (reproducible from config)
+plugins/cache/
+plugins/repos/
+plugins/marketplaces/
+plugins/install-counts-cache.json
+
+# macOS junk
+.DS_Store
+
+# IDE metadata
+ide/
+
+# Chrome browser automation state
+chrome/
+
+# Session transcripts (per-project, contain conversation data)
+projects/
+
+# Downloads
+downloads/
+
+# Usage data
+usage-data/
+
+# Logs
+logs/
+
+# Statsig feature flag cache (runtime)
+statsig/
+
+# Auto-memory (per-project, auto-generated)
+.claude/
+
+# Bin (if auto-generated)
+bin/
+
+# Old pre-git backups (git handles versioning now)
+backups/
