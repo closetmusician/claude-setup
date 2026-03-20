@@ -185,8 +185,7 @@
     ],
     "typescript-lsp@claude-plugins-official": [
       {
-        "scope": "project",
-        "projectPath": "/Users/yklin/Code/maple-web",
+        "scope": "user",
         "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/typescript-lsp/1.0.0",
         "version": "1.0.0",
         "installedAt": "2026-03-17T03:26:09.624Z",
