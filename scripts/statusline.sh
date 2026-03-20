@@ -1,7 +1,9 @@
 #!/bin/bash
-# Claude Code custom status line
-# Reads JSON session data from stdin, outputs 2-line colored status bar
-# Requires: jq, Nerd Font in terminal, AWS CLI with SSO
+# ABOUTME: Claude Code custom status line script.
+# ABOUTME: Reads JSON session data from stdin, outputs 2-line colored status bar.
+# ABOUTME: Caches slow operations (git, AWS, du) at different TTLs.
+# ABOUTME: Requires: jq, Nerd Font in terminal, AWS CLI with SSO.
+# ABOUTME: Configured via settings.json statusLine.command.
 
 set -euo pipefail
 # Fallback: if anything fails, output a safe plain-text line
@@ -23,6 +25,23 @@ TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // ""')
 PROJECT_DIR=""
 [ -n "$TRANSCRIPT_PATH" ] && PROJECT_DIR=$(dirname "$TRANSCRIPT_PATH")
 
+# --- Session duration (cheap: one stat call per invocation) ---
+# Derive from transcript file birthtime (macOS stat -f %B = birth epoch)
+SESSION_DURATION=""
+if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
+    BIRTH_EPOCH=$(stat -f %B "$TRANSCRIPT_PATH" 2>/dev/null || echo 0)
+    if [ "$BIRTH_EPOCH" -gt 0 ]; then
+        ELAPSED=$(( $(date +%s) - BIRTH_EPOCH ))
+        if [ "$ELAPSED" -ge 3600 ]; then
+            SESSION_DURATION="$(( ELAPSED / 3600 ))h $(( (ELAPSED % 3600) / 60 ))m"
+        elif [ "$ELAPSED" -ge 60 ]; then
+            SESSION_DURATION="$(( ELAPSED / 60 ))m"
+        else
+            SESSION_DURATION="${ELAPSED}s"
+        fi
+    fi
+fi
+
 # --- Caching for slow external commands ---
 CACHE_FILE="/tmp/claude-statusline-cache"
 CACHE_MAX_AGE=5  # seconds
@@ -33,10 +52,15 @@ cache_is_stale() {
 }
 
 if cache_is_stale; then
-    # Git branch
+    # Git branch + dirty state (porcelain is fast: just checks index/worktree)
     BRANCH=""
+    GIT_DIRTY=""
     if git rev-parse --git-dir > /dev/null 2>&1; then
         BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+        # head -1 + timeout via pipe avoids scanning huge repos
+        if [ -n "$(git status --porcelain 2>/dev/null | head -1)" ]; then
+            GIT_DIRTY="*"
+        fi
     fi
 
     # AWS profile name
@@ -85,20 +109,48 @@ if cache_is_stale; then
         [ "$AGENT_COUNT" -gt 0 ] && AGENTS="${AGENT_COUNT}:${MAX_PCT}"
     fi
 
-    # Write cache: pipe-delimited single line
-    echo "${BRANCH}|${AWS_PROF}|${AWS_EXPIRY}|${AGENTS}" > "$CACHE_FILE"
+    # Write cache: pipe-delimited single line (5 fields, 4 pipes)
+    echo "${BRANCH}|${AWS_PROF}|${AWS_EXPIRY}|${AGENTS}|${GIT_DIRTY}" > "$CACHE_FILE"
 fi
 
 # Read cached values
-IFS='|' read -r BRANCH AWS_PROF AWS_EXPIRY AGENTS < "$CACHE_FILE"
+IFS='|' read -r BRANCH AWS_PROF AWS_EXPIRY AGENTS GIT_DIRTY < "$CACHE_FILE"
 
-# Validate cache wasn't corrupted (should have exactly 3 pipe chars)
-if [ "$(tr -cd '|' < "$CACHE_FILE" | wc -c | tr -d ' ')" -ne 3 ]; then
+# Validate cache wasn't corrupted (should have exactly 4 pipe chars)
+if [ "$(tr -cd '|' < "$CACHE_FILE" | wc -c | tr -d ' ')" -ne 4 ]; then
     rm -f "$CACHE_FILE"
     BRANCH=""
     AWS_PROF=""
     AWS_EXPIRY=""
     AGENTS=""
+    GIT_DIRTY=""
+fi
+
+# --- Slow cache for expensive disk operations (60s TTL) ---
+SLOW_CACHE="/tmp/claude-statusline-slow-cache"
+SLOW_CACHE_AGE=60  # seconds
+
+slow_cache_is_stale() {
+    [ ! -f "$SLOW_CACHE" ] || \
+    [ $(($(date +%s) - $(stat -f %m "$SLOW_CACHE" 2>/dev/null || echo 0))) -gt $SLOW_CACHE_AGE ]
+}
+
+if slow_cache_is_stale; then
+    # ~/.claude total disk usage (~580ms on 3.5GB)
+    DISK_USAGE=$(du -sh "$HOME/.claude" 2>/dev/null | cut -f1 | tr -d ' ')
+    # Debug log accumulation (~37ms)
+    DEBUG_SIZE=$(du -sh "$HOME/.claude/debug" 2>/dev/null | cut -f1 | tr -d ' ')
+
+    echo "${DISK_USAGE}|${DEBUG_SIZE}" > "$SLOW_CACHE"
+fi
+
+IFS='|' read -r DISK_USAGE DEBUG_SIZE < "$SLOW_CACHE"
+
+# Validate slow cache (should have exactly 1 pipe)
+if [ "$(tr -cd '|' < "$SLOW_CACHE" | wc -c | tr -d ' ')" -ne 1 ]; then
+    rm -f "$SLOW_CACHE"
+    DISK_USAGE=""
+    DEBUG_SIZE=""
 fi
 
 # --- Nerd Font Icons (defined via hex escapes to avoid encoding issues) ---
@@ -109,13 +161,15 @@ IC_BRANCH=$(printf '\xEE\x82\xA0')  # U+E0A0 nf-dev-git_branch
 IC_AWS=$(printf '\xEF\x83\x82')     # U+F0C2 nf-fa-cloud
 IC_CLOCK=$(printf '\xEF\x80\x97')   # U+F017 nf-fa-clock_o
 IC_AGENTS=$(printf '\xEF\x82\xAE') # U+F0AE nf-fa-tasks
+IC_TIMER=$(printf '\xEF\x89\xB2')  # U+F272 nf-fa-hourglass_half
+IC_DISK=$(printf '\xEF\x87\x80')   # U+F1C0 nf-fa-database
 
 # --- Output Line 1 ---
 LINE1="${IC_MODEL} $MODEL  ${IC_SESSION} $SESSION_ID │ ${IC_DIR} $DIR_NAME"
 
-# Append git branch if available
+# Append git branch if available (with dirty indicator)
 if [ -n "$BRANCH" ]; then
-    LINE1="${LINE1} │ ${IC_BRANCH} $BRANCH"
+    LINE1="${LINE1} │ ${IC_BRANCH} ${BRANCH}${GIT_DIRTY}"
 fi
 
 # Append AWS profile if available
@@ -194,9 +248,27 @@ else
     AWS_TIMER="${IC_CLOCK} no session"
 fi
 
+# --- Session Duration Display ---
+SESSION_OUT=""
+if [ -n "$SESSION_DURATION" ]; then
+    SESSION_OUT="${IC_TIMER} ${SESSION_DURATION}"
+fi
+
+# --- Disk Health Display (warning-only for large sizes, always compact) ---
+DISK_OUT=""
+if [ -n "$DISK_USAGE" ]; then
+    DISK_OUT="${IC_DISK} ${DISK_USAGE}"
+    # Highlight in yellow if debug logs > 200M (numeric prefix extraction)
+    DEBUG_NUM=$(echo "$DEBUG_SIZE" | sed 's/[^0-9.]//g')
+    DEBUG_UNIT=$(echo "$DEBUG_SIZE" | sed 's/[0-9.]//g')
+    if [ "$DEBUG_UNIT" = "G" ] || { [ "$DEBUG_UNIT" = "M" ] && [ "${DEBUG_NUM%%.*}" -ge 200 ] 2>/dev/null; }; then
+        DISK_OUT="${YELLOW}${IC_DISK} ${DISK_USAGE} (dbg:${DEBUG_SIZE})${RESET}"
+    fi
+fi
+
 # --- Output Line 2 ---
 # Zone color wraps the bar + percentage + emoji + cost
-# AWS timer has its own independent color
+# Session duration and disk health append after AWS timer
 AWS_TIMER_OUT=""
 if [ -n "$AWS_TIMER_COLOR" ]; then
     AWS_TIMER_OUT="${AWS_TIMER_COLOR}${AWS_TIMER}${RESET}"
@@ -204,4 +276,19 @@ else
     AWS_TIMER_OUT="${AWS_TIMER}"
 fi
 
-printf '%b' "${ZONE_COLOR}${BAR} ${PCT}% ${ZONE_EMOJI} │ ${COST_FMT}${RESET} │ ${AWS_TIMER_OUT}\n"
+LINE2="${ZONE_COLOR}${BAR} ${PCT}% ${ZONE_EMOJI} │ ${COST_FMT}${RESET}"
+
+# Append session duration if available
+if [ -n "$SESSION_OUT" ]; then
+    LINE2="${LINE2} │ ${SESSION_OUT}"
+fi
+
+# Append disk health if available
+if [ -n "$DISK_OUT" ]; then
+    LINE2="${LINE2} │ ${DISK_OUT}"
+fi
+
+# Append AWS timer
+LINE2="${LINE2} │ ${AWS_TIMER_OUT}"
+
+printf '%b' "${LINE2}\n"
