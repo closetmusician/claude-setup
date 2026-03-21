@@ -74,7 +74,8 @@
     "product-management@pm-os-local": false,
     "scheduler@claude-scheduler": false,
     "pyright-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true
+    "typescript-lsp@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true
   },
   "sandbox": {
     "enabled": true,

@@ -176,12 +176,12 @@
     "code-review@claude-plugins-official": [
       {
         "scope": "project",
+        "projectPath": "/Users/yklin/Code/deck_benchmarks",
         "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/code-review/b36fd4b75301",
         "version": "b36fd4b75301",
         "installedAt": "2026-03-13T13:21:20.540Z",
         "lastUpdated": "2026-03-20T20:34:46.681Z",
-        "gitCommitSha": "b36fd4b753018b0b340803579399992a32e43502",
-        "projectPath": "/Users/yklin/Code/deck_benchmarks"
+        "gitCommitSha": "b36fd4b753018b0b340803579399992a32e43502"
       }
     ],
     "typescript-lsp@claude-plugins-official": [
@@ -213,6 +213,16 @@
         "installedAt": "2026-03-17T03:26:59.139Z",
         "lastUpdated": "2026-03-17T03:26:59.139Z",
         "gitCommitSha": "d5c15b861cd23e3102215c26020368ad5134dc47"
+      }
+    ],
+    "code-simplifier@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/code-simplifier/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-03-21T21:38:01.911Z",
+        "lastUpdated": "2026-03-21T21:38:01.911Z",
+        "gitCommitSha": "90accf6fd2008fe0ee9578ebc088740c3a754d58"
       }
     ]
   }
