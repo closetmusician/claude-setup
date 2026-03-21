@@ -36,7 +36,8 @@ fi
 # text like 'git add -A' inside commit messages or echo output.
 # Replace <<'EOF'...EOF (and <<EOF...EOF) blocks with a placeholder,
 # then strip double-quoted and single-quoted strings.
-STRIPPED=$(echo "$CMD" | sed '/<<['\'']*EOF/,/^EOF/c\__HEREDOC__' | sed "s/\"[^\"]*\"/__STR__/g; s/'[^']*'/__STR__/g")
+# macOS BSD sed requires newline after c\ -- use perl for portability.
+STRIPPED=$(echo "$CMD" | perl -0777 -pe "s/<<'?EOF'?.*?^EOF\$/__HEREDOC__/gms" | sed "s/\"[^\"]*\"/__STR__/g; s/'[^']*'/__STR__/g")
 
 # --- Banned pattern checks ---
 # Each check outputs a deny decision via JSON on stdout and exits 2.
@@ -89,6 +90,20 @@ fi
 if echo "$STRIPPED" | grep -qE '\bgit\s+restore\s+\.\s*(;|$|&&|\|)'; then
   deny_and_exit "Banned: 'git restore .' discards all unstaged changes. Be specific about which files to restore."
 fi
+
+# 6. Protected files -- block rm/git rm of critical ~/.claude/ files
+PROTECTED_FILES=(
+  "vibe-manual.md"
+  "vibe-protocol.md"
+  "code-style.md"
+  "protected-files.md"
+  "CLAUDE.md"
+)
+for pf in "${PROTECTED_FILES[@]}"; do
+  if echo "$STRIPPED" | grep -qE "(rm|git\s+rm)\s.*$pf"; then
+    deny_and_exit "Banned: '$pf' is a protected file (see ~/.claude/rules/protected-files.md). Cannot delete."
+  fi
+done
 
 # All checks passed -- allow the command.
 exit 0

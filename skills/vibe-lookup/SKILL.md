@@ -8,7 +8,7 @@ You are being asked to look up information from the VIBE protocol.
 
 ## Instructions
 
-1. Read the full VIBE manual at `docs/plans/vibe-manual.md`
+1. Read the full VIBE manual at `~/.claude/docs/vibe-manual.md`
 2. Read the quick reference at `.claude/rules/vibe-protocol.md`
 3. Answer the user's question about:
    - Hard gates and rules (R0-R15)

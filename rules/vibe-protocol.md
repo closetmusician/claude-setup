@@ -1,6 +1,6 @@
 # VIBE Protocol Core Rules
 
-> Full reference: `docs/vibe-manual.md` — read before building features and tasks, setting up worktrees, writing QA artifacts, or needing templates, etc. 
+> Full reference: `~/.claude/docs/vibe-manual.md` — read before building features and tasks, setting up worktrees, writing QA artifacts, or needing templates, etc.
 
 ---
 
