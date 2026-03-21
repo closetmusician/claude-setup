@@ -14,12 +14,12 @@
     "episodic-memory@superpowers-marketplace": [
       {
         "scope": "project",
+        "projectPath": "/Users/yklin/Code/deck_benchmarks",
         "installPath": "/Users/yklin/.claude/plugins/cache/superpowers-marketplace/episodic-memory/1.0.15",
         "version": "1.0.15",
         "installedAt": "2026-01-19T03:49:47.677Z",
-        "lastUpdated": "2026-03-17T19:41:46.222Z",
-        "gitCommitSha": "6feaa5bd8752ae104c88d251e68ce19c30a1bd2f",
-        "projectPath": "/Users/yklin/Code/boardroom-ai"
+        "lastUpdated": "2026-03-20T20:34:46.681Z",
+        "gitCommitSha": "6feaa5bd8752ae104c88d251e68ce19c30a1bd2f"
       }
     ],
     "pdlc-discovery@diligent-shared-marketplace": [
@@ -175,12 +175,13 @@
     ],
     "code-review@claude-plugins-official": [
       {
-        "scope": "user",
+        "scope": "project",
         "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/code-review/b36fd4b75301",
         "version": "b36fd4b75301",
         "installedAt": "2026-03-13T13:21:20.540Z",
-        "lastUpdated": "2026-03-13T13:21:20.540Z",
-        "gitCommitSha": "b36fd4b753018b0b340803579399992a32e43502"
+        "lastUpdated": "2026-03-20T20:34:46.681Z",
+        "gitCommitSha": "b36fd4b753018b0b340803579399992a32e43502",
+        "projectPath": "/Users/yklin/Code/deck_benchmarks"
       }
     ],
     "typescript-lsp@claude-plugins-official": [
