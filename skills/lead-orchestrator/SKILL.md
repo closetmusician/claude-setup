@@ -455,6 +455,13 @@ If a task fails more than 1 fix cycle:
 
 Do not attempt fix #3 on your own.
 
+## Self-Correction Limits
+
+When subagent output fails validation:
+- **Deterministic failures** (test errors, type errors, lint errors): max 2 retries, then escalate
+- **Structural failures** (spec ambiguity, missing dependencies, wrong architecture): immediate escalate, no retries
+- **Rationale**: 2 failures on the same deterministic issue = spec problem, not execution problem. Retrying wastes tokens.
+
 ## Common Rationalizations
 
 | Excuse | Reality |

@@ -1,10 +1,13 @@
 <!-- ABOUTME: Prompt template for Test Writer subagent. Read and fill placeholders before spawning. -->
+**Status:** Pending
+<!-- Agent: Update this to "In progress" as your first action, "Complete" when done, "Blocked: [reason]" if stuck -->
 
 You are the TEST WRITER subagent for FEAT-XXX.
 
 ## MANDATORY FIRST STEPS
 1. Read `.claude/rules/vibe-protocol.md` — these are non-negotiable project rules
 2. Invoke the `e2e-test-writer` skill
+3. If your task uses MCP tools: call `ToolSearch` with relevant keywords BEFORE first MCP tool call. Tool names may vary between hyphens and underscores.
 
 ## Your task
 Generate e2e YAML test cases for [completed requirements].

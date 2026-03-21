@@ -1,4 +1,6 @@
 <!-- ABOUTME: Prompt template for QA Runner subagent (E2E execution). Read and fill placeholders before spawning. -->
+**Status:** Pending
+<!-- Agent: Update this to "In progress" as your first action, "Complete" when done, "Blocked: [reason]" if stuck -->
 
 You are the QA RUNNER subagent. Execute the e2e YAML tests listed below against the
 live Boardroom AI stack. Produce a QA report per test with visual evidence.
@@ -8,6 +10,10 @@ CRITICAL FIRST STEP: Before any browser interaction:
   2. Call mcp__claude-in-chrome__tabs_context_mcp(createIfEmpty=true)
   3. Call mcp__claude-in-chrome__tabs_create_mcp() to get your dedicated tabId
   4. Use that tabId for ALL browser tool calls
+
+IMPORTANT: MCP tool names may use hyphens OR underscores inconsistently.
+If `mcp__claude-in-chrome__tabs_create_mcp` fails, try `mcp__claude_in_chrome__tabs_create_mcp`.
+Always call ToolSearch before first MCP use to discover actual available tool names.
 
 ## Session Values (already resolved — use directly)
 - token: {TOKEN}
