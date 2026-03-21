@@ -27,6 +27,46 @@
 19. **R18 Real Testing Mandate** -- All tests MUST hit real DB (`SavepointConnection` from `conftest.py`) and real APIs where feasible (Anthropic haiku for agent integration). No mocks on internal modules — only mock external HTTP services (Resend, external URLs). If a test mocks an entire core dependency, that is a **P0 reject**. Test output must be pristine — no warnings, no uncaptured expected errors. NEVER use `git stash` in parallel agents (clobbers other agents' uncommitted work).
 
 ---
+## 0.1 VIBE Levels — Tiered Enforcement
+
+Not every repo needs full ceremony. Set `"vibe_level": "full"` or `"light"` in `.claude/phase.json`.
+If the field is absent, default to `"light"`.
+
+### `full` — Production Applications
+**Use for:** boardroom-ai, deck_benchmarks, any repo with FE/BE split, database, or user-facing features.
+All 19 rules (R0-R18) enforced. 2 QA cycles mandatory. Spec wall, API contract-first, phase gate enforcement, dependency verification all active.
+
+### `light` — Tooling, Scripts, Config
+**Use for:** ~/.claude, standalone scripts, CLI tools, config-only repos, internal tooling without FE/BE split.
+Enforced gates:
+- **R0 Zero Assumption Policy** — still ask when ambiguous
+- **R2 TDD Mandate** — write test first, always
+- **R6 Auto-Commit** — commit after task completion
+- **R9 Real Testing Mandate** — no mocking internal modules (where applicable)
+- **Code review** — 1 pass sufficient (no 2-cycle requirement)
+- **Git hygiene** — no force-push, no skipping hooks
+
+Skipped gates:
+- R1 Spec Wall (no `docs/prd/features/` requirement)
+- R3 Mock-First Parallelism (no FE/BE split)
+- R4 2 QA Cycles (1 review pass sufficient)
+- R5 Phase Gate Enforcement (no `.claude/phase.json` phase checks)
+- R7 Per-Task Subagent Lifecycle (direct implementation allowed)
+- R8 Role Separation (same agent can implement and review)
+- R16 API Contract-First (no cross-boundary data flows)
+- R17 Dependency Verification (best-effort, not a hard blocker)
+
+### Choosing a Level
+| Signal | Level |
+|--------|-------|
+| Has `docs/prd/` or `docs/contracts/` | `full` |
+| Has database migrations | `full` |
+| Has FE + BE directories | `full` |
+| Is a dotfiles/config repo | `light` |
+| Is a standalone script or CLI | `light` |
+| Fewer than 5 source files | `light` |
+
+---
 ## 1. Context Detection (Start Here)
 Determine your environment from git state:
 

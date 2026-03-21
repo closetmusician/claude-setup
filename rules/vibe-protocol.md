@@ -19,6 +19,28 @@
 
 ---
 
+## 0.1 VIBE Levels
+
+Set `"vibe_level"` in `.claude/phase.json`. Default: `"light"` if field absent.
+
+| Gate | `full` | `light` |
+|------|--------|---------|
+| R0 Zero Assumption Policy | Yes | Yes |
+| R1 Spec Wall | **Yes** | No |
+| R2 TDD Mandate | Yes | Yes |
+| R3 Mock-First Parallelism | Yes | N/A (no FE/BE split) |
+| R4 2 QA Cycles | **Yes (2)** | 1 code review pass |
+| R5 Phase Gate Enforcement | **Yes** | No |
+| R6 Auto-Commit | Yes | Yes |
+| R7 API Contract-First | **Yes** | No |
+| R8 Dependency Verification | Yes | Best-effort |
+| R9 Real Testing Mandate | Yes | Yes (where applicable) |
+
+**`full`** — Production apps (boardroom-ai, deck_benchmarks). All gates enforced.
+**`light`** — Tooling, scripts, config repos (~/.claude). TDD + code review + git hygiene. No spec wall, no phase gates, no API contracts, no 2 QA cycles.
+
+---
+
 ## 1. Context Detection
 
 Determine role from git state:

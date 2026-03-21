@@ -13,6 +13,20 @@ The orchestrator spawns dedicated subagent pairs (coder → QA), tracks their ar
 
 **Core principle:** Your only tools are Task (to spawn subagents), Read (to verify artifacts), and AskUserQuestion (to escalate). If you're about to Edit/Write code files, you've violated your role. Exception: E2E Suite Mode allows Bash for lifecycle commands (setup, teardown, discovery) — see below.
 
+## VIBE Level Detection
+
+Before orchestrating, check `.claude/phase.json` for the `"vibe_level"` field:
+- `"full"` — all gates enforced (2 QA cycles, spec wall, phase gates, API contracts)
+- `"light"` — TDD + 1 code review pass + git hygiene; skip QA Cycle 2, spec wall, phase gate enforcement
+- **Default:** If `"vibe_level"` is absent, treat as `"light"`
+
+At `light` level:
+- **Skip QA Cycle 2** — 1 review pass (Cycle 1) is sufficient for task completion
+- **Skip spec wall checks** — no `docs/prd/features/` requirement
+- **Skip phase gate enforcement** — do not block on `.claude/phase.json` phase value
+- **Skip API contract verification** — no `docs/contracts/` requirement
+- **Subagent pairs simplified** — coder + 1 QA pass, not coder + QA C1 + QA C2
+
 ## The Iron Law
 
 ```
@@ -340,6 +354,8 @@ digraph orchestration {
 
 **STOP boundaries are mandatory.** After spawning a subagent, you wait for its artifact before proceeding.
 
+**Light-level shortcut:** When `vibe_level` is `"light"` (or absent), the loop reduces to: Spawn CODER → wait for `T-XXX-ready-for-review.md` → Spawn QA (Cycle 1 only) → wait for `T-XXX-cycle-1.md` → if PASS, task complete. Skip Cycle 2 entirely. Skip spec wall and phase gate checks.
+
 ### Integration with E2E Gates
 
 At JTBD/milestone and FEAT boundaries, the orchestration loop triggers E2E Suite Mode:
@@ -387,6 +403,8 @@ At FEAT completion, verify these exist:
 | `qa/e2e/*-report.md` | QA Runner | Per-test reports |
 | `qa/e2e/screenshots/*.png` | QA Runner | Visual evidence |
 | `qa/e2e/suite-*-{timestamp}.md` | Orchestrator | Consolidated report |
+
+**Status tracking:** Orchestrator sets Status to "Pending" in template before dispatch. Agents update to "In progress" immediately, then "Complete" or "Blocked". For crash recovery, cross-reference artifact Status with tracker.
 
 **No artifact = No proceed.** Do not spawn next subagent until previous artifact is committed.
 
