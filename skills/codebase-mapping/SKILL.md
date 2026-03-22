@@ -35,6 +35,18 @@ Use this skill when:
 
 ## Workflow
 
+### Step 0: Generate Repomap (Optional)
+
+Before any exploration, generate a git-activity-ranked structural summary to give agents a "lay of the land". This highlights the most actively developed files and their structure, so agents can prioritize exploration.
+
+```bash
+python ~/.claude/scripts/generate-repomap.py --repo {project_path} --max-lines 200 --days 90
+```
+
+- The output shows files ranked by recent commit frequency with extracted class/function definitions
+- Include this output in code-explorer agent prompts as initial context (prefix with "Here is a repomap of the most active files:")
+- If the script fails (not a git repo, no activity, Python not available), proceed without it -- this step is purely additive
+
 ### Step 1: Context Gathering
 
 Before spawning agents, gather context:
