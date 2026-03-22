@@ -354,6 +354,15 @@ digraph orchestration {
 
 **STOP boundaries are mandatory.** After spawning a subagent, you wait for its artifact before proceeding.
 
+### P1 Enforcement at QA Boundary
+
+After QA Cycle 1:
+- **P0 bugs**: MUST fix before QA Cycle 2 (existing behavior — loop back through coder)
+- **P1 bugs**: SHOULD fix before QA Cycle 2. Spawn coder to fix, then re-run QA Cycle 1 on fixes only.
+- **P2 bugs**: Log to `docs/backlog.md`, proceed to QA Cycle 2
+
+Skip P1 enforcement for: single-file bug fixes, config-only changes, documentation-only changes.
+
 **Light-level shortcut:** When `vibe_level` is `"light"` (or absent), the loop reduces to: Spawn CODER → wait for `T-XXX-ready-for-review.md` → Spawn QA (Cycle 1 only) → wait for `T-XXX-cycle-1.md` → if PASS, task complete. Skip Cycle 2 entirely. Skip spec wall and phase gate checks.
 
 ### Integration with E2E Gates

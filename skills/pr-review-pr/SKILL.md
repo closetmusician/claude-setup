@@ -45,15 +45,16 @@ Run a comprehensive pull request review using multiple specialized agents, each 
 
 5. **Launch Review Agents**
 
-   **Sequential approach** (one at a time):
-   - Easier to understand and act on
-   - Each report is complete before next
-   - Good for interactive review
+   **Default: Sequential dispatch** (fix findings between reviewers):
+   - Run Reviewer/Persona 1 → address all P0/P1 findings
+   - Run Reviewer/Persona 2 → address all P0/P1 findings
+   - Run final simplifier pass
+   - This prevents Reviewer 2 from flagging issues that Reviewer 1's fixes would have resolved
 
-   **Parallel approach** (user can request):
+   **Parallel dispatch** (only when explicitly requested or skills are independent):
    - Launch all agents simultaneously
-   - Faster for comprehensive review
-   - Results come back together
+   - Appropriate when review skills examine non-overlapping concerns
+   - User must request with: `/pr-review-pr all parallel`
 
 6. **Aggregate Results**
 
