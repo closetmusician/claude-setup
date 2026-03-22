@@ -1,8 +1,6 @@
 # VIBE CODE PROTOCOL: Spec-Driven TDD with Per-Task Orchestration
 
-> **Purpose:** Run Yu-Kuan's project end-to-end using spec-driven + TDD workflow with **per-task subagent pairs** (coder+QA) to prevent context exhaustion and loop stalls.
-> **Primary objective:** Ship correct software with high confidence, minimal thrash, and strict process discipline.
-> **Key change:** Spawn dedicated subagent pairs per T-XXX task (not per feature), commit after each task passes QA.
+> Spec-driven TDD with per-task subagent pairs (coder+QA). Ship correct software with high confidence, minimal thrash, strict process discipline. Spawn dedicated pairs per T-XXX (not per feature), commit after each task passes QA.
 
 ---
 ## 0. Rule Index (Hard Gates)
@@ -29,42 +27,24 @@
 ---
 ## 0.1 VIBE Levels — Tiered Enforcement
 
-Not every repo needs full ceremony. Set `"vibe_level": "full"` or `"light"` in `.claude/phase.json`.
-If the field is absent, default to `"full"`.
+Set `"vibe_level": "full"` or `"light"` in `.claude/phase.json`. Default: `"full"`.
 
-### `full` — Production Applications
-**Use for:** boardroom-ai, deck_benchmarks, any repo with FE/BE split, database, or user-facing features.
-All 19 rules (R0-R18) enforced. 2 QA cycles mandatory. Spec wall, API contract-first, phase gate enforcement, dependency verification all active.
+- **`full`** — Production apps (FE/BE split, database, user-facing). All R0-R18 enforced.
+- **`light`** — Tooling, scripts, config repos, <5 source files. TDD + code review + git hygiene.
 
-### `light` — Tooling, Scripts, Config
-**Use for:** ~/.claude, standalone scripts, CLI tools, config-only repos, internal tooling without FE/BE split.
-Enforced gates:
-- **R0 Zero Assumption Policy** — still ask when ambiguous
-- **R2 TDD Mandate** — write test first, always
-- **R6 Auto-Commit** — commit after task completion
-- **R9 Real Testing Mandate** — no mocking internal modules (where applicable)
-- **Code review** — 1 pass sufficient (no 2-cycle requirement)
-- **Git hygiene** — no force-push, no skipping hooks
-
-Skipped gates:
-- R1 Spec Wall (no `docs/prd/features/` requirement)
-- R3 Mock-First Parallelism (no FE/BE split)
-- R4 2 QA Cycles (1 review pass sufficient)
-- R5 Phase Gate Enforcement (no `.claude/phase.json` phase checks)
-- R7 Per-Task Subagent Lifecycle (direct implementation allowed)
-- R8 Role Separation (same agent can implement and review)
-- R16 API Contract-First (no cross-boundary data flows)
-- R17 Dependency Verification (best-effort, not a hard blocker)
-
-### Choosing a Level
-| Signal | Level |
-|--------|-------|
-| Has `docs/prd/` or `docs/contracts/` | `full` |
-| Has database migrations | `full` |
-| Has FE + BE directories | `full` |
-| Is a dotfiles/config repo | `light` |
-| Is a standalone script or CLI | `light` |
-| Fewer than 5 source files | `light` |
+| Rule | `full` | `light` |
+|------|--------|---------|
+| R0 Zero Assumption | Yes | Yes |
+| R1 Spec Wall | Yes | Skip |
+| R2 TDD Mandate | Yes | Yes |
+| R3 Mock-First Parallelism | Yes | Skip (no FE/BE) |
+| R4 2 QA Cycles | Yes (2) | 1 review pass |
+| R5 Phase Gates | Yes | Skip |
+| R6 Auto-Commit | Yes | Yes |
+| R7 Per-Task Subagent | Yes | Skip (direct impl) |
+| R8 Role Separation | Yes | Skip (same agent) |
+| R9-R18 (remaining) | Yes | R18 Real Testing: Yes; R16 Contract, R17 Deps: best-effort; others: skip |
+| Git hygiene | Yes | Yes (no force-push, no skipping hooks) |
 
 ---
 ## 1. Context Detection (Start Here)
@@ -77,10 +57,8 @@ Determine your environment from git state:
 
 ---
 ## 2. Phase Gate System
-Use `.claude/phase.json` to enforce workflow progression:
-```json
-{ "phase": "DISCOVERY" }
-```
+Use `.claude/phase.json` (e.g., `{ "phase": "DISCOVERY" }`) to enforce workflow progression:
+
 | Phase | Allowed Actions |
 |-------|-----------------|
 | `DISCOVERY` | Interview, read-only analysis, docs/specs only |
@@ -97,8 +75,8 @@ Makefile                     # Standard commands (test, lint, format, etc.)
 .claude/
   phase.json                 # Workflow phase gate
 docs/
-  prd/benchmarking-prototype-master-prd.md    # Master PRD
-  arch/benchmarking-prototype-architecture.md  # System architecture + API contracts
+  prd/<project>-master-prd.md    # Master PRD
+  arch/<project>-architecture.md  # System architecture + API contracts
   arch/adrs/ADR-0001.md      # Architecture Decision Records
   contracts/                   # Shared FE↔BE data contracts (R16)
     agent-sse.md               # SSE event schemas, field names, types
@@ -121,7 +99,7 @@ logs/
 - Worktree conventions
 
 ---
-## 4. Tech Stack (Strict)
+## 4. Tech Stack (Default — override in project CLAUDE.md)
 | Layer | Stack |
 |-------|-------|
 | Backend | Python, Postgres + pgvector, pytest |
@@ -131,10 +109,10 @@ logs/
 ---
 ## 5. Roles
 ### 5.1 PM Interviewer (Requirements Extraction)
-Trigger: Project start or new feature. Use `AskUserQuestion` until scope is clear, constraints explicit, success metrics exist, edge cases enumerated. Output: `docs/prd/benchmarking-prototype-master-prd.md` or `docs/prd/features/FEAT-XXX-*.md`.
+Trigger: Project start or new feature. Use `AskUserQuestion` until scope is clear, constraints explicit, success metrics exist, edge cases enumerated. Output: `docs/prd/<project>-master-prd.md` or `docs/prd/features/FEAT-XXX-*.md`.
 
 ### 5.2 Principal Architect
-Trigger: PRD approved. Use `/feature-dev:code-architect` task subagent and superpowers. Propose 2-3 architecture options with tradeoffs. Define DB schema + API contracts (OpenAPI style). **MUST produce `docs/contracts/<feature>.md` for every cross-boundary data flow (R16)** — SSE event schemas, REST payloads, shared enums/types with exact field names. **MUST verify every new external dependency is installable before approving for BUILD (R17)** — run `pip install` / `npm install`, confirm the package exists, document the URL. If a dependency doesn't exist or is speculative, the design CANNOT proceed to BUILD. Output: `docs/arch/benchmarking-prototype-architecture.md`, `docs/arch/adrs/ADR-XXXX.md`, `docs/contracts/<feature>.md` (R16), `docs/decisions.md` (for quick decisions). Decompose into 3-5 feature tasks with minimal coupling.
+Trigger: PRD approved. Use `/feature-dev:code-architect` task subagent and superpowers. Propose 2-3 architecture options with tradeoffs. Define DB schema + API contracts (OpenAPI style). **MUST produce `docs/contracts/<feature>.md` for every cross-boundary data flow (R16)** — SSE event schemas, REST payloads, shared enums/types with exact field names. **MUST verify every new external dependency is installable before approving for BUILD (R17)** — run `pip install` / `npm install`, confirm the package exists, document the URL. If a dependency doesn't exist or is speculative, the design CANNOT proceed to BUILD. Output: `docs/arch/<project>-architecture.md`, `docs/arch/adrs/ADR-XXXX.md`, `docs/contracts/<feature>.md` (R16), `docs/decisions.md` (for quick decisions). Decompose into 3-5 feature tasks with minimal coupling.
 
 ### 5.3 Developer (Task Builder)
 Trigger: Inside `feat/*` worktree, phase = `BUILD`, assigned a specific T-XXX task. Requirements: use a subagent and invoke skills IN ORDER below; use `superpowers:systematic-debugging` when stuck; R8 applies.
@@ -159,12 +137,7 @@ Trigger: Developer claims "Task T-XXX Complete" (per-task, not per-feature). Har
 - Uncaptured warnings in pytest output = P1 reject
 - Entire core dependency mocked wholesale = P0 reject (per R17/MEMORY.md lesson)
 
-**Bug Severity Classification (QA decides):**
-| Severity | Category | Examples | Action |
-|----------|----------|----------|--------|
-| **P0** | Blocking | Functional errors, logic bugs, data corruption, typecheck failures | Must fix before task complete |
-| **P1** | High-priority | Lint errors, critical gaps, missing error handling | Should fix, escalate if stuck |
-| **P2** | Deferrable | Style nits, minor improvements, "nice to have" | Log to `docs/backlog.md`, proceed |
+**Bug Severity (QA decides):** **P0** (blocking — functional errors, data corruption, typecheck failures): must fix before task complete. **P1** (high — lint errors, critical gaps): should fix, escalate if stuck. **P2** (deferrable — style nits, minor improvements): log to `docs/backlog.md`, proceed.
 
 Must perform exactly 2 cycles per task, parallelize a separate subagent for each:
 - **Cycle 1 -- Security & Logic (Hard Gate for P0):** Invoke `garry-review` then `feature-dev:code-reviewer`. Check SQL injection, PII leaks, auth issues; verify adherence to Architecture, `decisions.md`, and task Build Guidance; **verify all FE↔BE field names match `docs/contracts/*.md` (R16)**; **flag as P0 if tests mock an entire external dependency rather than exercising the real package — mocks that replace a core dependency wholesale prove orchestration logic only, not real integration (R17)**; **apply R18 auto-reject criteria: any mock on internal module = P0, no SavepointConnection = P0, test passes without exercising real path = P0, uncaptured warnings = P1**; run `make test`, `make lint`; output `qa/FEAT-XXX/T-XXX-cycle-1.md` with `STATUS: PASS|FAIL`.
@@ -218,8 +191,8 @@ When you see database type errors like "expected str, got list":
 - ✅ **DO** investigate: Could be bad data generation, loader bug, or intentional design that data violates
 
 **Investigation checklist:**
-1. What does the schema say? (`api/db/models.py`)
-2. What does the API contract say? (`api/schemas/*.py`)
+1. What do the persistence models say?
+2. What do the validation schemas say?
 3. What format is in the data files? Sample 5-10 files
 4. What percentage of data matches schema vs violates it?
 5. When was this code last working? Git log
@@ -237,7 +210,7 @@ When you see database type errors like "expected str, got list":
 ---
 ## 6. Parallelization via Git Worktrees
 ### 6.0 Lead Orchestrator (Per-Task Driver Loop)
-**Goal:** In `main/master` (Management mode), Orchestrator runs each feature by spawning dedicated subagent pairs per T-XXX (architect + coder + QA). They do not share chat/context and communicate ONLY via committed repo artifacts under `qa/FEAT-XXX/`.
+Orchestrator spawns dedicated subagent pairs per T-XXX (architect + coder + QA). Subagents share NO chat/context — communication is ONLY via committed artifacts under `qa/FEAT-XXX/`.
 
 **Per-Task Deterministic Loop**
 ```
@@ -293,9 +266,7 @@ Main worktree = Orchestrator (PRD, Architecture, integration). Feature lanes = s
 
 ### 6.2 Worktree Setup
 ```bash
-mkdir -p ../wt
-git fetch origin
-git worktree add ../wt/FEAT-001 -b feat/FEAT-001 origin/main
+mkdir -p ../wt && git fetch origin && git worktree add ../wt/FEAT-001 -b feat/FEAT-001 origin/main
 ```
 
 ### 6.3 Session Naming
@@ -368,32 +339,28 @@ Verified (if PASS):
 
 **Mandatory Verification Items (Cycle 1 - P0 Blocking):**
 
-1. **Schema-DB Alignment** (added 2026-01-19 after BUG: schema Literal mismatch)
-   - Verify Pydantic schemas match DB model constraints
-   - Check: If DB field is unconstrained string → Schema MUST NOT use `Literal` types
-   - Check: If spec requires "dynamic" behavior → Schema MUST accept any valid string
-   - Automated check: Flag any `Literal` types in `api/schemas/*.py` when corresponding DB field in `api/db/models.py` is unconstrained
-   - **Test**: Attempt POST with values from `/api/filters` endpoint (READ-WRITE consistency)
+1. **Schema-Persistence Alignment**
+   - **Principle:** Validation constraints MUST match persistence constraints. If DB is unconstrained, schema MUST NOT add static constraints.
+   - Automated check: Flag static constraints (e.g., `Literal` types) on fields whose DB model is unconstrained (see §6.5.2).
+   - **Test:** POST with values returned by read endpoints (READ-WRITE consistency).
 
-2. **Security Vulnerabilities** (existing)
+2. **Security Vulnerabilities**
    - SQL injection, XSS, path traversal, API key logging
    - PII leakage, authentication bypass
 
-3. **Spec Compliance** (existing)
+3. **Spec Compliance**
    - All P0 requirements implemented
    - API contracts match OpenAPI spec
    - Database schema matches data dictionary
 
-4. **Test Coverage** (existing)
+4. **Test Coverage**
    - All tests passing (make test)
    - Critical paths have test coverage
    - Edge cases covered
 
-5. **Production Build Verification** (added 2026-02-04 after deployment failure)
-   - `npm run build` must pass in frontend/ directory
-   - This runs `tsc -b` which enforces strict TypeScript checking
-   - Note: `npm test` (Vitest) has lenient type processing - it does NOT catch all type errors
-   - **Failure here = P0 blocker** - deployment will fail
+5. **Production Build Verification**
+   - **Principle:** The build command MUST pass during QA, not just the test runner. Build failure = P0 blocker (deployment will fail).
+   - *Example:* `npm run build` (runs `tsc -b`, strict type checking) vs `npm test` (Vitest, lenient types) — test passing does NOT guarantee build passing.
 
 **Recommended Verification Items (Cycle 2 - P1/P2):**
 
@@ -407,81 +374,32 @@ Verified (if PASS):
    - Proper HTTP status codes
    - Graceful degradation
 
-3. **READ-WRITE Consistency** (added 2026-01-19)
-   - Integration tests verify: "Can I POST what GET returns?"
-   - Dynamic endpoints (like `/api/filters`) must have write-path validation tests
+3. **READ-WRITE Consistency**
+   - **Principle:** Values returned by read endpoints MUST be accepted by write endpoints.
+   - Integration tests verify: "Can I POST what GET returns?" Dynamic list endpoints must have write-path validation tests.
 
-#### 6.5.2 Automated Code Review Gates (added 2026-01-19)
+#### 6.5.2 Automated Code Review Gates
 
-**Purpose:** Prevent schema-DB alignment issues through automated checks during QA cycles.
+**Principle:** Automate schema-persistence alignment checks in CI/QA. Flag any static constraint (enum, literal) on a field whose persistence layer is unconstrained.
 
-**Implementation Approaches:**
+*Recommended approach — QA review script (run during Cycle 1):*
+```bash
+#!/bin/bash
+# scripts/qa-check-schema-alignment.sh
+# Adapt grep paths to your project's schema/model locations.
+SCHEMA_DIR="${1:-api/schemas}"
+LITERAL_FILES=$(grep -rl "Literal\[" "$SCHEMA_DIR"/*.py 2>/dev/null)
+if [ -n "$LITERAL_FILES" ]; then
+    echo "⚠️  Static constraints found in schemas — verify against DB models:"
+    echo "$LITERAL_FILES"
+    echo "If DB field is unconstrained → schema MUST NOT use Literal. FAIL."
+    exit 1
+fi
+echo "✓ No static-constraint mismatches found"
+```
+**When to bypass:** DB has CHECK constraints or enum column types (static constraint is warranted).
 
-1. **Pre-commit Hook** (lightweight check)
-   ```bash
-   #!/bin/bash
-   # .git/hooks/pre-commit or scripts/check-schema-alignment.sh
-
-   # Check for Literal imports in schema files
-   if grep -r "from typing import.*Literal" api/schemas/*.py; then
-       echo "⚠️  WARNING: Found Literal types in schemas"
-       echo "    Verify these match DB constraints in api/db/models.py"
-       echo "    If DB field is unconstrained → schema MUST NOT use Literal"
-   fi
-   ```
-
-2. **QA Review Script** (run during Cycle 1)
-   ```bash
-   # scripts/qa-check-literal-types.sh
-
-   echo "Checking for schema-DB alignment issues..."
-
-   # Find all Literal usage in schemas
-   LITERAL_FILES=$(grep -l "Literal\[" api/schemas/*.py)
-
-   if [ -n "$LITERAL_FILES" ]; then
-       echo "⚠️  Found Literal types in schemas:"
-       echo "$LITERAL_FILES"
-       echo ""
-       echo "Manual verification required:"
-       echo "1. Check api/db/models.py for corresponding fields"
-       echo "2. If DB field is String(N) without CHECK constraint → FAIL"
-       echo "3. If spec requires 'dynamic' behavior → FAIL"
-       echo ""
-       exit 1
-   fi
-
-   echo "✓ No Literal types found in schemas"
-   ```
-
-3. **Pytest Check** (automated test)
-   ```python
-   # api/tests/test_schema_db_alignment.py
-
-   def test_no_literal_types_for_unconstrained_db_fields():
-       """Ensure Pydantic schemas don't use Literal for unconstrained DB fields."""
-       import ast
-       from pathlib import Path
-
-       schema_files = Path("api/schemas").glob("*.py")
-       issues = []
-
-       for schema_file in schema_files:
-           tree = ast.parse(schema_file.read_text())
-           for node in ast.walk(tree):
-               if isinstance(node, ast.Subscript):
-                   if getattr(node.value, 'id', None) == 'Literal':
-                       # Found Literal usage
-                       issues.append(f"{schema_file}:{node.lineno}")
-
-       assert not issues, f"Found Literal types in schemas: {issues}"
-   ```
-
-**Recommended Approach:** Use script #2 during QA Cycle 1 + add as manual checklist item.
-
-**When to Bypass:** If DB has CHECK constraints or enum types, Literal is acceptable (but discourage per D-038).
-
-#### 6.5.3 E2E Testing (added 2026-02-22)
+#### 6.5.3 E2E Testing
 
 **Purpose:** Full-stack browser-level verification using real backend, database, and frontend. Complements unit/integration tests and Playwright UI tests.
 
@@ -491,46 +409,38 @@ Verified (if PASS):
 - Before merging features that touch both FE and BE
 - As part of P0 visual verification during QA cycles
 
-**Infrastructure: `boardroom-ai/e2e/`**
+**Infrastructure:**
 
-All e2e test configuration lives in `boardroom-ai/e2e/config.py` — the single source of truth for URLs, ports, credentials, and route maps. Never hardcode these values elsewhere.
+**Principle:** E2E needs config, setup, teardown, and a runner. All config (URLs, ports, credentials, route maps) lives in one file — never hardcode elsewhere.
 
+*Example directory layout:*
 ```
-boardroom-ai/e2e/
-  config.py       # URLs, ports, credentials, route maps
-  setup.py        # Bootstrap: create user, login, create project
+e2e/
+  config.py       # Single source of truth: URLs, ports, credentials, route maps
+  setup.py        # Bootstrap: create user, login, create project, save session
   teardown.py     # Cleanup: delete test user, remove state
-  run_all.py      # Test runner (setup → discover → execute → teardown)
-  lib/api.py      # Python HTTP helpers (no curl, no shell escaping)
-  tests/          # Scripted regression tests (bash + env vars)
-  visual/         # Chrome DevTools visual test definitions (YAML)
+  run_all.py      # Runner (setup → discover → execute → teardown)
+  lib/api.py      # HTTP helpers (no curl, no shell escaping)
+  tests/          # Scripted regression tests
+  visual/         # Visual test definitions (YAML)
 ```
 
-**Setup/Teardown Flow:**
-1. `python boardroom-ai/e2e/setup.py` — polls /health, creates user, logs in, creates project, saves session to `.state/session.json`
-2. Run tests (scripted or visual)
-3. `python boardroom-ai/e2e/teardown.py` — deletes test user, removes state
+**Setup/Teardown Flow:** setup (poll health → create user → login → save session) → run tests → teardown (delete user, remove state).
 
-**Two Tool Modes:**
+**Two Test Modes:**
 
-| Use Case | Tool | Why |
-|----------|------|-----|
-| Scripted regression (CI, pre-merge) | **bash scripts** (`tests/test_*.sh`) | Repeatable, exit codes, no MCP needed |
-| P0 visual verification (QA agent) | **Chrome DevTools MCP** | Real-time DOM/network/console inspection |
-| Ad-hoc debugging | **Chrome DevTools MCP** | Interactive element inspection |
+**Principle:** Combine scripted regression (CI-safe, repeatable) with interactive visual verification (real-time inspection).
 
-**P0 Visual Tests (YAML):**
-Visual test definitions in `e2e/visual/` are structured YAML files that QA agents execute step-by-step using Chrome DevTools MCP. They are NOT automated — they are instructions. See `e2e/visual/README.md` for execution guide.
+| Mode | Tool | Purpose |
+|------|------|---------|
+| Scripted regression (CI, pre-merge) | bash/Python scripts | Repeatable, exit codes |
+| Visual verification (QA, debugging) | Browser automation (e.g., Chrome DevTools MCP) | Real-time DOM/network/console inspection |
 
-**Common Pitfalls (learned from FT-6 e2e session):**
-1. Missing DB migrations — verify `docker-compose.yml` mounts all files from `backend/migrations/`
-2. Wrong FE routes — use `/project/{id}` (singular), not `/projects/{id}`
-3. Wrong API prefixes — action-items and agent use `/api/` prefix; auth, projects do NOT
-4. Shell escaping — use Python `urllib` for JSON payloads, never `curl` with inline JSON
-5. Port mapping — BE is 3456 externally (8000 inside container), FE is 3000 (8080 inside)
-6. No test user — run `setup.py` before any test; it creates via `/test/create-user`
-7. Stale DB — `docker compose down -v && up -d` for fresh migrations on schema changes
-8. JWT expiry — tokens from `setup.py` last ~1 hour; re-run setup for long test sessions
+Visual test definitions (e.g., YAML step files) are instructions for QA agents, not automated tests.
+
+**Common Pitfalls:**
+- Shell escaping — use native HTTP libraries for JSON payloads, never shell-escaped curl
+- See project CLAUDE.md for project-specific pitfalls (ports, routes, credentials)
 
 ### 6.6 History Rewrite Rule (Artifact Stability)
 Once any `qa/FEAT-XXX/T-XXX-ready-for-review.md` exists on a feature branch: **no rebase**, **no force-push**, only append commits. Rationale: squash merge later, but QA artifacts must remain stable and traceable; rebasing can confuse which SHA was reviewed.
@@ -549,34 +459,21 @@ Once any `qa/FEAT-XXX/T-XXX-ready-for-review.md` exists on a feature branch: **n
 ```
 **Progress Log File:** `logs/build-YYYY-MM-DD-HHMMSS.md`
 ```markdown
-# Build Log: FEAT-XXX
-Started: YYYY-MM-DD HH:MM:SS
-Branch: feat/FEAT-XXX
+# Build Log: FEAT-XXX — Started: YYYY-MM-DD HH:MM:SS — Branch: feat/FEAT-XXX
 
 ## Task Status
 | Task | Status | Architect | Coder | QA-C1 | QA-C2 | Commit |
 |------|--------|-----------|-------|-------|-------|--------|
 | T-101 | ✓ Done | ✓ | ✓ | PASS | PASS | abc123 |
 | T-102 | 🔄 QA-C1 | ✓ | ✓ | FAIL(1) | - | - |
-| T-103 | ⏳ Blocked | - | - | - | - | - |
 
 ## Event Log
-### HH:MM:SS -- T-101 Started
-- Spawned: code-architect
-- Dependencies: none
-### HH:MM:SS -- T-101 Architect Complete
-- Files identified: src/db/schema.py, migrations/001_initial.py
-- Spawning: feature-dev (coder)
-### HH:MM:SS -- T-102 Cycle 1 FAIL
-- P0: TypeError in extraction.py:45 -- missing null check
-- P0: Test test_extract_empty fails -- expected [] got None
-- Spawning: feature-dev (fix)
-### HH:MM:SS -- T-102 ESCALATED
-- Reason: Fix cycle failed (N=1 limit reached)
-- Blocker: Unclear how to handle empty API response
-- User input required
+HH:MM — T-101 Started (code-architect, no deps)
+HH:MM — T-101 Architect Complete → files: schema.py, 001_initial.py → spawning coder
+HH:MM — T-102 Cycle 1 FAIL — P0: TypeError extraction.py:45 → spawning fix
+HH:MM — T-102 ESCALATED — fix cycle failed (N=1), user input required
 ```
-**Debug Info Captured:** subagent spawn times and durations; exact error messages from failures; file paths touched per task; commit SHAs.
+**Debug info captured:** spawn times/durations, error messages, files touched, commit SHAs.
 
 ### 6.8 Escalation Policy & User Gates
 **Escalation Policy (N=1):**
@@ -690,24 +587,13 @@ T-104 (no deps, can run parallel with T-101)
 ```
 **Task Mini-Spec Rules:** every T-XXX MUST have Priority, Depends On, Objective, Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan. `Build Guidance` must be SPECIFIC (patterns, classes, utilities to use) -- NOT generic principles. `Depends On` is authoritative -- architect validates but cannot override spec. Tasks are the unit of work: each gets its own architect->coder->QA cycle.
 
-**Schema Design Rules (added 2026-01-19 after BUG: schema Literal mismatch):**
+**Schema Design Rules:**
 
-When specifying data models and validation schemas:
+**Principle:** Validation constraints MUST mirror persistence constraints. Never restrict at the validation layer what the persistence layer allows unconstrained.
 
-1. **PROHIBIT `Literal` Types for Dynamic Fields**
-   - If requirement states "dynamic", "database-driven", "user-configurable", or "extensible" → Schemas MUST NOT use `Literal` types
-   - Example: "Filter values are dynamic from database" → `stage: str = Field(...)` NOT `stage: Literal["early", "growth", "late"]`
-   - Bad: Showing hardcoded validation error examples when requiring dynamic behavior
-   - Good: Explicitly state "schemas MUST use unconstrained string fields, NOT Literal types"
-
-2. **Schema-DB Alignment**
-   - If DB model uses unconstrained strings → Pydantic schema MUST match (no `Literal` constraint)
-   - If DB has CHECK constraint → Pydantic schema MAY use `Literal` (but prefer unconstrained for flexibility per D-038)
-   - Build Guidance MUST specify: "Verify schema constraints match DB model constraints"
-
-3. **Validation Error Messages**
-   - When showing example validation errors in specs, add note: "(Example values - actual validation is dynamic)"
-   - Avoid examples that imply hardcoded lists when behavior is dynamic
+1. **No Static Constraints on Dynamic Fields** — If a field is "dynamic", "database-driven", or "extensible", validation MUST NOT use static enums/literals. Build Guidance MUST specify: "Verify schema constraints match DB model constraints."
+   - *Example (Pydantic/SQLAlchemy):* DB `String(50)` → schema `str = Field(..., max_length=50)`, NOT `Literal["early", "growth"]`
+2. **Validation Error Messages** — Example errors in specs must note "(Example values — actual validation is dynamic)" to avoid implying hardcoded lists.
 
 **Example Spec Language (GOOD):**
 ```markdown
