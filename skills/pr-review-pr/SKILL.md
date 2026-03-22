@@ -20,6 +20,7 @@ Run a comprehensive pull request review using multiple specialized agents, each 
 
 2. **Available Review Aspects:**
 
+   **Individual skills:**
    - **comments** - Analyze code comment accuracy and maintainability
    - **tests** - Review test coverage quality and completeness
    - **errors** - Check error handling for silent failures
@@ -27,6 +28,11 @@ Run a comprehensive pull request review using multiple specialized agents, each 
    - **code** - General code review for project guidelines
    - **simplify** - Simplify code for clarity and maintainability
    - **all** - Run all applicable reviews (default)
+
+   **Named personas** (each wraps multiple skills with a focused lens):
+   - **architecture** - System design, boundaries, coupling, scaling, security (see `personas/architecture-reviewer.md`)
+   - **domain** - Business logic correctness, test coverage, comment accuracy (see `personas/domain-specialist.md`)
+   - **ambition** - Over-engineering detection, scope creep, YAGNI enforcement (see `personas/ambition-backstop.md`)
 
 3. **Identify Changed Files**
    - Run `git diff --name-only` to see modified files
@@ -89,11 +95,52 @@ Run a comprehensive pull request review using multiple specialized agents, each 
    4. Re-run review after fixes
    ```
 
+## Review Routing
+
+When no specific aspects are requested, auto-select based on change signals:
+
+| Signal | Persona / Skills |
+|--------|-----------------|
+| New types, interfaces, abstractions | Architecture Reviewer |
+| `*.tsx`, `*.css`, `components/` | Domain Specialist + code-reviewer |
+| `*test*`, `*spec*` | Domain Specialist + test-analyzer |
+| `catch`, `try`, `error`, `fallback` in diff | Architecture Reviewer (silent-failure-hunter) |
+| 10+ files changed | pr-briefing first, then parallel personas |
+| Schema changes, migrations | Architecture Reviewer |
+| Utility/helper additions | Ambition Backstop |
+| Default (no strong signals) | Domain Specialist |
+
+### Routing Logic
+
+1. Run `git diff --name-only` and `git diff --stat`
+2. Scan diff content for signal keywords
+3. Match against routing table (multiple matches = multiple personas)
+4. If 10+ files: generate pr-briefing first, then dispatch personas in parallel
+5. Otherwise: dispatch matched personas sequentially (fix findings from P1 before P2)
+6. Manual override always available: user can specify exact aspects or personas
+
+### Routing Examples
+
+```
+# Auto-routed: PR adds a new service class + types
+# -> Architecture Reviewer (new abstractions) + Domain Specialist (code quality)
+
+# Auto-routed: PR modifies 3 test files only
+# -> Domain Specialist (test-analyzer focus)
+
+# Auto-routed: PR adds 2 utility functions
+# -> Ambition Backstop (are these utilities necessary?)
+
+# Auto-routed: PR touches 15 files across backend and frontend
+# -> pr-briefing first, then Architecture + Domain + Ambition in parallel
+```
+
 ## Usage Examples:
 
-**Full review (default):**
+**Full review (default, auto-routed):**
 ```
 /pr-review-pr
+# Auto-selects personas based on change signals
 ```
 
 **Specific aspects:**
@@ -106,6 +153,21 @@ Run a comprehensive pull request review using multiple specialized agents, each 
 
 /pr-review-pr simplify
 # Simplifies code after passing review
+```
+
+**Named personas:**
+```
+/pr-review-pr architecture
+# Runs Architecture Reviewer persona (garry-review + types + errors)
+
+/pr-review-pr domain
+# Runs Domain Specialist persona (code + tests + comments)
+
+/pr-review-pr ambition
+# Runs Ambition Backstop persona (simplifier + scope check)
+
+/pr-review-pr architecture domain
+# Runs both personas sequentially
 ```
 
 **Parallel review:**
