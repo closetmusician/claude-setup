@@ -341,7 +341,8 @@ Verified (if PASS):
 
 1. **Schema-Persistence Alignment**
    - **Principle:** Validation constraints MUST match persistence constraints. If DB is unconstrained, schema MUST NOT add static constraints.
-   - Automated check: Flag static constraints (e.g., `Literal` types) on fields whose DB model is unconstrained (see §6.5.2).
+   - *Example (Pydantic/SQLAlchemy):* DB `String(50)` unconstrained → schema must use `str = Field(max_length=50)`, NOT `Literal["a","b"]`
+   - Automated check: Flag static constraints on fields whose DB model is unconstrained (see §6.5.2).
    - **Test:** POST with values returned by read endpoints (READ-WRITE consistency).
 
 2. **Security Vulnerabilities**
@@ -439,8 +440,11 @@ e2e/
 Visual test definitions (e.g., YAML step files) are instructions for QA agents, not automated tests.
 
 **Common Pitfalls:**
-- Shell escaping — use native HTTP libraries for JSON payloads, never shell-escaped curl
-- See project CLAUDE.md for project-specific pitfalls (ports, routes, credentials)
+1. Shell escaping — use native HTTP libraries for JSON payloads, never shell-escaped curl
+2. Missing DB migrations — verify container mounts include all migration files
+3. Stale DB — tear down volumes and recreate for fresh migrations on schema changes
+4. Token/session expiry — setup tokens have a TTL; re-run setup for long test sessions
+5. Wrong route patterns — verify FE routes and API prefixes match backend registration exactly
 
 ### 6.6 History Rewrite Rule (Artifact Stability)
 Once any `qa/FEAT-XXX/T-XXX-ready-for-review.md` exists on a feature branch: **no rebase**, **no force-push**, only append commits. Rationale: squash merge later, but QA artifacts must remain stable and traceable; rebasing can confuse which SHA was reviewed.
