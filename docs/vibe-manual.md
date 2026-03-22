@@ -30,7 +30,7 @@
 ## 0.1 VIBE Levels — Tiered Enforcement
 
 Not every repo needs full ceremony. Set `"vibe_level": "full"` or `"light"` in `.claude/phase.json`.
-If the field is absent, default to `"light"`.
+If the field is absent, default to `"full"`.
 
 ### `full` — Production Applications
 **Use for:** boardroom-ai, deck_benchmarks, any repo with FE/BE split, database, or user-facing features.

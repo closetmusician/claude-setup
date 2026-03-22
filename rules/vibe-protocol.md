@@ -21,7 +21,7 @@
 
 ## 0.1 VIBE Levels
 
-Set `"vibe_level"` in `.claude/phase.json`. Default: `"light"` if field absent.
+Set `"vibe_level"` in `.claude/phase.json`. Default: `"full"` if field absent.
 
 | Gate | `full` | `light` |
 |------|--------|---------|

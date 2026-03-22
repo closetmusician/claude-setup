@@ -18,7 +18,7 @@ The orchestrator spawns dedicated subagent pairs (coder → QA), tracks their ar
 Before orchestrating, check `.claude/phase.json` for the `"vibe_level"` field:
 - `"full"` — all gates enforced (2 QA cycles, spec wall, phase gates, API contracts)
 - `"light"` — TDD + 1 code review pass + git hygiene; skip QA Cycle 2, spec wall, phase gate enforcement
-- **Default:** If `"vibe_level"` is absent, treat as `"light"`
+- **Default:** If `"vibe_level"` is absent, treat as `"full"`
 
 At `light` level:
 - **Skip QA Cycle 2** — 1 review pass (Cycle 1) is sufficient for task completion
@@ -363,7 +363,7 @@ After QA Cycle 1:
 
 Skip P1 enforcement for: single-file bug fixes, config-only changes, documentation-only changes.
 
-**Light-level shortcut:** When `vibe_level` is `"light"` (or absent), the loop reduces to: Spawn CODER → wait for `T-XXX-ready-for-review.md` → Spawn QA (Cycle 1 only) → wait for `T-XXX-cycle-1.md` → if PASS, task complete. Skip Cycle 2 entirely. Skip spec wall and phase gate checks.
+**Light-level shortcut:** When `vibe_level` is explicitly `"light"`, the loop reduces to: Spawn CODER → wait for `T-XXX-ready-for-review.md` → Spawn QA (Cycle 1 only) → wait for `T-XXX-cycle-1.md` → if PASS, task complete. Skip Cycle 2 entirely. Skip spec wall and phase gate checks.
 
 ### Integration with E2E Gates
 
