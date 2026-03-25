@@ -28,7 +28,7 @@ Before writing anything, internalize these — they distinguish great PRDs from 
 
 5. **User voice, not corporate voice.** Problems should be stated as "I don't know what to share" not "Users experience a content creation friction point."
 
-6. **Implementation-ready requirements.** Every P0/P1 requirement gets a short ID (prefix + number) and multiple acceptance criteria lines starting with "AC:". These map directly to test cases. A developer reading the PRD should be able to write a failing test for any requirement without asking clarifying questions.
+6. **Implementation-ready requirements.** Every P0/P1 requirement gets a short ID (prefix + number) and numbered behavior descriptions. Each numbered item is an observable system behavior with concrete values that maps to one test case. A developer reading the PRD should be able to write a failing test for any numbered item without asking clarifying questions.
 
 7. **Hypotheses tied to measurable KPIs.** Each feature's hypothesis gets a KPI table with primary and secondary metrics. For early-stage products (small user base, no instrumentation), use qualitative primary + quantitative secondary. For mature products, use quantitative primary.
 
@@ -102,24 +102,29 @@ Generate the full PRD as a markdown file. Apply these section-specific patterns:
 #### TL;DR
 Not a description — a pitch. One sentence that names the gap, the mechanism, and the projected impact. If you can't quantify the impact yet, say what metric you expect to move and in which direction.
 
+#### Table of Contents
+Always include a Table of Contents after the TL;DR with auto-generated markdown links to all H2/H3 sections. This enables fast navigation and signals document maturity.
+
 #### Problem Definition
-- State user problems in first person ("I...") using Jobs to be Done format
-- Back each problem with evidence (user research, data, or at minimum a clear rationale)
+- State the objective, context, strategic drivers, and success measures
 - Include the "why now" urgency driver
+- Back context with evidence (user research, data, or at minimum a clear rationale)
 
 #### Opportunity Size
 - Show the projection math explicitly
 - Reference analogous precedents with their actual metrics
 - Be honest about assumptions and confidence levels
 
-#### Product Requirements
+#### Jobs to Be Done & Requirements
 
-Structure this section to be directly implementable. Each feature/component gets the full treatment:
+This is the core of the PRD. Each JTBD groups together all the requirements needed to satisfy that job. This co-location makes it easy for developers to understand WHY each requirement exists.
 
-**Per-feature structure:**
-1. **Feature heading** with descriptive name (e.g., "Agent Infrastructure: Tool-use loop + streaming trace")
-2. **Hypothesis** in italic: "*If we* [mechanism], *THEN* [outcome] *because* [reasoning]."
-3. **KPI table** immediately after hypothesis:
+**Per-JTBD structure:**
+1. **JTBD heading** with job statement (e.g., "JTBD-1: Prepare for board meetings without manual research")
+2. **Job statement** in persona format: "As a [persona], I need to [job] so that I can [outcome]."
+3. **Evidence** backing the job (user research, data, quotes)
+4. **Hypothesis** in italic: "*If we* [mechanism], *THEN* [outcome] *because* [reasoning]."
+5. **KPI table** immediately after hypothesis:
    ```
    | | KPI |
    |---|---|
@@ -129,9 +134,7 @@ Structure this section to be directly implementable. Each feature/component gets
    - For early-stage products: qualitative primary (e.g., "≥3/5 beta users cite X as reason they Y")
    - For mature products: quantitative primary (e.g., "+2% conversion rate")
    - Always include both — the secondary provides a measurable backstop
-4. **P0 — Must ship** requirements with numbered IDs and acceptance criteria
-5. **P1 — Should ship** requirements (same format)
-6. **P2 — Defer** requirements (lighter — description only, no AC needed)
+6. **Requirements** grouped under this JTBD, ordered P0 first, then P1, then P2. P0/P1/P2 requirements are mixed within each JTBD (not separated into priority subsections).
 
 **Requirement ID format:** Short feature prefix + sequential number. Pick 2–3 letter prefixes from the feature name:
 - "Agent Infrastructure" → INF-1, INF-2, ...
@@ -140,35 +143,67 @@ Structure this section to be directly implementable. Each feature/component gets
 
 **Per-requirement structure (P0/P1):**
 ```
-- **REQ-ID: Descriptive name** — One-paragraph scope description explaining what this requirement does, how it works, and key technical details.
-  - AC: [specific, testable criterion — a developer can write a failing test from this]
-  - AC: [another criterion — cover the main success path]
-  - AC: [edge case or error handling criterion]
-  - AC: [boundary condition if applicable]
+**REQ-ID: Descriptive name** (P0)
+[1-paragraph scope description explaining what this requirement does, how it works, and key technical details.]
+1. [Observable system behavior with concrete values — maps to one test case]
+2. [Another behavior — happy path]
+3. [Error/validation behavior]
+4. [Edge case or boundary condition]
 ```
 
-**Rules for acceptance criteria:**
-- Each AC must be independently testable (maps to one test case)
-- Cover: happy path, error/edge cases, boundary conditions
-- Use concrete values, not vague language ("≤200 words" not "short")
-- Reference specific API shapes, DB columns, or UI states when known
-- If a requirement involves state transitions, enumerate valid transitions as ACs
+P2 requirements get a lighter treatment — description only, no numbered behaviors needed.
 
-**Priority tiers are within each feature's build scope**, not across the full product:
-- P0 = must ship for the feature to be usable
-- P1 = should ship, but feature works without it
+**Rules for numbered behavior descriptions:**
+- Each numbered item is an observable system behavior (what the system does, not what the user does)
+- Use concrete values: field names, max lengths, valid states, sort orders ("≤200 words" not "short")
+- Each item is independently falsifiable — maps to one test case
+- A developer can write a failing test for any single numbered item without asking questions
+- Reference specific API shapes, DB columns, or UI states when known
+- If a requirement involves state transitions, enumerate valid transitions as numbered items
+- Order: happy path first, then error/validation, then edge cases/boundary conditions
+- **Minimum count:** Every P0 requirement must have ≥2 numbered behaviors. If you can't identify at least 2 observable behaviors, the requirement is too vague — split or rewrite it.
+
+**Priority tiers are within each JTBD's build scope**, not across the full product:
+- P0 = must ship for the job to be satisfiable
+- P1 = should ship, but the job is achievable without it
 - P2 = nice to have, defer to next cycle
 
 Include a differentiation table if there are meaningful prior attempts. Include "Reasons to Be Skeptical" if prior art exists — this is a sign of strength, not weakness.
 
-After all features, include summary tables if they help comprehension:
-- **Tool/API Registry** — what tools/endpoints exist, which feature uses them, new vs. wraps existing
+After all JTBDs, include summary tables if they help comprehension:
+- **Tool/API Registry** — what tools/endpoints exist, which JTBD uses them, new vs. wraps existing
 - **New Database Objects** — tables and columns with types, FKs, constraints
 - **Frontend Changes** — component list with brief descriptions
 
+#### Data Model (if applicable)
+When the feature introduces new data structures, document them after JTBD & Requirements:
+- Database tables/columns with types, foreign keys, constraints
+- API endpoint signatures and response shapes
+- State machines with valid transitions
+- Tracking/analytics requirements
+
+This section is for domain-heavy PRDs where the data model is complex enough to warrant its own section rather than being embedded in individual requirements.
+
+#### Business Rules (if applicable)
+Document domain logic that cuts across multiple requirements or JTBDs. This section captures rules that are too cross-cutting for a single requirement but too important to leave implicit:
+- **Permissions & Access Control** — role-based rules, org-level restrictions, delegation logic
+- **Validation Rules** — cross-field dependencies, conditional validation, format rules
+- **Lifecycle & State Transitions** — entity lifecycle rules spanning multiple JTBDs, automatic triggers, time-based rules, cascading effects
+- **Calculations & Derived Values** — formulas, aggregation rules, how computed values update when inputs change
+
+Skip this section for simple features where all business logic fits within individual requirements.
+
+#### Risk
+- Be explicit about operational, technical, and strategic risks
+- Propose mitigations
+- State what's out of scope
+
+#### Legacy Reference (optional)
+When replacing a legacy system, include a "Legacy Reference" section after Risks documenting current behavior. Never place it before requirements — the PRD leads with what to build, not what exists. Include: how the current system works, screenshots, field mappings, API contracts. This section is for context only and does NOT drive requirements.
+
 #### User Experience
 
-Structure UX to be sufficient for frontend implementation without Figma. Four subsections:
+Structure UX to be sufficient for frontend implementation without Figma. Five subsections:
 
 **1. Information Architecture**
 - State where the new feature lives relative to existing navigation (e.g., "Agents live within the existing chat UI. No new top-level navigation.")
@@ -176,7 +211,30 @@ Structure UX to be sufficient for frontend implementation without Figma. Four su
 - List navigation additions explicitly (new tabs, sidebar items, etc.)
 - State what does NOT change ("No new top-level nav items")
 
-**2. Interaction Flows (per feature)**
+**2. ASCII Wireframes (for major interaction patterns)**
+For major interaction patterns (3-5 per feature PRD), include ASCII wireframe diagrams inline with the JTBD they illustrate. Use box-drawing characters (┌ ┐ └ ┘ ─ │ ├ ┤). Wireframes should show layout, key fields, and interaction affordances. Not every JTBD needs a wireframe — focus on complex multi-panel layouts, forms with many fields, state machines, and multi-step workflows.
+
+```
+┌─────────────────────────────────────────┐
+│ Meeting Prep Agent                   ×  │
+├─────────────────────────────────────────┤
+│ ┌─────────────────────────────────────┐ │
+│ │ ▶ Step 1: Fetching agenda items...  │ │
+│ │   Step 2: Analyzing documents...    │ │
+│ │   Step 3: Generating briefing...    │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ ┌─────────────────────────────────────┐ │
+│ │ Briefing Output                     │ │
+│ │ ─────────────────────               │ │
+│ │ Key Topics: ...                     │ │
+│ │ Action Items: ...                   │ │
+│ │                    [Copy] [Export]   │ │
+│ └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+```
+
+**3. Interaction Flows (per feature)**
 Write a separate numbered flow for each major feature or user journey. Each flow:
 - Starts with the user trigger (what the user does)
 - Numbers each step sequentially
@@ -194,7 +252,7 @@ Write a separate numbered flow for each major feature or user journey. Each flow
 5. [Post-output action if any]
 ```
 
-**3. Component Specs**
+**4. Component Specs**
 For each new UI component, define:
 - **States**: list all visual states (default, loading/live, completed, error, empty)
 - **Visual treatment**: background, borders, colors, layout (reference design system tokens if known, e.g., "`bg-muted/50`, rounded corners")
@@ -210,7 +268,7 @@ For each new UI component, define:
 - Constraints: [limits]
 ```
 
-**4. Use Cases Table**
+**5. Use Cases Table**
 Map concrete use cases to features, triggers, and expected outputs:
 ```
 | Use Case | Feature | Trigger | Expected Output |
@@ -225,11 +283,6 @@ If no Figma mockups exist, state this explicitly and note that component behavio
 - Split backend vs. client
 - State staffing needs explicitly
 - Call out known blockers and dependencies
-
-#### Risk
-- Be explicit about operational, technical, and strategic risks
-- Propose mitigations
-- State what's out of scope
 
 ### Step 5: Output and Present
 

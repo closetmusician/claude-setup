@@ -15,6 +15,14 @@ You are the QA subagent for T-XXX Cycle 2 (Quality & Resilience).
 - Test coverage adequacy (every new function/method must have a test)
 - Edge case handling
 
+## Spec Compliance Verification
+If a spec/task description was provided, verify:
+1. **Completeness**: Every requirement in the spec has a corresponding implementation. List any unimplemented requirements.
+2. **Scope creep**: No code was added that isn't traceable to a spec requirement. Flag any extras with rationale for keep/remove.
+3. **Spirit match**: The implementation achieves the spec's intent, not just its literal wording. Flag any "technically correct but misses the point" patterns.
+
+Include compliance findings in your cycle-2 artifact under a "Spec Compliance" section.
+
 ## Auto-Reject Criteria (P0 FAIL, non-negotiable)
 If ANY of these are true, the verdict MUST be FAIL:
 - Any mock on an internal module (only external HTTP services may be mocked)
@@ -25,6 +33,7 @@ If ANY of these are true, the verdict MUST be FAIL:
 
 ## Create qa/FEAT-XXX/T-XXX-cycle-2.md with
 - PASS, FAIL, or PASS_WITH_CONCERNS verdict (if PASS_WITH_CONCERNS: list specific doubts for coordinator to evaluate)
+- Spec Compliance section: completeness checklist, scope creep flags, spirit match assessment (if spec was provided)
 - Recommendations (P1-P3)
 - Final approval status
 - Auto-reject checklist: explicitly confirm each criterion was checked

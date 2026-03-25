@@ -23,13 +23,14 @@
 17. **R16 API Contract-First** -- Before BUILD, Architect MUST produce a shared contract artifact (`docs/contracts/<feature>.md`) defining all data models, SSE event schemas, and endpoint signatures exchanged between FE and BE. Both FE and BE subagents MUST reference this contract. QA MUST verify field names match the contract. No "invent your own field names" — the contract is the single source of truth.
 18. **R17 Dependency Verification Gate** -- Every external dependency in a spec MUST include: (a) exact installable package name, (b) URL to PyPI/npm/GitHub repo, (c) minimum version. Before BUILD, the Architect or Orchestrator MUST verify every new dependency is installable (`pip install`, `npm install`). If a dependency cannot be installed, STOP and escalate — do not code against it, do not mock it, do not proceed. "Or equivalent" in a spec is a **hard blocker** requiring clarification before any code is written. A `try/except ImportError` with a `None` fallback is a deployment workaround, NEVER a substitute for verifying the package exists.
 19. **R18 Real Testing Mandate** -- All tests MUST hit real DB (`SavepointConnection` from `conftest.py`) and real APIs where feasible (Anthropic haiku for agent integration). No mocks on internal modules — only mock external HTTP services (Resend, external URLs). If a test mocks an entire core dependency, that is a **P0 reject**. Test output must be pristine — no warnings, no uncaptured expected errors. NEVER use `git stash` in parallel agents (clobbers other agents' uncommitted work).
+20. **R19 Spec-Diff Verification** -- Before marking ANY task or backlog item complete, the orchestrator MUST perform a spec-diff: enumerate EACH requirement from the original spec and cite `file:line` evidence of implementation. "File exists" is not evidence. "Agent reported done" is not evidence. If any requirement lacks `file:line` evidence, the item is NOT complete. At `light` level, a brief inline check suffices; at `full` level, document the spec-diff in the QA artifact.
 
 ---
 ## 0.1 VIBE Levels — Tiered Enforcement
 
 Set `"vibe_level": "full"` or `"light"` in `.claude/phase.json`. Default: `"full"`.
 
-- **`full`** — Production apps (FE/BE split, database, user-facing). All R0-R18 enforced.
+- **`full`** — Production apps (FE/BE split, database, user-facing). All R0-R19 enforced.
 - **`light`** — Tooling, scripts, config repos, <5 source files. TDD + code review + git hygiene.
 
 | Rule | `full` | `light` |
@@ -44,6 +45,7 @@ Set `"vibe_level": "full"` or `"light"` in `.claude/phase.json`. Default: `"full
 | R7 Per-Task Subagent | Yes | Skip (direct impl) |
 | R8 Role Separation | Yes | Skip (same agent) |
 | R9-R18 (remaining) | Yes | R18 Real Testing: Yes; R16 Contract, R17 Deps: best-effort; others: skip |
+| R19 Spec-Diff Verification | Yes (documented in QA artifact) | Yes (inline check) |
 | Git hygiene | Yes | Yes (no force-push, no skipping hooks) |
 
 ---

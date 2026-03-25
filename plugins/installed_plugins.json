@@ -14,11 +14,11 @@
     "episodic-memory@superpowers-marketplace": [
       {
         "scope": "project",
-        "projectPath": "/Users/yklin/Code/deck_benchmarks",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
         "installPath": "/Users/yklin/.claude/plugins/cache/superpowers-marketplace/episodic-memory/1.0.15",
         "version": "1.0.15",
         "installedAt": "2026-01-19T03:49:47.677Z",
-        "lastUpdated": "2026-03-20T20:34:46.681Z",
+        "lastUpdated": "2026-03-23T22:35:52.424Z",
         "gitCommitSha": "6feaa5bd8752ae104c88d251e68ce19c30a1bd2f"
       }
     ],
@@ -166,21 +166,20 @@
     "pr-review-toolkit@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/pr-review-toolkit/1.0.0",
-        "version": "1.0.0",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/pr-review-toolkit/b10b583de281",
+        "version": "b10b583de281",
         "installedAt": "2026-03-13T23:30:00.000Z",
-        "lastUpdated": "2026-03-13T23:45:00.000Z",
+        "lastUpdated": "2026-03-25T12:08:57.332Z",
         "gitCommitSha": "b36fd4b753018b0b340803579399992a32e43502"
       }
     ],
     "code-review@claude-plugins-official": [
       {
-        "scope": "project",
-        "projectPath": "/Users/yklin/Code/deck_benchmarks",
-        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/code-review/b36fd4b75301",
-        "version": "b36fd4b75301",
+        "scope": "user",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/code-review/b10b583de281",
+        "version": "b10b583de281",
         "installedAt": "2026-03-13T13:21:20.540Z",
-        "lastUpdated": "2026-03-20T20:34:46.681Z",
+        "lastUpdated": "2026-03-25T12:08:57.329Z",
         "gitCommitSha": "b36fd4b753018b0b340803579399992a32e43502"
       }
     ],
@@ -223,6 +222,56 @@
         "installedAt": "2026-03-21T21:38:01.911Z",
         "lastUpdated": "2026-03-21T21:38:01.911Z",
         "gitCommitSha": "90accf6fd2008fe0ee9578ebc088740c3a754d58"
+      }
+    ],
+    "greptile@claude-plugins-official": [
+      {
+        "scope": "project",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/greptile/15268f03d2f5",
+        "version": "15268f03d2f5",
+        "installedAt": "2026-03-23T22:35:52.424Z",
+        "lastUpdated": "2026-03-23T22:35:52.424Z",
+        "gitCommitSha": "15268f03d2f560b955584a283927ed175569678c"
+      }
+    ],
+    "context7@claude-plugins-official": [
+      {
+        "scope": "project",
+        "projectPath": "/Users/yklin/Code/boardroom-ai",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/context7/15268f03d2f5",
+        "version": "15268f03d2f5",
+        "installedAt": "2026-03-23T22:35:52.424Z",
+        "lastUpdated": "2026-03-23T22:35:52.424Z",
+        "gitCommitSha": "15268f03d2f560b955584a283927ed175569678c"
+      }
+    ],
+    "code-review-graph@code-review-graph": [
+      {
+        "scope": "project",
+        "projectPath": "/Users/yklin/Code/community/boarddocs",
+        "installPath": "/Users/yklin/.claude/plugins/cache/code-review-graph/code-review-graph/1.8.3",
+        "version": "1.8.3",
+        "installedAt": "2026-03-25T02:23:46.473Z",
+        "lastUpdated": "2026-03-25T02:23:46.473Z",
+        "gitCommitSha": "f9f01aed00b6913f7e0014ab85b4fc2bc7ced1b7"
+      },
+      {
+        "scope": "project",
+        "projectPath": "/Users/yklin/Code/community",
+        "installPath": "/Users/yklin/.claude/plugins/cache/code-review-graph/code-review-graph/1.8.3",
+        "version": "1.8.3",
+        "installedAt": "2026-03-25T02:27:21.138Z",
+        "lastUpdated": "2026-03-25T02:27:21.138Z",
+        "gitCommitSha": "f9f01aed00b6913f7e0014ab85b4fc2bc7ced1b7"
+      },
+      {
+        "scope": "user",
+        "installPath": "/Users/yklin/.claude/plugins/cache/code-review-graph/code-review-graph/1.8.3",
+        "version": "1.8.3",
+        "installedAt": "2026-03-25T21:47:16.892Z",
+        "lastUpdated": "2026-03-25T21:47:16.892Z",
+        "gitCommitSha": "f9f01aed00b6913f7e0014ab85b4fc2bc7ced1b7"
       }
     ]
   }

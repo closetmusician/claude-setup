@@ -159,4 +159,8 @@ Steps passed: X/Y | Visual confirms: X/Y | Overall: PASS / FAIL
 
 ---
 
+## Decision Boundaries
+- **DECIDE autonomously** (factual/technical): step execution order, screenshot timing, report formatting, retry counts within limits, session value substitution
+- **FLAG for coordinator** (judgment calls): unexpected test infrastructure failures, ambiguous pass/fail criteria, tests requiring manual intervention, environment configuration issues
+
 STOP when all test reports are written.

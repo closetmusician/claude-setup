@@ -188,7 +188,7 @@ Pending → In Progress → Complete
 - [ ] `.claude/phase.json` — set to DISCOVERY
 - [ ] `.claude/settings.json` — copy from template, adjust permissions
 - [ ] `CLAUDE.md` — project-specific context (tech stack, ports, conventions)
-- [ ] `tasks/lessons.md` — empty, will accumulate
+- [ ] `memory/lessons.md` — empty, will accumulate
 - [ ] `qa/` — empty directory, will hold QA artifacts
 
 ## Optional (enable per project type)
@@ -413,7 +413,7 @@ boardroom-ai has garry-review and vibe-lookup skills with no activation evidence
 - pm_os has TOKEN-7 incident but no lessons.md capturing it
 - No shared lessons repository across projects
 
-**Recommendation:** Establish `~/.claude/tasks/lessons.md` (like od-claude's 52-entry file) as the cross-repo patterns store. Project-specific lessons stay in `tasks/<project>/lessons.md`.
+**Recommendation:** Establish `~/.claude/memory/lessons.md` (like od-claude's 52-entry file) as the cross-repo patterns store. Project-specific lessons stay in `tasks/<project>/lessons.md`.
 
 ---
 

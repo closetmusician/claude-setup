@@ -23,7 +23,6 @@
       "Bash(rm -rf /)"
     ]
   },
-  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
@@ -47,6 +46,17 @@
           {
             "type": "command",
             "command": "/Users/yklin/.claude/scripts/auto-journal.sh"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/pm-send-synthesize-hook.sh"
           }
         ]
       }
@@ -75,14 +85,28 @@
     "scheduler@claude-scheduler": false,
     "pyright-lsp@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true
+    "code-simplifier@claude-plugins-official": true,
+    "code-review-graph@code-review-graph": true
+  },
+  "extraKnownMarketplaces": {
+    "code-review-graph": {
+      "source": {
+        "source": "github",
+        "repo": "tirth8205/code-review-graph"
+      }
+    }
   },
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
-    "allowUnsandboxedCommands": true,
+    "allowUnsandboxedCommands": false,
     "network": {},
-    "excludedCommands": []
+    "excludedCommands": [
+      "git:*",
+      "ssh:*",
+      "gh:*",
+      "docker:*"
+    ]
   },
   "alwaysThinkingEnabled": true,
   "autoUpdatesChannel": "stable"

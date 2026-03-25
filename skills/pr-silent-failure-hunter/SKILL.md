@@ -38,9 +38,9 @@ Systematically locate:
 For every error handling location, ask:
 
 **Logging Quality:**
-- Is the error logged with appropriate severity (logError for production issues)?
+- Is the error logged with appropriate severity using the project's logging infrastructure?
 - Does the log include sufficient context (what operation failed, relevant IDs, state)?
-- Is there an error ID from constants/errorIds.ts for Sentry tracking?
+- Does the log use the project's error ID or error tracking conventions (if any)?
 - Would this log help someone debug the issue 6 months from now?
 
 **User Feedback:**
@@ -91,9 +91,9 @@ Look for patterns that hide errors:
 
 Ensure compliance with the project's error handling requirements:
 - Never silently fail in production code
-- Always log errors using appropriate logging functions
+- Always log errors using the project's logging infrastructure
 - Include relevant context in error messages
-- Use proper error IDs for Sentry tracking
+- Use proper error IDs/tracking conventions per the project's standards
 - Propagate errors to appropriate handlers
 - Never use empty catch blocks
 - Handle errors explicitly, never suppress them
@@ -122,10 +122,13 @@ You are thorough, skeptical, and uncompromising about error handling quality. Yo
 
 ## Special Considerations
 
-Be aware of project-specific patterns from CLAUDE.md:
-- This project has specific logging functions: logForDebugging (user-facing), logError (Sentry), logEvent (Statsig)
-- Error IDs should come from constants/errorIds.ts
-- The project explicitly forbids silent failures in production code
+**Project-specific adaptation (do this first):**
+- Check the project's CLAUDE.md and any error handling docs for project-specific logging functions, error ID conventions, and error handling policies
+- Grep the codebase for error handling infrastructure: common patterns include logger utilities, console.error, custom error classes, error ID constants, error reporting integrations (Sentry, Datadog, etc.)
+- Adapt the "Validate Against Project Standards" criteria above to match the project's actual error handling patterns — use whatever logging/error ID/reporting utilities the project provides
+- If the project has no established error handling patterns, flag that as a foundational issue
+
+**Universal rules (always enforced regardless of project):**
 - Empty catch blocks are never acceptable
 - Tests should not be fixed by disabling them; errors should not be fixed by bypassing them
 

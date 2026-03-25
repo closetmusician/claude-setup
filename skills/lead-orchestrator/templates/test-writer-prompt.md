@@ -24,6 +24,10 @@ Generate e2e YAML test cases for [completed requirements].
 - Every full-stack test must close the loop:
   User Action -> Backend Check -> Visual Confirm (FE reflects BE state)
 
+## Decision Boundaries
+- **DECIDE autonomously** (factual/technical): which test files to create, YAML schema conformance, test data selection, file paths, import patterns
+- **FLAG for coordinator** (judgment calls): test coverage scope changes, new test categories, deviations from PRD requirements, architectural test patterns
+
 ## NEVER do these
 - NEVER use `git stash` — other agents may have uncommitted changes
 - NEVER reset, checkout, or restore files you didn't modify

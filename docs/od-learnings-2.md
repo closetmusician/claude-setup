@@ -19,6 +19,7 @@
 8. [Repo Adoption Audit](#8-repo-adoption-audit)
 9. [Priority Action Summary](#9-priority-action-summary)
 10. [Deep Patterns Missed in v2](#10-deep-patterns-missed-in-v2-added-2026-03-21)
+11. [Reference Artifacts](#11-reference-artifacts-extracted-from-od-claude-docs)
 
 ---
 
@@ -37,7 +38,7 @@
 | **Git Workflow** | git-safety-hook.sh (PreToolUse), auto-journal on Stop | Post-commit auto-push, session-start safety commit, branch conventions |
 | **Review Architecture** | Skills-based (garry-review + PR toolkit suite) | Named personas with composable routing + sequential review |
 | **Task Tracking** | VIBE protocol (TodoWrite + phase gates) | Two-layer (TodoWrite + file plans + write-ahead status + handoffs) |
-| **Lessons/Memory** | memory/journal.md (130+ entries, append-only) + docs/ | tasks/lessons.md (52 curated entries, periodically trimmed at ~175 lines) |
+| **Lessons/Memory** | memory/journal.md (130+ entries, append-only) + docs/ | memory/lessons.md (52 curated entries, periodically trimmed at ~175 lines) |
 | **Projects** | 15 repos, 41 project memories tracked | Single meta-repo (control center for all projects) |
 | **Model Strategy** | Opus primary for everything | Opus for judgment, Sonnet for execution (explicit tiering) |
 
@@ -294,7 +295,7 @@ for script in sorted(scripts_dir.glob("check-*.py")):
 
 #### A. Curate journal.md → lessons.md
 
-**What:** Extract high-signal patterns from 130+ journal entries into a curated `~/.claude/tasks/lessons.md` (max 50 entries, max 3 lines each).
+**What:** Extract high-signal patterns from 130+ journal entries into a curated `~/.claude/memory/lessons.md` (max 50 entries, max 3 lines each).
 
 **Why:** Agents reading 19 curated lessons at session start is far more useful than skimming 130+ raw entries.
 
@@ -469,7 +470,7 @@ Checklist for bootstrapping new repos:
 - [ ] `.claude/phase.json` — set to DISCOVERY
 - [ ] `.claude/settings.json` — from template
 - [ ] `CLAUDE.md` — project-specific context
-- [ ] `tasks/lessons.md` — empty
+- [ ] `memory/lessons.md` — empty
 - [ ] `qa/` — empty
 
 ## Optional (per project type)
@@ -538,7 +539,7 @@ Heavy parallel orchestration with no central tracking. Abandoned worktrees leave
 - pm_os: TOKEN-7 incident but no lessons.md
 - No shared lessons repository across projects
 
-**Action:** Establish `~/.claude/tasks/lessons.md` as cross-repo store. Project-specific lessons in `tasks/<project>/lessons.md`.
+**Action:** Establish `~/.claude/memory/lessons.md` as cross-repo store. Project-specific lessons in `tasks/<project>/lessons.md`.
 
 ### In Dónal's Setup (What NOT to Adopt Blindly)
 
@@ -938,3 +939,175 @@ Plugin installation requires editing **3 separate JSON files** — not documente
 **Memory file type system:** Memory entries use YAML frontmatter with type enum: `user` (preferences), `feedback` (lessons), `project` (active state), `reference` (supporting docs). Validated by `validate-frontmatter.py`.
 
 **Research directory:** Contains `AIDER-ASSESSMENT.md` (303 lines) and `AIDER-REPOMAP-COMPARISON.md` (184 lines) — detailed prior art analysis. Shows systematic "study before build" discipline for infrastructure decisions. 117 archived plans in `docs/plans/` demonstrate the same pattern at scale.
+
+---
+
+## 11. Reference Artifacts (extracted from od-claude docs/)
+
+Concrete implementation artifacts from Dónal's repo. These are the scripts and specs behind the patterns described in sections 3.3, 7, and 10.15 above.
+
+### 11.1 Auto-Push Post-Commit Hook
+
+Full script for `.git/hooks/post-commit`:
+
+```bash
+#!/bin/bash
+# Auto-push to remote on non-main branches. Synchronous — reliability over speed.
+
+BRANCH=$(git branch --show-current 2>/dev/null)
+
+# Only push on work/* or feature/* branches, never main
+case "$BRANCH" in
+  work/*|feature/*) ;;
+  *) exit 0 ;;
+esac
+
+# Push synchronously. Log failures but don't block the commit (exit 0 always).
+if ! git push origin "$BRANCH" --set-upstream 2>/dev/null; then
+  echo "[$(date -Iseconds)] PUSH FAILED on $BRANCH" >> "$(git rev-parse --show-toplevel)/.git/push-failures.log"
+fi
+
+exit 0
+```
+
+**Async variant for large repos** (background the push):
+
+```bash
+(git push origin "$BRANCH" --set-upstream 2>/dev/null || \
+  echo "[$(date -Iseconds)] PUSH FAILED on $BRANCH" >> \
+  "$(git rev-parse --show-toplevel)/.git/push-failures.log") &
+```
+
+Design decisions: synchronous for small repos (negligible latency); silent failure with log to `.git/push-failures.log`; `--set-upstream` on every push (idempotent); never pushes `main`.
+
+### 11.2 Session-Start Safety Commit
+
+Before any branch detection or checkout:
+
+1. `git status` — if ANY uncommitted changes exist (staged, unstaged, untracked):
+   ```bash
+   git add -A && git commit -m "session-start safety commit"
+   ```
+2. Auto-push hook fires, pushing the safety commit to remote.
+3. If nothing to commit, continue silently.
+
+Non-negotiable — no permission asked. Captures state from prior crashed sessions before anything else happens.
+
+### 11.3 Branch Staleness Check
+
+After settling on a branch at session start:
+
+1. `git merge-base HEAD origin/main` → find divergence point
+2. `git log -1 --format=%ci <merge-base-hash>` → get that commit's date
+3. Calculate age in days.
+
+**If >2 days diverged:** alert user, recommend merging before new work. Wait for explicit approval. **If ≤2 days:** continue silently.
+
+### 11.4 Handoff System
+
+Bridges session gaps — captures everything TodoWrite knows that would be lost when the session ends.
+
+| Location | Purpose | Lifecycle |
+|----------|---------|-----------|
+| `.claude/handoffs/*.md` | Active handoffs, available for pickup | Written by `/handoff`, consumed by `/session-start` |
+| `archive/handoffs/*.md` | Consumed handoffs, kept as paper trail | Moved here when a handoff is loaded |
+
+**Filename convention:** `{YYYY-MM-DD}_{HHMMSS}_{session-id}.md` (first 8 chars of session UUID, or `manual`).
+
+**Document structure:**
+
+```markdown
+# Session Handoff — [DATE]
+
+## What Was Accomplished
+## Current State (build status, tests, branch, remote sync, uncommitted changes)
+## In-Progress Work
+## Key Decisions Made
+## Blockers or Issues
+## Recommended Next Steps
+## Files Modified This Session
+```
+
+**Loading protocol:**
+1. List all `.md` in `.claude/handoffs/` chronologically
+2. User selects which to load, or "None" for fresh start
+3. Selected handoffs read into context and archived (moved to `archive/handoffs/`)
+4. Unselected remain for other agents or future sessions
+
+**Critical:** Write handoff file FIRST before any git operations. Handoffs typically invoked near compaction — get knowledge onto disk before doing anything else.
+
+### 11.5 Write-Ahead Status Protocol & Crash Recovery
+
+Every plan document has a `**Status:**` field. Update *before* starting a phase, not just on completion.
+
+**Two-layer breadcrumb:**
+1. **Tracker layer** — Coordinator marks status before dispatching any agent and commits. This is the WAL record.
+2. **Document layer** — Agent marks its own status line as its first action after reading.
+
+**Crash recovery matrix:**
+
+| Tracker says | Document says | Diagnosis |
+|-------------|--------------|-----------|
+| In progress | Pending | Agent never started (dispatched but crashed on init) |
+| In progress | In progress | Agent was mid-work (check for partial progress) |
+| In progress | Complete | Agent finished, coordinator crashed before updating tracker |
+
+**Full pipeline state machine:**
+
+```
+Pending enrichment
+    → Enrichment in progress
+        → Enriched — pending review
+            → Under review by [Name]
+                → Enriched and reviewed
+                    → Execution in progress
+                        → Execution complete — pending verification
+                            → Done
+```
+
+Any phase can also transition to `Blocked — [reason]` and back.
+
+**Minimal state machine** (for projects without enrichment/review):
+
+```
+Pending → In progress → Complete
+              ↕
+          Blocked — [reason]
+```
+
+---
+
+## 12. P0/P1 Implementation Checklist (Added 2026-03-21)
+
+> Cross-reference with `docs/backlog.md` P0/P1 sections. Check off when implemented.
+
+### P0 — High Impact, Low Effort
+
+- [x] **P0-A: Curate journal.md → lessons.md** — 28 entries in lessons.md (79 lines), 5 categories. MEMORY.md references it.
+  - Completed 2026-03-21.
+
+- [x] **P0-B: Post-commit auto-push hook** — `scripts/auto-push-hook.sh` (61 lines). All criteria met.
+  - Completed 2026-03-21.
+
+- [x] **P0-C: Wire write-ahead status into lead-orchestrator** — All 3 templates have `**Status:** Pending` + agent update instructions.
+  - Completed 2026-03-21.
+
+- [x] **P0-D: Evaluate repomap generator** — Decision: SKIP. codebase-mapping skill + Explore agents cover the use case.
+  - Completed 2026-03-22.
+
+### P1 — High Impact, Medium Effort
+
+- [x] **P1-E: Named reviewer personas (3)** — 3 personas in `pr-review-pr/personas/` with routing table. Adapted: garry-review + PR skills, not standalone personas.
+  - Completed 2026-03-21.
+
+- [x] **P1-F: Enrichment phase before execution** — Lightweight version in coder-prompt.md: "Verify before editing" with Glob/Read. Full enricher deferred.
+  - Completed 2026-03-21.
+
+- [x] **P1-G: Sequential review protocol** — pr-review-pr defaults to sequential dispatch. lead-orchestrator enforces P0/P1 fix-before-proceed.
+  - Completed 2026-03-21.
+
+- [x] **P1-H: Review routing layer** — Full routing table in pr-review-pr SKILL.md with auto-invocation logic and manual override.
+  - Completed 2026-03-21.
+
+- [x] **P1-I: Tier VIBE protocol per-repo** — vibe-protocol.md §0.1 + lead-orchestrator VIBE Level Detection. full/light gate table documented.
+  - Completed 2026-03-21.

@@ -80,6 +80,86 @@
       "tags": ["pm-os", "biweekly"],
       "createdAt": "2026-02-23T01:00:00.000Z",
       "updatedAt": "2026-02-23T01:00:00.000Z"
+    },
+    {
+      "id": "weekly-cleanup",
+      "name": "Weekly Cleanup",
+      "description": "Removes stale debug logs, telemetry, shell-snapshots, and file-history older than 14 days. Cleans empty QA artifacts.",
+      "enabled": true,
+      "trigger": {
+        "type": "cron",
+        "expression": "0 3 * * 0",
+        "timezone": "local"
+      },
+      "execution": {
+        "command": "Run /Users/yklin/.claude/scripts/weekly-cleanup.sh",
+        "workingDirectory": "/Users/yklin",
+        "timeout": 300,
+        "skipPermissions": true
+      },
+      "tags": ["maintenance", "weekly"],
+      "createdAt": "2026-03-22T00:00:00.000Z",
+      "updatedAt": "2026-03-22T00:00:00.000Z"
+    },
+    {
+      "id": "weekly-audit",
+      "name": "Weekly Health Audit",
+      "description": "Generates a markdown health report covering disk usage, debug log volume, project count, session stats, and stale worktree data.",
+      "enabled": true,
+      "trigger": {
+        "type": "cron",
+        "expression": "0 4 * * 0",
+        "timezone": "local"
+      },
+      "execution": {
+        "command": "Run /Users/yklin/.claude/scripts/weekly-audit.sh and summarize the report",
+        "workingDirectory": "/Users/yklin",
+        "timeout": 300,
+        "skipPermissions": true
+      },
+      "tags": ["maintenance", "weekly"],
+      "createdAt": "2026-03-22T00:00:00.000Z",
+      "updatedAt": "2026-03-22T00:00:00.000Z"
+    },
+    {
+      "id": "daily-synthesis-morning",
+      "name": "Daily Lesson Synthesis (Morning)",
+      "description": "Reads unprocessed journal entries, calls Claude Sonnet to extract durable cross-project lessons, and updates lessons.md.",
+      "enabled": true,
+      "trigger": {
+        "type": "cron",
+        "expression": "0 16 * * *",
+        "timezone": "UTC"
+      },
+      "execution": {
+        "command": "python3 /Users/yklin/.claude/scripts/synthesize-lessons.py",
+        "workingDirectory": "/Users/yklin",
+        "timeout": 120,
+        "skipPermissions": true
+      },
+      "tags": ["maintenance", "daily"],
+      "createdAt": "2026-03-22T00:00:00.000Z",
+      "updatedAt": "2026-03-22T00:00:00.000Z"
+    },
+    {
+      "id": "daily-synthesis-night",
+      "name": "Daily Lesson Synthesis (Night)",
+      "description": "Reads unprocessed journal entries, calls Claude Sonnet to extract durable cross-project lessons, and updates lessons.md.",
+      "enabled": true,
+      "trigger": {
+        "type": "cron",
+        "expression": "0 7 * * *",
+        "timezone": "UTC"
+      },
+      "execution": {
+        "command": "python3 /Users/yklin/.claude/scripts/synthesize-lessons.py",
+        "workingDirectory": "/Users/yklin",
+        "timeout": 120,
+        "skipPermissions": true
+      },
+      "tags": ["maintenance", "daily"],
+      "createdAt": "2026-03-22T00:00:00.000Z",
+      "updatedAt": "2026-03-22T00:00:00.000Z"
     }
   ],
   "settings": {

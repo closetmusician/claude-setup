@@ -68,22 +68,27 @@ Every requirement gets a short prefix ID (2–3 letters from the feature name) +
 - Maps 1:1 to TDD test cases
 - Makes PRD reviews traceable ("Does INF-3 handle the edge case where...?")
 
-**Pattern:** `PREFIX-N: Descriptive name` — followed by acceptance criteria lines.
+**Pattern:** `PREFIX-N: Descriptive name` — followed by numbered behavior descriptions.
 
-### Acceptance Criteria (AC lines)
-Each P0/P1 requirement gets multiple AC lines. Each AC must be independently testable:
+### Numbered Behavior Descriptions (replacing AC format)
+Each P0/P1 requirement gets a priority label and numbered behavior descriptions. Each numbered item is an observable system behavior that maps to one test case:
 ```
-- **REQ-1: Name** — Scope description.
-  - AC: Happy path criterion with concrete values
-  - AC: Error/edge case criterion
-  - AC: Boundary condition criterion
+**REQ-1: Name** (P0)
+[1-paragraph scope description explaining what this requirement does,
+how it works, and key technical details.]
+1. [Observable system behavior with concrete values — maps to one test case]
+2. [Another behavior — happy path]
+3. [Error/validation behavior]
+4. [Edge case or boundary condition]
 ```
 
 **Rules:**
-- Use concrete values ("≤200 words", "returns empty list", "status transitions: queued → running → succeeded")
+- Each numbered item describes what the system does (observable behavior), not what the user does
+- Use concrete values: field names, max lengths, valid states, sort orders ("≤200 words", "returns empty list", "status transitions: queued → running → succeeded")
 - Reference API shapes, DB columns, or UI states when known
-- Each AC = one test case (a developer can write a failing test without asking questions)
+- Each numbered item is independently falsifiable — a developer can write a failing test for any single item without asking questions
 - State transitions should enumerate valid paths
+- Order: happy path first, then error/validation, then edge cases/boundary conditions
 
 ---
 
@@ -135,7 +140,29 @@ This builds credibility and shows the PM has done their homework.
 
 ## 5. User Experience Depth <a name="user-experience"></a>
 
-A PRD's UX section should be sufficient for frontend implementation without Figma mockups. It has four layers:
+A PRD's UX section should be sufficient for frontend implementation without Figma mockups. It has five layers:
+
+### ASCII Wireframes
+For major interaction patterns (3-5 per feature PRD), include ASCII wireframe diagrams inline with the JTBD they illustrate. Use box-drawing characters (┌ ┐ └ ┘ ─ │ ├ ┤). Wireframes should show layout, key fields, and interaction affordances. Not every JTBD needs a wireframe — focus on complex multi-panel layouts, forms with many fields, state machines, and multi-step workflows.
+
+**Pattern:**
+```
+┌─────────────────────────────────────────┐
+│ Component Title                      ×  │
+├─────────────────────────────────────────┤
+│ ┌─────────────┐  ┌─────────────────┐   │
+│ │ Left Panel  │  │ Right Panel     │   │
+│ │ - Item 1    │  │ [Detail view]   │   │
+│ │ - Item 2    │  │                 │   │
+│ │ - Item 3    │  │ [Field: _____ ] │   │
+│ └─────────────┘  │ [Field: _____ ] │   │
+│                  │                 │   │
+│                  │  [Save] [Cancel]│   │
+│                  └─────────────────┘   │
+└─────────────────────────────────────────┘
+```
+
+Wireframes complement interaction flows by showing spatial layout. Place them inline with the JTBD they illustrate, immediately after the relevant interaction flow.
 
 ### Information Architecture
 Define where the feature lives and how it relates to existing navigation:

@@ -16,6 +16,7 @@
 8. **API Contract-First** — Before BUILD, Architect MUST produce `docs/contracts/<feature>.md` defining all FE↔BE data models, SSE event schemas, endpoint signatures, and exact field names. FE and BE subagents MUST reference this contract. QA MUST verify field names match. No inventing field names — the contract is the single source of truth.
 9. **Dependency Verification Gate** — Every external dependency in a spec MUST include: (a) exact installable package name, (b) URL to PyPI/npm/GitHub repo, (c) minimum version. Before BUILD, Architect/Orchestrator MUST verify every new dependency is installable. If a dependency cannot be installed, STOP and escalate. "Or equivalent" in a spec is a hard blocker. `try/except ImportError` with `None` fallback is NEVER a substitute for verifying the package exists.
 10. **Real Testing Mandate** — All tests MUST hit real DB (SavepointConnection from conftest.py) and real APIs where feasible. No mocks on internal modules. Only mock external HTTP services (Resend, external URLs). If a test mocks an entire core dependency, that is a P0 reject. Test output must be pristine — no warnings, no uncaptured expected errors. NEVER use `git stash` in parallel agents.
+11. **Spec-Diff Verification** — Before marking ANY task or backlog item complete, the orchestrator MUST perform a spec-diff: enumerate EACH requirement from the original spec and cite file:line evidence of implementation. "File exists" is not evidence. "Agent reported done" is not evidence. If any requirement lacks file:line evidence, the item is NOT complete. At `light` level, a brief inline check suffices; at `full` level, document the spec-diff in the QA artifact.
 
 ---
 
@@ -35,6 +36,7 @@ Set `"vibe_level"` in `.claude/phase.json`. Default: `"full"` if field absent.
 | R7 API Contract-First | **Yes** | No |
 | R8 Dependency Verification | Yes | Best-effort |
 | R9 Real Testing Mandate | Yes | Yes (where applicable) |
+| R10 Spec-Diff Verification | **Yes (documented)** | Yes (inline check) |
 
 **`full`** — Production apps (boardroom-ai, deck_benchmarks). All gates enforced.
 **`light`** — Tooling, scripts, config repos (~/.claude). TDD + code review + git hygiene. No spec wall, no phase gates, no API contracts, no 2 QA cycles.

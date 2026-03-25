@@ -59,10 +59,10 @@ deny_and_exit() {
   exit 2
 }
 
-# 1. git add -A / git add . (should use specific file names)
-#    Match "git add -A", "git add .", and common variants like "git add -a".
-if echo "$STRIPPED" | grep -qE '\bgit\s+add\s+(-A\b|\.\s*(;|$|&&|\|))'; then
-  deny_and_exit "Banned: 'git add -A' / 'git add .' -- use specific file names instead. Run 'git status' first to review what will be staged."
+# 1. git add -A / git add --all / git add . (should use specific file names)
+#    Match "git add -A", "git add --all", "git add .", and common variants like "git add -a".
+if echo "$STRIPPED" | grep -qE '\bgit\s+add\s+(-A\b|--all\b|\.\s*(;|$|&&|\|))'; then
+  deny_and_exit "Banned: 'git add -A' / 'git add --all' / 'git add .' -- use specific file names instead. Run 'git status' first to review what will be staged."
 fi
 
 # 2. --no-verify on any git command

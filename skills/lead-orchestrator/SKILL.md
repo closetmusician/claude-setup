@@ -86,20 +86,34 @@ User says any variant of:
    - `Module` / `Functions` columns = what to test
    - `Est. Count` = expected test count (use for QA verification)
 
-#### Phase 2: Dependency analysis (do this yourself)
+#### Phase 2: Plan Review Gate (do this yourself)
 
-4. **Build the dependency graph** from the plan:
+4. **Check if the plan has been reviewed.** Scan the plan file header for either:
+   - `**Reviewed:** YES`
+   - `**Status:** APPROVED`
+   If EITHER marker is present, the plan passes the gate — proceed to Phase 3.
+5. **If no review marker found:**
+   - At `full` VIBE level (or default): **STOP.** Use AskUserQuestion:
+     `"This plan has not been marked as reviewed (no '**Reviewed:** YES' or '**Status:** APPROVED' found). Proceed anyway?"`
+     Only continue if user explicitly confirms. This gate is mandatory — do not skip silently.
+   - At `light` VIBE level: **Warn but do not block.** Log:
+     `"⚠ Plan not marked as reviewed — proceeding (advisory at light level)."`
+     Then continue to Phase 3.
+
+#### Phase 3: Dependency analysis (do this yourself)
+
+6. **Build the dependency graph** from the plan:
    - Tasks with `conftest.py` or `None` as dependency = no blockers, can run in parallel
    - Tasks referencing another task ID (e.g., "W1-01") = must wait for that task
    - Tasks referencing "existing test" = no blockers (the test file already exists)
-5. **Group into parallel batches:**
+7. **Group into parallel batches:**
    - Batch A: all tasks with no dependencies (run in parallel)
    - Batch B: tasks depending on Batch A (run after Batch A completes)
    - Continue until all tasks are scheduled
 
-#### Phase 3: Present and confirm (ask user ONCE)
+#### Phase 4: Present and confirm (ask user ONCE)
 
-6. **Present the execution plan:**
+8. **Present the execution plan:**
    ```
    Wave X — [priority] ([total tests])
 
@@ -118,19 +132,19 @@ User says any variant of:
    ```
    Wait for user approval before spawning.
 
-#### Phase 4: Execute (spawn subagents per orchestration loop)
+#### Phase 5: Execute (spawn subagents per orchestration loop)
 
-7. **For each task in the batch**, expand the coder subagent prompt template:
-   - Fill `[specific implementation task]` with: module path, functions to test, proposed test file, expected test count
-   - Fill `FEAT-XXX` with the appropriate feature ID from the plan
-   - Fill `T-XXX` with the task ID (W1-01, etc.)
-8. **Spawn all independent tasks in parallel** (single message, multiple Task calls)
-9. **Follow the standard orchestration loop** for each: coder → QA C1 → (fix if P0) → QA C2
-10. **After batch completes**, spawn next batch
+9. **For each task in the batch**, expand the coder subagent prompt template:
+    - Fill `[specific implementation task]` with: module path, functions to test, proposed test file, expected test count
+    - Fill `FEAT-XXX` with the appropriate feature ID from the plan
+    - Fill `T-XXX` with the task ID (W1-01, etc.)
+10. **Spawn all independent tasks in parallel** (single message, multiple Task calls)
+11. **Follow the standard orchestration loop** for each: coder → QA C1 → (fix if P0) → QA C2
+12. **After batch completes**, spawn next batch
 
-#### Phase 5: Wave boundary
+#### Phase 6: Wave boundary
 
-11. **After all batches in a wave complete**, report results and ask before next wave:
+13. **After all batches in a wave complete**, report results and ask before next wave:
     ```
     Wave 1 complete: X/Y tasks passed QA C2
     [list any P0 failures that needed fix cycles]
@@ -416,6 +430,20 @@ At FEAT completion, verify these exist:
 **Status tracking:** Orchestrator sets Status to "Pending" in template before dispatch. Agents update to "In progress" immediately, then "Complete" or "Blocked". For crash recovery, cross-reference artifact Status with tracker.
 
 **No artifact = No proceed.** Do not spawn next subagent until previous artifact is committed.
+
+### Spec-Diff Verification (R19 — Mandatory)
+
+Before marking ANY task or backlog item complete, perform a spec-diff:
+
+1. **Enumerate** every requirement from the original spec/task description
+2. **For each requirement**, cite `file:line` evidence of implementation (use Grep/Read to verify)
+3. **"File exists" is NOT evidence** — you must confirm the file contains the required functionality
+4. **"Agent reported done" is NOT evidence** — agent self-reports are claims, not proof
+5. If ANY requirement lacks `file:line` evidence, the item is **NOT complete**
+
+At `light` VIBE level, a brief inline check suffices. At `full` level, document the spec-diff in the QA artifact.
+
+**Anti-pattern this prevents:** Checking off items based on agent completion messages without verifying each spec requirement was actually implemented. This has caused entire features to ship with 1/4 of spec requirements met.
 
 ## Subagent Prompts
 
