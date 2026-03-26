@@ -24,6 +24,12 @@ plugins/install-counts-cache.json
 # macOS junk
 .DS_Store
 
+# Python bytecode
+__pycache__/
+
+# Cached images
+image-cache/
+
 # IDE metadata
 ide/
 
