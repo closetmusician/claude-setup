@@ -514,9 +514,10 @@ If fix fails -> ESCALATE immediately (no second attempt)
 | Gate | When | Question |
 |------|------|----------|
 | **Parallel execution** | Before running 2+ tasks simultaneously | "T-XXX and T-YYY have no dependencies. Run in parallel? (same worktree)" |
+| **PR creation** | Before any `gh pr create` | "Ready to create PR. Title: '...'. Create it?" |
 | **Final merge** | All tasks complete | "FEAT-XXX complete. All N tasks passed QA. Merge to main?" |
 | **Skip task** | User chooses during escalation | "Skipping T-XXX. Continue with T-YYY?" |
-**No Auto-Proceed On:** any escalation; parallel execution; merge to main.
+**No Auto-Proceed On:** any escalation; parallel execution; PR creation; merge to main.
 
 ---
 ## 7. Feature Spec Template

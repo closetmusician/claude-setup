@@ -106,6 +106,7 @@ Check `.claude/phase.json`:
 ## 6. User Approval Gates (No Auto-Proceed)
 
 - **Parallel execution** — Before running 2+ tasks simultaneously
+- **PR creation** — Never run `gh pr create` without explicit approval
 - **Final merge** — All tasks complete
 - **Any escalation** — Always wait for user
 

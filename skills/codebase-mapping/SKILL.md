@@ -16,7 +16,7 @@ This skill uses the `lead-orchestrator` pattern to spawn multiple specialized su
 - Component interactions and data flows
 - Database schema with relationships
 - API endpoint reference
-- Visual diagrams (mermaid)
+- Visual diagrams (ASCII art)
 - Change guidance for common tasks
 
 ## When to Use This Skill
@@ -116,7 +116,7 @@ The orchestrator should spawn agents with these specific tasks:
 - Compile all findings into unified `docs/arch-plan.md`
 - Create change guidance section
 - Flag technical debt or undocumented areas
-- Generate final mermaid diagrams
+- Generate final ASCII diagrams
 - **Output**: Complete architecture document
 
 ### Step 4: Output Structure
@@ -129,7 +129,7 @@ The final `docs/arch-plan.md` document MUST follow this structure:
 ## 1. System Overview
 - Purpose and capabilities
 - Tech stack summary
-- High-level architecture diagram (mermaid)
+- High-level architecture diagram (ASCII)
 
 ## 2. Directory Structure Map
 ```
@@ -149,9 +149,8 @@ For each major feature:
   - Dependencies: [what else this touches]
 
 ## 4. Database Schema
-```mermaid
-erDiagram
-    [Your ER diagram here]
+```
+[ASCII ER diagram here — use box-drawing characters]
 ```
 
 Table details:
@@ -169,15 +168,13 @@ Table details:
 ## 6. Core Architecture Diagrams
 
 ### System Component Diagram
-```mermaid
-graph TD
-    [Component relationships]
+```
+[ASCII component diagram — use box-drawing characters, arrows (──►, ──▼)]
 ```
 
 ### Request Flow Examples
-```mermaid
-sequenceDiagram
-    [Key user flows]
+```
+[ASCII sequence diagram — use vertical pipes, arrows (──►, ◄──), and labeled lines]
 ```
 
 ## 7. Key Classes & Functions
@@ -209,12 +206,12 @@ For common PM tasks:
 
 ### Visual Diagrams
 
-Use **mermaid** extensively (renders in markdown):
+Use **ASCII art** exclusively (no mermaid). Use box-drawing characters (┌─┐│└─┘), arrows (──►, ──▼, ◄──), and plain-text labels inside fenced code blocks:
 
-1. **ER Diagram** for database schema
-2. **Component Graph** for system architecture
-3. **Sequence Diagrams** for key request flows
-4. **Dependency Graphs** for module relationships
+1. **ER Diagram** for database schema — boxes with columns, relationship lines with 1:N labels
+2. **Component Graph** for system architecture — nested boxes with directional arrows
+3. **Sequence Diagrams** for key request flows — vertical participant columns with horizontal arrows
+4. **Dependency Graphs** for module relationships — boxes with directional arrows
 
 ### Documentation Style
 
@@ -244,7 +241,7 @@ Agents communicate ONLY through committed artifacts:
    - `docs/arch-plan-features.md` (feature mapping)
 
 2. **code-architect** reads those files and creates:
-   - `docs/arch-plan-diagrams.md` (mermaid diagrams)
+   - `docs/arch-plan-diagrams.md` (ASCII diagrams)
    - `docs/arch-plan-api.md` (API reference)
 
 3. **Final integration** combines all into:
@@ -261,7 +258,7 @@ Before marking complete, verify:
 - [ ] All major features identified and traced to code
 - [ ] Database schema fully documented with relationships
 - [ ] API endpoints catalogued with auth requirements
-- [ ] At least 3 mermaid diagrams present (ER, component, sequence)
+- [ ] At least 3 ASCII diagrams present (ER, component, sequence)
 - [ ] Change guidance section has 3+ concrete scenarios
 - [ ] File paths are accurate and specific
 - [ ] Technical debt section flags any concerns

@@ -9,11 +9,10 @@
   - Infrastructure: [hosting, services]
 - **High-level Architecture**:
 
-```mermaid
-graph TD
-    A[Frontend] --> B[API Gateway]
-    B --> C[Backend Services]
-    C --> D[Database]
+```
+┌───────────┐     ┌─────────────┐     ┌──────────────────┐     ┌──────────┐
+│ Frontend  │────►│ API Gateway │────►│ Backend Services │────►│ Database │
+└───────────┘     └─────────────┘     └──────────────────┘     └──────────┘
 ```
 
 ## 2. Directory Structure Map
@@ -45,26 +44,24 @@ graph TD
 
 ## 4. Database Schema
 
-```mermaid
-erDiagram
-    users ||--o{ sessions : has
-    users ||--o{ features : owns
-    features ||--o{ feature_logs : generates
-
-    users {
-        uuid id PK
-        string email
-        string name
-        timestamp created_at
-    }
-
-    features {
-        uuid id PK
-        uuid user_id FK
-        string name
-        jsonb settings
-        timestamp created_at
-    }
+```
+┌──────────────────────┐       ┌──────────────────────┐       ┌──────────────────────┐
+│       users          │       │      features        │       │    feature_logs      │
+├──────────────────────┤  1:N  ├──────────────────────┤  1:N  ├──────────────────────┤
+│ id         (uuid) PK │──────►│ id         (uuid) PK │──────►│ id         (uuid) PK │
+│ email      (string)  │       │ user_id    (uuid) FK │       │ feature_id (uuid) FK │
+│ name       (string)  │       │ name       (string)  │       │ action     (string)  │
+│ created_at (ts)      │       │ settings   (jsonb)   │       │ created_at (ts)      │
+└──────────────────────┘       │ created_at (ts)      │       └──────────────────────┘
+        │                      └──────────────────────┘
+        │ 1:N  ┌──────────────────────┐
+        └─────►│      sessions        │
+               ├──────────────────────┤
+               │ id         (uuid) PK │
+               │ user_id    (uuid) FK │
+               │ token      (string)  │
+               │ expires_at (ts)      │
+               └──────────────────────┘
 ```
 
 ### Table Details
@@ -90,31 +87,35 @@ erDiagram
 ## 6. Core Architecture Diagrams
 
 ### System Component Diagram
-```mermaid
-graph LR
-    Client[Web Client] --> LB[Load Balancer]
-    LB --> API[API Server]
-    API --> Cache[Redis Cache]
-    API --> DB[(PostgreSQL)]
-    API --> Queue[Job Queue]
-    Queue --> Worker[Background Workers]
+```
+┌────────────┐     ┌───────────────┐     ┌────────────┐
+│ Web Client │────►│ Load Balancer │────►│ API Server │
+└────────────┘     └───────────────┘     └──┬───┬───┬─┘
+                                            │   │   │
+                              ┌─────────────┘   │   └──────────────┐
+                              ▼                 ▼                  ▼
+                     ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+                     │ Redis Cache  │  │ PostgreSQL   │  │  Job Queue   │
+                     └──────────────┘  └──────────────┘  └──────┬───────┘
+                                                                │
+                                                                ▼
+                                                       ┌────────────────┐
+                                                       │ Background     │
+                                                       │ Workers        │
+                                                       └────────────────┘
 ```
 
 ### Request Flow: User Authentication
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant A as API
-    participant D as Database
-    participant R as Redis
-
-    C->>A: POST /api/auth/login
-    A->>D: Query user by email
-    D-->>A: User record
-    A->>A: Verify password
-    A->>R: Store session
-    R-->>A: Session ID
-    A-->>C: JWT token
+```
+Client              API                 Database            Redis
+  │                  │                     │                  │
+  │─ POST /login ───►│                     │                  │
+  │                  │─ query by email ───►│                  │
+  │                  │◄─ user record ──────┤                  │
+  │                  │─ verify password    │                  │
+  │                  │─ store session ────────────────────────►│
+  │                  │◄─ session ID ──────────────────────────┤
+  │◄─ JWT token ─────┤                     │                  │
 ```
 
 ## 7. Key Classes & Functions

@@ -105,5 +105,10 @@ for pf in "${PROTECTED_FILES[@]}"; do
   fi
 done
 
+# 7. gh pr create (requires explicit user approval -- never auto-create PRs)
+if echo "$STRIPPED" | grep -qE '\bgh\s+pr\s+create\b'; then
+  deny_and_exit "Blocked: 'gh pr create' requires Yu-Kuan's explicit approval. Present the PR title/summary and ask before creating."
+fi
+
 # All checks passed -- allow the command.
 exit 0
