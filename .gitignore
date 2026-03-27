@@ -15,11 +15,13 @@ history.jsonl
 plans/
 tasks/
 
-# Plugin caches and cloned repos (reproducible from config)
+# Plugin caches and cloned repos (reproducible from settings.json enabledPlugins)
 plugins/cache/
 plugins/repos/
 plugins/marketplaces/
 plugins/install-counts-cache.json
+plugins/installed_plugins.json
+plugins/known_marketplaces.json
 
 # macOS junk
 .DS_Store
@@ -59,3 +61,24 @@ bin/
 
 # Old pre-git backups (git handles versioning now)
 backups/
+
+# === Personal files (per-user, not shared) ===
+
+# Personal overrides (see rules/personal.md.example)
+rules/personal.md
+
+# Memory is per-user
+memory/journal.md
+memory/lessons.md
+memory/*.md
+!memory/.gitkeep
+
+# Local settings override
+settings.local.json
+
+# Personal schedules
+schedules.json
+
+# Personal PM/voice skills (symlinked from ~/Code/pm_os)
+skills/pm-*
+skills/yk-voice.md

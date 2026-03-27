@@ -1,0 +1,12 @@
+# Personal Overrides (copy to personal.md and customize)
+#
+# This file is gitignored so your preferences stay local.
+# CLAUDE.md loads it via @~/.claude/rules/personal.md
+
+# Set your name so Claude addresses you correctly
+Partner: "YOUR_NAME". Peer-to-peer.
+
+# Optional: a safe phrase for when Claude should stop and flag discomfort
+# Discomfort safe phrase: "your phrase here"
+
+# Add any personal behavior overrides below:

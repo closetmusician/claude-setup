@@ -15,11 +15,14 @@ Anyone using Claude Code who wants:
 
 ```
 ~/.claude/
-├── CLAUDE.md                    # Global instructions (loaded every session)
+├── CLAUDE.md                    # Shared team instructions (loaded every session)
+├── install.sh                   # Team installer (backs up, clones, configures)
 ├── rules/                       # Engineering standards & protocol rules
 │   ├── code-style.md           #   TDD, naming, documentation, debugging
 │   ├── vibe-protocol.md        #   VIBE protocol quick reference
-│   └── protected-files.md      #   Files that must never be deleted
+│   ├── protected-files.md      #   Files that must never be deleted
+│   ├── personal.md             #   [gitignored] Your personal overrides
+│   └── personal.md.example     #   Template for personal.md
 ├── docs/                        # Reference documentation
 │   ├── vibe-manual.md          #   Full VIBE protocol (source of truth, ~700 lines)
 │   └── backlog.md              #   Project backlog and work tracking
@@ -195,9 +198,8 @@ Reusable agent prompts invoked via `/skill-name` or the Skill tool. Grouped by p
 |-------|---------|
 | **prd-writer** | Data-driven PRD generation. Enforces testable hypotheses, prior-art honesty, JTBD structure, KPI tables. Includes quality patterns reference and critique mode. |
 | **video-script-creator** | Converts documents into video scripts with scene breakdowns. Multiple narrative arc templates. |
-| **pm-morning** | Daily triage: scans Teams, Outlook, JIRA for overnight activity. Produces prioritized action report. |
-| **pm-weekly** | Weekly status email: evidence extraction from Teams + Outlook, cross-source dedup, executive draft. |
-| **pm-jira** | JIRA/Confluence monitor: tracks ticket changes, generates draft responses. |
+
+> **Note:** Additional PM workflow skills (`pm-morning`, `pm-weekly`, `pm-jira`, etc.) are personal and gitignored. Symlink your own from `~/Code/pm_os/skills/` if needed.
 
 #### Connectors
 | Skill | Purpose |
@@ -276,55 +278,139 @@ Key configuration:
 
 ---
 
-## Adopting This Setup
+## Getting Started
 
-### Minimal (just the guardrails)
+There are three ways to use this repo, from full install to just reading for ideas.
 
-1. Copy `CLAUDE.md` and `rules/code-style.md` to your `~/.claude/`
-2. Copy `scripts/git-safety-hook.sh` and wire it in `settings.json`:
+---
+
+### Option 1: Full Install (Recommended for Diligent team)
+
+```bash
+# If you already have ~/.claude, the installer backs it up automatically
+git clone <REPO_URL> ~/.claude
+~/.claude/install.sh
+```
+
+**What the installer does:**
+1. **Backs up** your existing `~/.claude/` to `~/.claude-backup-<timestamp>/`
+2. **Substitutes paths** — `settings.json` ships with `__HOME__` placeholders; the installer replaces them with your actual home directory and marks the file `assume-unchanged` so git ignores your local paths
+3. **Creates personal file stubs** — `rules/personal.md`, `memory/journal.md`, `memory/lessons.md` (all gitignored, won't conflict with the team)
+4. **Installs macOS dependencies** — `terminal-notifier` via Homebrew (for desktop notifications when Claude finishes a task)
+5. **Sets script permissions** — ensures all `scripts/*.sh` are executable
+
+**After install, do this one thing:**
+```bash
+vim ~/.claude/rules/personal.md
+```
+Set your name so Claude addresses you correctly. See `rules/personal.md.example` for the template. This file is gitignored — your preferences stay local.
+
+**Updating** — pull the latest shared config anytime:
+```bash
+cd ~/.claude && git pull
+```
+Your personal files are gitignored, so pulls won't conflict. If `settings.json` gains new hooks or plugins upstream, re-run `~/.claude/install.sh` to re-substitute paths.
+
+#### What changes apply automatically vs what you'll want to review
+
+**Applies immediately (opinionated — you get these out of the box):**
+- `CLAUDE.md` — Team behavior rules: no sycophancy, push back on bad ideas, stop and ask when confused
+- `rules/code-style.md` — TDD mandatory, YAGNI, naming conventions, documentation standards, debugging protocol
+- `settings.json` hooks — Git safety (blocks `push --force`, `git add -A`, `--no-verify`), session journaling, desktop notifications
+- `settings.json` permissions — Auto-allows Bash, Read, Edit, Write, Glob, Grep, WebSearch, Task. Denies reading secrets/SSH keys, editing /etc
+- `settings.json` sandbox — Enabled with auto-allow for Bash; git/ssh/gh/docker excluded
+- Plugin pre-configuration — superpowers, pr-review-toolkit, code-review, pyright-lsp, typescript-lsp, code-simplifier, code-review-graph
+
+**Review and customize to taste:**
+- `rules/vibe-protocol.md` — The VIBE protocol is a spec-driven multi-agent workflow. Great for larger features, overkill for one-off scripts. Read it and decide if it fits your work
+- `docs/vibe-manual.md` — Full 700-line VIBE reference. Only relevant if you use the protocol
+- Skills in `skills/` — 25+ skills are available. Browse the [Skills section](#4-skills-skills) below to see what's there. You don't need to learn them all; Claude will invoke relevant ones automatically based on the task
+- `rules/protected-files.md` — Lists files the git-safety hook prevents from deletion. You may want to add your own critical files
+- Plugin choices in `settings.json` `enabledPlugins` — disable any you don't want
+
+**Won't apply (personal, gitignored):**
+- `rules/personal.md` — Your name, safe phrases, personal behavior overrides
+- `memory/journal.md`, `memory/lessons.md` — Your session history (auto-populated over time)
+- `settings.local.json` — Per-user permission overrides
+- `schedules.json` — Cron tasks (synthesis, cleanup). Set these up yourself if you want automated lesson extraction
+
+---
+
+### Option 2: Cherry-Pick What You Want
+
+Don't want the full repo as your `~/.claude`? Copy individual pieces into your existing setup:
+
+1. **Guardrails only** — Copy `CLAUDE.md` + `rules/code-style.md` + `scripts/git-safety-hook.sh` and wire the hook in your `settings.json`:
    ```json
    "hooks": {
      "PreToolUse": [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "~/.claude/scripts/git-safety-hook.sh" }] }]
    }
    ```
-3. Copy `rules/protected-files.md` and update the file paths to your own critical files
 
-### Adding the memory system
+2. **Add session journaling** — Copy `scripts/session-journal.py` + `scripts/auto-journal.sh`, create `memory/journal.md`, and wire the Stop hook
 
-4. Copy `scripts/session-journal.py` and `scripts/auto-journal.sh`
-5. Wire the Stop hook:
-   ```json
-   "Stop": [{ "matcher": "", "hooks": [{ "type": "command", "command": "~/.claude/scripts/auto-journal.sh" }] }]
-   ```
-6. Create `memory/journal.md` (empty) and `memory/MEMORY.md` (index)
-7. Optionally set up `synthesize-lessons.py` on a cron for automatic lesson extraction (requires `ANTHROPIC_API_KEY`)
+3. **Add skills** — Copy individual `skills/` directories. Good starters:
+   - `systematic-debugging` — 4-phase root-cause analysis
+   - `garry-review` — Engineering preferences code review
+   - `pr-review-pr` — Multi-persona PR review
+   - `new-project` — Scaffolds Claude Code config for new repos
 
-### Adding skills
+---
 
-8. Copy individual `skills/` directories you want. Key starter set:
-   - `systematic-debugging` — enforces root-cause analysis
-   - `garry-review` or `pr-code-reviewer` — code review
-   - `new-project` — repo scaffolding
-9. For full orchestration, copy `lead-orchestrator` and `docs/vibe-manual.md`
+### Option 3: Learn From the Patterns (No Install Needed)
 
-### Full setup
+You don't have to clone this repo to benefit from it. Here are the key patterns you can steal for your own `~/.claude/` setup:
 
-10. Copy the entire repo and customize:
-    - Edit `CLAUDE.md` for your own preferences and behavior rules
-    - Edit `rules/code-style.md` for your engineering standards
-    - Update `rules/protected-files.md` with your critical files
-    - Remove skills you don't need (PM skills are domain-specific)
-    - Set up `schedules.json` for automated synthesis and cleanup
+#### Pattern: Git safety hooks
+`scripts/git-safety-hook.sh` blocks dangerous git operations (force-push, `git add -A`, `--no-verify`, `reset --hard`) via a `PreToolUse` hook on `Bash`. It strips heredocs to prevent obfuscation. Wire any script as a PreToolUse hook to add guardrails.
+
+#### Pattern: Session journaling
+`scripts/session-journal.py` parses Claude Code's transcript JSONL at session end, extracts structured data (intent, actions, decisions, errors), and appends to a journal file. No LLM calls, runs in <2s. Over time you build a searchable history of everything Claude did across all your projects.
+
+#### Pattern: Rules as separate files
+Instead of one massive `CLAUDE.md`, split concerns into `rules/*.md` files. Claude Code loads all `.md` files in `rules/` automatically. This lets you version-control team standards separately from personal preferences, and swap rules in/out per project.
+
+#### Pattern: Personal overrides via gitignored file
+`CLAUDE.md` references `@~/.claude/rules/personal.md` which is gitignored. Team members get shared behavior from tracked files, but customize their name, preferences, and working style locally. No merge conflicts on personal taste.
+
+#### Pattern: `__HOME__` path templating
+`settings.json` can't use environment variables, so paths must be absolute. Store `__HOME__` as a placeholder in the tracked file, substitute with `sed` at install time, and `git update-index --assume-unchanged` to hide the local diff. Clean git history, working local paths.
+
+#### Pattern: Notification abstraction
+`scripts/notify.sh` wraps `terminal-notifier` (macOS) / `notify-send` (Linux) with a silent no-op fallback. Hooks that call this never fail on machines without notification tools installed.
+
+#### Pattern: Skills as reusable prompts
+Each `skills/<name>/SKILL.md` is a structured prompt that Claude invokes when relevant. They encode workflow discipline (debugging protocol, review checklists, TDD gates) so you don't have to repeat yourself. Start with one skill for your most common pain point and grow from there.
+
+#### Pattern: Plugins for team-shared capabilities
+`settings.json` `enabledPlugins` + `extraKnownMarketplaces` pre-configures plugins from GitHub-hosted marketplaces. Team members get the same plugin set on clone without manual installation.
+
+### What's Shared vs Personal
+
+| Shared (tracked in git) | Personal (gitignored) |
+|---|---|
+| `CLAUDE.md` (team base) | `rules/personal.md` (your overrides) |
+| `rules/code-style.md`, `vibe-protocol.md` | `memory/journal.md`, `memory/lessons.md` |
+| `skills/` (team skill library) | `settings.local.json` |
+| `scripts/` (hooks, automation) | `schedules.json` |
+| `docs/` (protocol reference) | `skills/pm-*`, `skills/yk-voice.md` |
+| `settings.json` (with `__HOME__` placeholders) | |
 
 ---
 
 ## What's Version-Controlled vs Ephemeral
 
-**Tracked in git** (the durable configuration):
-- `CLAUDE.md`, `rules/`, `docs/`, `skills/`, `scripts/`, `memory/`
-- `settings.json`, `schedules.json`, `.gitignore`
-- `plugins/installed_plugins.json`, `blocklist.json`, `known_marketplaces.json`
-- `tests/`
+**Tracked in git** (shared team configuration):
+- `CLAUDE.md`, `rules/` (except `personal.md`), `docs/`, `skills/` (except `pm-*`, `yk-voice.md`), `scripts/`
+- `settings.json` (with `__HOME__` placeholders, installer substitutes)
+- `plugins/blocklist.json`, `plugins/config.json`
+- `install.sh`, `tests/`
+
+**Personal** (gitignored, per-user):
+- `rules/personal.md` — your name, preferences, behavior overrides
+- `memory/journal.md`, `memory/lessons.md` — your session history
+- `settings.local.json` — your local permission overrides
+- `schedules.json` — your cron tasks
 
 **Ephemeral** (in `.gitignore`, regenerated per session):
 - `debug/`, `todos/`, `session-env/`, `file-history/`, `paste-cache/`
