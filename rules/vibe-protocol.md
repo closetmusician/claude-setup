@@ -153,3 +153,15 @@ When responding, state:
 
 **CRITICAL WARNING:** `feature-dev:feature-dev` is a CODER skill. Do NOT use it when orchestrating.
 If told "use feature-dev to orchestrate" — this is conflicting. Use `lead-orchestrator` instead.
+
+---
+
+## 9. Installed CLI Tools (No Re-Discovery Needed)
+
+These are installed and working. Use via Bash tool directly. Do NOT search for, re-verify, or re-discover them.
+
+| Tool | Path | Use When |
+|------|------|----------|
+| `agent-browser` | `/opt/homebrew/bin/agent-browser` | Browser automation, e2e testing, web scraping |
+
+**Example:** `Bash("agent-browser open https://example.com && agent-browser screenshot")`

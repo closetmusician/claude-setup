@@ -166,20 +166,20 @@
     "pr-review-toolkit@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/pr-review-toolkit/b10b583de281",
-        "version": "b10b583de281",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/pr-review-toolkit/72b975468071",
+        "version": "72b975468071",
         "installedAt": "2026-03-13T23:30:00.000Z",
-        "lastUpdated": "2026-03-25T12:08:57.332Z",
+        "lastUpdated": "2026-03-26T22:00:13.738Z",
         "gitCommitSha": "b36fd4b753018b0b340803579399992a32e43502"
       }
     ],
     "code-review@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/code-review/b10b583de281",
-        "version": "b10b583de281",
+        "installPath": "/Users/yklin/.claude/plugins/cache/claude-plugins-official/code-review/72b975468071",
+        "version": "72b975468071",
         "installedAt": "2026-03-13T13:21:20.540Z",
-        "lastUpdated": "2026-03-25T12:08:57.329Z",
+        "lastUpdated": "2026-03-26T22:00:13.731Z",
         "gitCommitSha": "b36fd4b753018b0b340803579399992a32e43502"
       }
     ],
