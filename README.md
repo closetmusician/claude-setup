@@ -288,7 +288,7 @@ There are three ways to use this repo, from full install to just reading for ide
 
 ```bash
 # If you already have ~/.claude, the installer backs it up automatically
-git clone <REPO_URL> ~/.claude
+git clone https://github.com/closetmusician/claude-setup.git ~/.claude
 ~/.claude/install.sh
 ```
 

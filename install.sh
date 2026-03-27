@@ -8,7 +8,7 @@ set -euo pipefail
 
 CLAUDE_DIR="$HOME/.claude"
 BACKUP_DIR="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
-REPO_URL="REPLACE_WITH_YOUR_REPO_URL"
+REPO_URL="https://github.com/closetmusician/claude-setup.git"
 
 # --- Colors ---
 RED='\033[0;31m'
