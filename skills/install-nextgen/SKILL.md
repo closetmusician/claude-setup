@@ -240,6 +240,33 @@ These flow through `auth.config.ts` (`...environment.auth` spread) → `authenti
 
 ---
 
+## Phase 4.5: Fix Local S3 Uploads
+
+**Reference:** `references/fix-local-s3-uploads.md` (full code changes with surrounding context)
+
+Browser file uploads (e.g., uploading documents to Books) fail silently in local dev due to 3 LocalStack↔AWS differences. This phase detects which fixes are needed and applies only what's missing.
+
+### Detection (run from `boards-cloud-service/` root)
+
+Check these 4 indicators — grep for each pattern in the target file:
+
+| # | Grep Pattern | Target File (relative to `src/`) | Fixes |
+|---|-------------|----------------------------------|-------|
+| 1 | `PresignedUrlProtocol` | `Infrastructure/Infrastructure.S3/S3Storage.cs` | HTTPS presigned URLs → HTTP |
+| 2 | `ForcePathStyle` | `Infrastructure/Infrastructure.Local.Core/Infrastructure/LocalStack/LocalStackExtensions.cs` | Virtual-host → path-style URLs |
+| 3 | `PutCORSConfigurationAsync` | `Infrastructure/Infrastructure.Local/Extensions/S3LifecycleHooksExtensions.cs` | Missing CORS on S3 buckets |
+| 4 | `PresignedUrlProtocol = Protocol.HTTP` | `Infrastructure/Infrastructure.Local/Infrastructure/LocalStack/LocalStackSetupInitializationHook.cs` | S3Storage DI wiring |
+
+### Rules
+
+- If ALL 4 patterns are found → skip this phase entirely (already applied).
+- If ANY are missing → apply only the missing fixes using the reference doc.
+- Fixes 1 and 4 are paired: if #1 is missing, #4 is also needed (and vice versa). Always apply both together.
+- Each fix includes the exact surrounding context to locate the insertion point. Use the Edit tool, not full file rewrites.
+- After applying, `dotnet build` must succeed before proceeding to Phase 5.
+
+---
+
 ## Phase 5: Start Services
 
 ### Terminal 1 — Backend
@@ -323,6 +350,7 @@ Frontend loads                           | curl -s http://localhost:4200 \| head
 | 8 | `gh` CLI TLS error (x509) | macOS keychain issue | Use `git clone` directly |
 | 9 | `only-allow pnpm` error | Used npm/yarn instead of pnpm | `pnpm install` only |
 | 10 | Missing exports on frontend serve | Barrel files not generated | `pnpm run generate:index` from `src/` |
+| 11 | File upload fails silently / ERR_SSL_PROTOCOL_ERROR | LocalStack serves HTTP but presigned URLs use HTTPS, no CORS, virtual-host URLs | Phase 4.5 — `references/fix-local-s3-uploads.md` |
 
 ---
 
