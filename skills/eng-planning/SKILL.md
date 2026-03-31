@@ -188,7 +188,7 @@ Before starting any work, check if a prior planning session left state on disk.
    }
    ```
    - Report to the user: "Resuming eng-planning from Step [N]. Steps completed: [list]. Next step: [N]."
-   - Re-read the PRD from `prd_path`.
+   - Re-read `docs/.eng-planning/prd-summary.md` (NOT the full PRD — use the summary for main agent context).
    - Re-read any intermediate files that still exist in `docs/.eng-planning/` (they survive until Step 5c cleanup).
    - **After determining resume point, proceed to that step. Do NOT skip remaining steps.**
 
@@ -499,6 +499,7 @@ rm -f docs/.eng-planning/websearch-findings.md
 rm -f docs/.eng-planning/backlog-crossref.md
 rm -f docs/.eng-planning/scope-challenge.md
 rm -f docs/.eng-planning/design-decisions.md
+rm -f docs/.eng-planning/prd-summary.md
 ```
 
 Do this NOW, before proceeding to Step 6. The review subagent (Step 9) reads from the final artifacts in `docs/plans/` and `docs/contracts/`, not from intermediates. `progress.json` and `review-findings.md` are NOT intermediates — they are infrastructure files needed by later steps.
