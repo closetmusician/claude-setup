@@ -5,178 +5,218 @@ description: Use when asked to "act as orchestrator", coordinate multiple subage
 
 # Lead Orchestrator
 
-## Overview
-
-**You coordinate. You NEVER implement.**
-
-The orchestrator spawns dedicated subagent pairs (coder → QA), tracks their artifacts, and enforces QA cycle completion. You produce ZERO implementation code.
-
-**Core principle:** Your only tools are Task (to spawn subagents), Read (to verify artifacts), and AskUserQuestion (to escalate). If you're about to Edit/Write code files, you've violated your role. Exception: E2E Suite Mode allows Bash for lifecycle commands (setup, teardown, discovery) — see below.
-
-## VIBE Level Detection
-
-Before orchestrating, check `.claude/phase.json` for the `"vibe_level"` field:
-- `"full"` — all gates enforced (2 QA cycles, spec wall, phase gates, API contracts)
-- `"light"` — TDD + 1 code review pass + git hygiene; skip QA Cycle 2, spec wall, phase gate enforcement
-- **Default:** If `"vibe_level"` is absent, treat as `"full"`
-
-At `light` level:
-- **Skip QA Cycle 2** — 1 review pass (Cycle 1) is sufficient for task completion
-- **Skip spec wall checks** — no `docs/` spec requirement
-- **Skip phase gate enforcement** — do not block on `.claude/phase.json` phase value
-- **Skip API contract verification** — no `docs/contracts/` requirement
-- **Subagent pairs simplified** — coder + 1 QA pass, not coder + QA C1 + QA C2
-
 ## The Iron Law
 
 ```
 ORCHESTRATOR SPAWNS SUBAGENTS. ORCHESTRATOR NEVER CODES.
 ```
 
-If you're editing implementation files, STOP. Spawn a coder subagent instead.
+You coordinate. You NEVER implement. You produce ZERO implementation code.
+If you're about to Edit/Write a `.py`/`.ts`/`.js` file, STOP — spawn a coder subagent.
 
-## When to Use
+**`feature-dev:feature-dev` is a CODER skill, NOT an orchestrator skill.** Use THIS skill when orchestrating. Spawn subagents that use feature-dev:feature-dev.
 
-**Use this skill when:**
-- User says "act as orchestrator" or "coordinate subagents"
-- Managing multi-task feature implementation (FEAT-XXX with T-XXX tasks)
-- Need to ensure 2 QA cycles per task
-- Spawning coder/QA pairs in isolation
-- **User says "run e2e test suites" or "run e2e for FEAT-XXX [to FEAT-YYY]"** → go to E2E Suite Mode
+## VIBE Level Detection
 
-**Do NOT use when:**
-- You ARE the coder subagent (you received a Task prompt to implement)
-- Simple single-file changes that don't need orchestration
-- Research/exploration tasks
+Read `.claude/phase.json` for `"vibe_level"` (default `"full"` if absent):
 
-## Critical Skill Confusion Warning
+| | `full` | `light` |
+|---|---|---|
+| QA Cycles | 2 (C1 + C2) | 1 (C1 only) |
+| Spec wall | Enforced | Skipped |
+| Phase gate | Enforced | Skipped |
+| API contracts | Required | Skipped |
+| Architect gate | When criteria met | Optional |
 
-**`feature-dev:feature-dev` is a CODER skill, NOT an orchestrator skill.**
+## Allowed Tools
 
-If someone says "Using /feature-dev:feature-dev, act as orchestrator" - this is conflicting. The feature-dev skill frames you as an implementer. You cannot use it and also be an orchestrator.
+| Tool | Purpose |
+|------|---------|
+| **Task** | Spawn coder/QA/architect subagents |
+| **Read** | Consume orchestration inputs (plans, configs, templates, specs); verify artifacts exist; audit implementation for spec-diff |
+| **Grep** | Verify file:line evidence during spec-diff |
+| **Glob** | Find artifact files |
+| **Write** | Orchestration artifacts ONLY (logs, suite reports) — NEVER implementation files |
+| **Bash** | E2E lifecycle commands ONLY (see E2E Suite Mode) |
+| **AskUserQuestion** | Escalate blockers |
 
-**Correct approach:** Use THIS skill (lead-orchestrator) when orchestrating. Spawn subagents that use feature-dev:feature-dev.
+**FORBIDDEN on implementation files:** Edit, Write, Bash (for code changes). If user says "fix this" — spawn a CODER subagent.
 
 ---
 
-## Plan Execution Mode — One Sentence, Walk Away, Get Tests
+## Pre-Spawn Gates (Before ANY Subagent)
+
+### Gate 1: Spec Context Injection
+
+1. Read `docs/spec-registry.yaml` to get domain-to-spec mapping
+2. Identify relevant spec(s) for the subagent's task
+3. Inject into subagent prompt:
+   ```markdown
+   ## Mandatory Context (injected by orchestrator)
+   - **Spec:** docs/plans/[relevant-spec].md — READ THIS BEFORE CODING
+   - **Skills:** [skill1, skill2] (from registry)
+   - **Schemas:** [schema/path.yaml] (from registry)
+   ```
+4. If no matching spec found: add `NO_SPEC_REQUIRED` with explanation, or escalate
+
+### Gate 2: Per-Task Architect
+
+**Skip when:** setup/config task, bash/script execution, rote with no design decisions, mini-spec already file-level specific.
+**Require when:** new components/services, touches 3+ files with non-obvious integration, data model changes, ambiguous approach.
+**If unsure:** AskUserQuestion.
+
+When needed:
+1. Read `templates/architect-prompt.md`, fill placeholders (task ID, title, mini-spec, mandatory context, arch doc path)
+2. Spawn via Task with `subagent_type: "general-purpose"`
+3. Wait for output, then inject into coder prompt under `## Task Design (from architect)`
+
+---
+
+## The Orchestration Loop
+
+```
+Task assigned → [Architect Gate] → Spawn CODER → wait for T-XXX-ready-for-review.md
+  → Spawn QA C1 → wait for T-XXX-cycle-1.md → P0 found? → Spawn CODER fix → loop back
+  → No P0 → Spawn QA C2 → wait for T-XXX-cycle-2.md → COMPLETE
+```
+
+**STOP boundaries are mandatory.** Wait for artifact before proceeding.
+
+**No artifact = No proceed.** If subagent returns without artifact, treat as fix cycle failure — re-spawn once, then escalate. This rule applies to the sequential loop, not parallel E2E spawning.
+
+### Bug Severity at QA Boundary
+
+- **P0:** MUST fix before next QA cycle (loop back through coder)
+- **P1:** SHOULD fix before QA C2 — spawn coder, re-run QA C1 on fixes. Skip for single-file bug fixes, config-only, or docs-only changes.
+- **P2:** Log to `docs/backlog.md`, proceed
+
+### Light-Level Shortcut
+
+At `light` VIBE level: Spawn CODER → wait for `T-XXX-ready-for-review.md` → Spawn QA C1 → wait for `T-XXX-cycle-1.md` → if PASS, task complete. No C2, no spec wall, no phase gate checks.
+
+### Escalation (N=1)
+
+If a task fails more than 1 fix cycle (coder re-spawned, still fails): STOP, AskUserQuestion, wait for guidance.
+
+### Self-Correction Limits
+
+- **Deterministic failures** (test/type/lint errors): max 2 retries within a single subagent, then escalate
+- **Structural failures** (spec ambiguity, missing deps, wrong architecture): immediate escalate, no retries
+
+The N=1 rule governs the outer loop (coder-QA cycles). Self-correction limits govern retries within a single subagent execution.
+
+---
+
+## Required Artifacts
+
+Before marking T-XXX complete, verify in `qa/FEAT-XXX/`:
+
+| Artifact | Created By |
+|----------|-----------|
+| `T-XXX-ready-for-review.md` | Coder |
+| `T-XXX-cycle-1.md` | QA (Cycle 1) |
+| `T-XXX-cycle-2.md` | QA (Cycle 2, `full` only) |
+
+At FEAT completion, also verify:
+
+| Artifact | Created By |
+|----------|-----------|
+| `e2e/tests/feat-XXX/*.yaml` | Test Writer |
+| `qa/e2e/*-report.md` | QA Runner |
+| `qa/e2e/screenshots/*.png` | QA Runner |
+| `qa/e2e/suite-*-{timestamp}.md` | Orchestrator |
+
+### Spec-Diff Verification (Mandatory)
+
+Before marking ANY task complete:
+1. Enumerate every requirement from the original spec/task description
+2. For each requirement, cite `file:line` evidence (use Grep/Read to verify)
+3. "File exists" is NOT evidence — confirm the file contains required functionality
+4. "Agent reported done" is NOT evidence — verify independently
+5. Missing evidence = NOT complete
+
+At `light` level: brief inline check. At `full` level: document in QA artifact.
+
+---
+
+## Subagent Prompts
+
+Read the template file, fill all `{PLACEHOLDERS}`, spawn via Task tool.
+
+| Subagent | Template | Type |
+|----------|----------|------|
+| Coder | `templates/coder-prompt.md` | (default) |
+| Architect | `templates/architect-prompt.md` | `general-purpose` |
+| QA Cycle 1 | `templates/qa-cycle1-prompt.md` | (default) |
+| QA Cycle 2 | `templates/qa-cycle2-prompt.md` | (default) |
+| Test Writer | `templates/test-writer-prompt.md` | (default) |
+| QA Runner | `templates/qa-runner-prompt.md` | `general-purpose` |
+
+---
+
+## Plan Execution Mode
 
 ### Trigger
 
-User says any variant of:
-- "Execute the plan at [path]"
-- "Run wave 1 from [plan file]"
-- "Implement the test gap plan"
-- Any reference to a structured plan file with waves/tasks
+User references a structured plan file with waves/tasks (e.g., "Execute the plan at [path]", "Run wave 1 from [plan file]").
 
-### Protocol (follow exactly)
+### Protocol
 
-#### Phase 1: Ingest the plan (do this yourself)
+#### Phase 1: Ingest the Plan
 
-1. **Read the plan file** (e.g., `qa/bugs/functional-tests.md`)
-2. **Detect context automatically** — do NOT ask the user for these:
-   - **Phase:** Read `.claude/phase.json` (must be BUILD)
-   - **Branch:** Check git branch (determines role)
-   - **Test directory:** Infer from project structure (e.g., `boardroom-ai/backend/tests/`)
-   - **QA artifact directory:** Infer from plan (e.g., `qa/FEAT-XXX/`)
-3. **Parse the wave/task structure** from the plan tables:
-   - Each row with a task ID (W1-01, T-XXX, etc.) = one task
-   - `Depends On` column = dependency graph
-   - `Proposed Test File` or `File` column = target output
-   - `Module` / `Functions` columns = what to test
-   - `Est. Count` = expected test count (use for QA verification)
+1. Read the plan file (e.g., `qa/bugs/functional-tests.md`)
+2. Auto-detect context — do NOT ask the user for: phase (`.claude/phase.json`, must be BUILD), branch, test directory, QA artifact directory
+3. Parse wave/task structure: task IDs, `Depends On` column, proposed test files, modules/functions, expected test counts
 
-#### Phase 2: Plan Review Gate (do this yourself)
+#### Phase 2: Plan Review Gate
 
-4. **Check if the plan has been reviewed.** Scan the plan file header for either:
-   - `**Reviewed:** YES`
-   - `**Status:** APPROVED`
-   If EITHER marker is present, the plan passes the gate — proceed to Phase 3.
-5. **If no review marker found:**
-   - At `full` VIBE level (or default): **STOP.** Use AskUserQuestion:
-     `"This plan has not been marked as reviewed (no '**Reviewed:** YES' or '**Status:** APPROVED' found). Proceed anyway?"`
-     Only continue if user explicitly confirms. This gate is mandatory — do not skip silently.
-   - At `light` VIBE level: **Warn but do not block.** Log:
-     `"⚠ Plan not marked as reviewed — proceeding (advisory at light level)."`
-     Then continue to Phase 3.
+4. Scan plan header for `**Reviewed:** YES` or `**Status:** APPROVED`.
+   - If found: proceed
+   - If missing at `full` level: STOP, AskUserQuestion for confirmation
+   - If missing at `light` level: warn but proceed
 
-#### Phase 3: Dependency analysis (do this yourself)
+#### Phase 3: Dependency Analysis
 
-6. **Build the dependency graph** from the plan:
-   - Tasks with `conftest.py` or `None` as dependency = no blockers, can run in parallel
-   - Tasks referencing another task ID (e.g., "W1-01") = must wait for that task
-   - Tasks referencing "existing test" = no blockers (the test file already exists)
-7. **Group into parallel batches:**
-   - Batch A: all tasks with no dependencies (run in parallel)
-   - Batch B: tasks depending on Batch A (run after Batch A completes)
-   - Continue until all tasks are scheduled
+5. Build dependency graph:
+   - `conftest.py` / `None` / "existing test" as dependency = no blockers
+   - Task ID reference = must wait for that task
+6. Group into parallel batches (A: no deps, B: depends on A, etc.)
 
-#### Phase 4: Present and confirm (ask user ONCE)
+#### Phase 4: Present and Confirm (ask user ONCE)
 
-8. **Present the execution plan:**
+7. Present execution plan:
    ```
    Wave X — [priority] ([total tests])
-
-   Batch A (parallel):
-     W1-01: test_main_endpoints.py (~25 tests) — no deps
-     W1-02: test_analytics.py (~8 tests) — no deps
-     ...
-
-   Batch B (after Batch A):
-     W1-09: PRD gap fillers (~5 tests) — depends on W1-01
-
-   Total: X tasks, ~Y tests
-   Each task: coder → QA C1 → QA C2 (per orchestration loop)
-
+   Batch A (parallel): W1-01: test_main_endpoints.py (~25) — no deps ...
+   Batch B (after A): W1-09: PRD gap fillers (~5) — depends W1-01
+   Total: X tasks, ~Y tests. Each task: coder → QA C1 → QA C2
    Proceed?
    ```
-   Wait for user approval before spawning.
 
-#### Phase 5: Execute (spawn subagents per orchestration loop)
+#### Phase 5: Execute
 
-9. **For each task in the batch**, expand the coder subagent prompt template:
-    - Fill `[specific implementation task]` with: module path, functions to test, proposed test file, expected test count
-    - Fill `FEAT-XXX` with the appropriate feature ID from the plan
-    - Fill `T-XXX` with the task ID (W1-01, etc.)
-10. **Spawn all independent tasks in parallel** (single message, multiple Task calls)
-11. **Follow the standard orchestration loop** for each: coder → QA C1 → (fix if P0) → QA C2
-12. **After batch completes**, spawn next batch
+8. For each task: fill coder template with module path, functions, test file, expected count, FEAT-XXX, T-XXX
+9. Spawn all independent tasks in parallel (multiple Task calls in one message)
+10. Follow the standard orchestration loop for each
+11. After batch completes, spawn next batch
 
-#### Phase 6: Wave boundary
+#### Phase 6: Wave Boundary
 
-13. **After all batches in a wave complete**, report results and ask before next wave:
+12. Report results, ask before next wave:
     ```
-    Wave 1 complete: X/Y tasks passed QA C2
-    [list any P0 failures that needed fix cycles]
-
+    Wave 1 complete: X/Y tasks passed. [P0 failures listed]
     Start Wave 2? (Y tests across Z tasks)
     ```
 
-### What the user prompt looks like
-
-With this mode, the user only needs to say:
-
-```
-Act as orchestrator. Execute qa/bugs/functional-tests.md, starting with Wave 1.
-```
-
-Everything else — phase detection, dependency analysis, parallelism, subagent prompts,
-QA cycles, wave boundaries — is handled automatically by the orchestrator.
-
 ---
 
-## E2E Suite Mode — One Sentence, Walk Away, Get Report
+## E2E Suite Mode
 
 ### Trigger
 
-User says any variant of:
-- "run e2e test suites for FEAT-XXX to FEAT-YYY"
-- "run e2e tests for FEAT-XXX"
-- "run the full e2e suite"
+User says "run e2e test suites for FEAT-XXX [to FEAT-YYY]", "run e2e tests for FEAT-XXX", or "run the full e2e suite".
 
-### Lifecycle Bash (allowed in this mode ONLY)
-
-In suite mode, the orchestrator MAY use Bash for these specific commands:
+### Allowed Bash Commands (this mode ONLY)
 
 | Command | Purpose |
 |---------|---------|
@@ -186,419 +226,105 @@ In suite mode, the orchestrator MAY use Bash for these specific commands:
 | `python boardroom-ai/e2e/run_all.py --feature X --dry-run` | Discover tests |
 | `python boardroom-ai/e2e/teardown.py` | Cleanup |
 
-These are infrastructure operations, NOT implementation code. No other Bash commands are allowed.
+### Protocol
 
-### Protocol (follow exactly, no interpretation)
+#### Phase 1: Prerequisites
 
-#### Phase 1: Prerequisites (do this yourself)
+1. Check Docker stack (`docker compose ps`) — all 3 services running/healthy. If not: STOP with startup instructions.
+2. Check backend health (`curl -sf http://localhost:3456/health`). If not 200: STOP with log instructions.
+3. Run `python boardroom-ai/e2e/setup.py`, then Read `boardroom-ai/e2e/.state/session.json` for `token`, `user_id`, `project_id`, `fe_url`, `be_url`.
 
-1. **Check Docker stack:**
-   ```bash
-   docker compose -f boardroom-ai/docker-compose.yml ps
+#### Phase 2: Discover
+
+4. Parse feature range from input (e.g., "FEAT-001 to FEAT-004" = list, "full suite" = all in `boardroom-ai/e2e/tests/`)
+5. Discover tests per feature via `run_all.py --feature feat-XXX --dry-run`
+6. Present test matrix and ask to proceed:
    ```
-   All 3 services (backend, frontend, db) must show running/healthy.
-   If NOT → STOP: "Docker stack is not running. Start with: `colima start && cd boardroom-ai && docker compose up -d`"
-
-2. **Check backend health:**
-   ```bash
-   curl -sf http://localhost:3456/health
-   ```
-   Must return 200. If NOT → STOP: "Backend unhealthy. Check: `docker compose -f boardroom-ai/docker-compose.yml logs backend`"
-
-3. **Run setup (ONCE for the entire suite):**
-   ```bash
-   python boardroom-ai/e2e/setup.py
-   ```
-   Then read the session file:
-   ```bash
-   cat boardroom-ai/e2e/.state/session.json
-   ```
-   Save these values — you'll inject them into subagent prompts:
-   `token`, `user_id`, `project_id`, `fe_url`, `be_url`
-
-#### Phase 2: Discover (do this yourself)
-
-4. **Parse feature range** from user input:
-   - "FEAT-001 to FEAT-004" → `[feat-001, feat-002, feat-003, feat-004]`
-   - "FEAT-003" → `[feat-003]`
-   - "full suite" → all features found in `boardroom-ai/e2e/tests/`
-
-5. **Discover tests per feature:**
-   ```bash
-   python boardroom-ai/e2e/run_all.py --feature feat-XXX --dry-run
-   ```
-   Run this for each feature. Record test count and types.
-
-6. **Present test matrix and ask to proceed:**
-   ```
-   Feature    | Tests | Backend-only | Browser/Full-stack
-   -----------|-------|-------------|-------------------
-   FEAT-001   |   3   |     1       |    2
-   FEAT-002   |   2   |     1       |    1
-   FEAT-003   |   4   |     1       |    3
-   FEAT-004   |   3   |     1       |    2
-   -----------|-------|-------------|-------------------
-   Total      |  12   |     4       |    8
-
-   Browser tests run IN PARALLEL (each subagent gets its own Chrome tab via tabId).
-   Backend-only tests also run in parallel where possible.
-   Estimated time: ~2-3 min (parallelized), ~30s per backend test.
+   Feature  | Tests | Backend-only | Browser
+   FEAT-001 |   3   |     1        |    2
+   ...
+   Total    |  12   |     4        |    8
+   Browser tests run IN PARALLEL (each subagent gets own Chrome tab).
    Proceed?
    ```
-   Wait for user approval before spawning subagents.
 
-#### Phase 3: Execute (spawn subagents)
+#### Phase 3: Execute
 
-7. **Parallelism:** Claude-in-Chrome gives each subagent its own Chrome tab via `tabId`.
-   Multiple browser subagents can run simultaneously with zero interference.
-   Each subagent calls `tabs_create_mcp()` to get a dedicated tab.
+7. Spawn ALL subagents in parallel (one message, multiple Task calls):
+   - ONE subagent for all backend-only tests
+   - ONE subagent per feature for browser tests
+   - Each subagent creates its own tab via `tabs_create_mcp()` — NEVER share tabs
+8. Read `templates/qa-runner-prompt.md`, fill `{PLACEHOLDERS}`, spawn with `subagent_type: "general-purpose"`
 
-8. **Execution order (maximize parallelism):**
+#### Phase 4: Consolidate
 
-   a. **Spawn ALL subagents in parallel** using a single message with multiple Task calls:
-      - ONE subagent for all backend-only tests (all features)
-      - ONE subagent per feature for browser/full-stack tests
-      - All subagents run concurrently
-
-   b. **Example for FEAT-001 through FEAT-004 (12 tests):**
-      Spawn 5 subagents simultaneously:
-      - Subagent 1: all backend-only tests (feat-001..004)
-      - Subagent 2: FEAT-001 browser tests
-      - Subagent 3: FEAT-002 browser tests
-      - Subagent 4: FEAT-003 browser tests
-      - Subagent 5: FEAT-004 browser tests
-
-9. **For each subagent**, read `templates/qa-runner-prompt.md` for the QA Runner prompt.
-   Fill in all `{PLACEHOLDERS}` with actual values before spawning.
-
-#### Phase 4: Consolidate (do this yourself)
-
-10. **Read all subagent reports** from `qa/e2e/*.md`
-
-11. **Write consolidated suite report** to `qa/e2e/suite-{features}-{timestamp}.md`:
+9. Read all subagent reports from `qa/e2e/*.md`
+10. Write consolidated report to `qa/e2e/suite-{features}-{timestamp}.md`:
     ```markdown
     # E2E Suite Report — {features} — {timestamp}
-
-    **Features tested:** FEAT-001, FEAT-002, FEAT-003, FEAT-004
-    **Total tests:** 12 | **PASS:** X | **FAIL:** Y | **SKIP:** Z
+    **Total tests:** N | **PASS:** X | **FAIL:** Y | **SKIP:** Z
 
     ## Results by Feature
-
-    ### FEAT-001 (Infrastructure)
+    ### FEAT-XXX (Name)
     | Test ID | Name | Type | Result |
-    |---------|------|------|--------|
-    | E2E-INF-001 | Health endpoint | backend | PASS |
-    | E2E-INF-002 | FE loads | frontend | PASS |
-    | E2E-INF-003 | Auth flow | full-stack | FAIL |
-
-    ### FEAT-002 (Briefcase)
     ...
 
     ## P0 Failures (blocking merge)
     | Test | Step | Expected | Actual | Screenshot |
-    ...
-
-    ## P1/P2 Issues (logged to backlog)
-    ...
 
     ## Verdict
     - All P0 passed: YES / NO
     - Merge eligible: YES / NO
     ```
+11. Run `python boardroom-ai/e2e/teardown.py`
+12. Present summary. Flag P0 failures prominently.
 
-12. **Run teardown:**
-    ```bash
-    python boardroom-ai/e2e/teardown.py
-    ```
+### E2E Gate Rules
 
-13. **Present summary** to user. If any P0 failures exist, flag them prominently.
+| Trigger | Action |
+|---------|--------|
+| FEAT completion | E2E suite for that FEAT (mandatory) |
+| User-facing JTBD complete | Tests covering that job (mandatory) |
+| Pre-merge to main | Full P0 suite (mandatory) |
+| Major task milestone | Related tests (recommended) |
+| After P0 bug fix | Regression test (recommended) |
 
-### QA Runner Subagent
+P0 failure = merge blocker (spawn fix cycle). P1/P2 = log to `docs/backlog.md`, proceed. FEAT is NOT complete without e2e.
 
-**Template:** Read `templates/qa-runner-prompt.md` and fill in all `{PLACEHOLDERS}` before spawning.
-Use `subagent_type: "general-purpose"`.
+### Integration with Orchestration Loop
 
-### E2E Gate Rules (summary)
-
-These rules apply regardless of whether you're in Suite Mode or the general orchestration loop:
-
-| Trigger | Action | Scope |
-|---------|--------|-------|
-| FEAT-XXX completion | Run E2E Suite Mode for that FEAT | Mandatory, non-negotiable |
-| User-facing JTBD complete | Run tests covering that job | Mandatory |
-| Pre-merge to main | Full P0 suite | Mandatory |
-| Major task milestone | Related tests only | Recommended (judgment call) |
-| After P0 bug fix | Regression test | Recommended |
-
-- **P0 failure = merge blocker.** Spawn fix cycle, do not skip.
-- **P1/P2 failure = log to `docs/backlog.md`**, proceed.
-- **"We'll add e2e later" is not acceptable.** FEAT is not complete without e2e.
+1. Complete coder-QA cycles for task group
+2. At FEAT boundary: enter E2E Suite Mode
+3. P0 pass = proceed | P0 fail = fix cycle | P1/P2 = backlog
 
 ---
 
-## The Orchestration Loop
+## Red Flags — STOP Immediately
 
-```dot
-digraph orchestration {
-    rankdir=TB;
+If you catch yourself doing any of these, you've confused your role. Return to orchestration.
 
-    start [label="Task T-XXX assigned" shape=oval];
-    check_arch [label="Needs per-task\narchitecture?" shape=diamond];
-    spawn_arch [label="Spawn ARCHITECT\nsubagent" shape=box];
-    wait_arch [label="STOP - Wait for\ntask design" shape=diamond];
-    spawn_coder [label="Spawn CODER subagent\n(Task tool)" shape=box];
-    wait_coder [label="STOP - Wait for\nT-XXX-ready-for-review.md" shape=diamond];
-    spawn_qa1 [label="Spawn QA subagent\nfor Cycle 1" shape=box];
-    wait_qa1 [label="STOP - Wait for\nT-XXX-cycle-1.md" shape=diamond];
-    check_p0 [label="P0 bugs found?" shape=diamond];
-    spawn_fix [label="Spawn CODER to fix\n(new subagent)" shape=box];
-    spawn_qa2 [label="Spawn QA subagent\nfor Cycle 2" shape=box];
-    wait_qa2 [label="STOP - Wait for\nT-XXX-cycle-2.md" shape=diamond];
-    complete [label="Task complete\nMerge allowed" shape=oval];
-
-    start -> check_arch;
-    check_arch -> spawn_arch [label="needs design"];
-    check_arch -> spawn_coder [label="trivial/rote"];
-    spawn_arch -> wait_arch;
-    wait_arch -> spawn_coder [label="design complete"];
-    spawn_coder -> wait_coder;
-    wait_coder -> spawn_qa1 [label="artifact exists"];
-    spawn_qa1 -> wait_qa1;
-    wait_qa1 -> check_p0 [label="artifact exists"];
-    check_p0 -> spawn_fix [label="yes"];
-    check_p0 -> spawn_qa2 [label="no"];
-    spawn_fix -> wait_coder [label="loop back"];
-    spawn_qa2 -> wait_qa2;
-    wait_qa2 -> complete [label="artifact exists"];
-}
-```
-
-**STOP boundaries are mandatory.** After spawning a subagent, you wait for its artifact before proceeding.
-
-### P1 Enforcement at QA Boundary
-
-After QA Cycle 1:
-- **P0 bugs**: MUST fix before QA Cycle 2 (existing behavior — loop back through coder)
-- **P1 bugs**: SHOULD fix before QA Cycle 2. Spawn coder to fix, then re-run QA Cycle 1 on fixes only.
-- **P2 bugs**: Log to `docs/backlog.md`, proceed to QA Cycle 2
-
-Skip P1 enforcement for: single-file bug fixes, config-only changes, documentation-only changes.
-
-**Light-level shortcut:** When `vibe_level` is explicitly `"light"`, the loop reduces to: Spawn CODER → wait for `T-XXX-ready-for-review.md` → Spawn QA (Cycle 1 only) → wait for `T-XXX-cycle-1.md` → if PASS, task complete. Skip Cycle 2 entirely. Skip spec wall and phase gate checks.
-
-### Integration with E2E Gates
-
-At JTBD/milestone and FEAT boundaries, the orchestration loop triggers E2E Suite Mode:
-
-1. Complete coder → QA cycles for task group (loop above)
-2. At boundary: enter **E2E Suite Mode** (see above) with the completed FEAT
-3. E2E gate check: P0 pass → proceed | P0 fail → fix cycle | P1/P2 → backlog
-4. At FEAT completion: FULL e2e suite is **mandatory** before merge
-
-## Allowed Tools (Whitelist)
-
-| Tool | Purpose | When |
-|------|---------|------|
-| **Task** | Spawn coder/QA subagents | Primary action |
-| **Read** | Verify artifacts exist | Before proceeding |
-| **Glob** | Find artifact files | Checking completion |
-| **AskUserQuestion** | Escalate blockers | When stuck |
-| **TodoWrite** | Track orchestration progress | Throughout |
-| **Bash** | E2E lifecycle commands ONLY | Suite Mode only (setup, teardown, discovery, health checks) |
-
-## Forbidden Actions
-
-**NEVER use these tools on implementation files:**
-- Edit
-- Write
-- Bash (for code changes)
-
-If user says "do B" or "fix this" - spawn a CODER subagent. Do not fix it yourself.
-
-## Required Artifacts Per Task
-
-Before marking T-XXX complete, verify these exist in `qa/FEAT-XXX/`:
-
-| Artifact | Created By | Gate |
-|----------|-----------|------|
-| `T-XXX-ready-for-review.md` | Coder | Before QA Cycle 1 |
-| `T-XXX-cycle-1.md` | QA | Security & Logic |
-| `T-XXX-cycle-2.md` | QA | Quality & Resilience |
-
-At FEAT completion, verify these exist:
-
-| Artifact | Created By | Gate |
-|----------|-----------|------|
-| `e2e/tests/feat-XXX/*.yaml` | Test Writer | Before QA Runner |
-| `qa/e2e/*-report.md` | QA Runner | Per-test reports |
-| `qa/e2e/screenshots/*.png` | QA Runner | Visual evidence |
-| `qa/e2e/suite-*-{timestamp}.md` | Orchestrator | Consolidated report |
-
-**Status tracking:** Orchestrator sets Status to "Pending" in template before dispatch. Agents update to "In progress" immediately, then "Complete" or "Blocked". For crash recovery, cross-reference artifact Status with tracker.
-
-**No artifact = No proceed.** Do not spawn next subagent until previous artifact is committed.
-
-### Spec-Diff Verification (R19 — Mandatory)
-
-Before marking ANY task or backlog item complete, perform a spec-diff:
-
-1. **Enumerate** every requirement from the original spec/task description
-2. **For each requirement**, cite `file:line` evidence of implementation (use Grep/Read to verify)
-3. **"File exists" is NOT evidence** — you must confirm the file contains the required functionality
-4. **"Agent reported done" is NOT evidence** — agent self-reports are claims, not proof
-5. If ANY requirement lacks `file:line` evidence, the item is **NOT complete**
-
-At `light` VIBE level, a brief inline check suffices. At `full` level, document the spec-diff in the QA artifact.
-
-**Anti-pattern this prevents:** Checking off items based on agent completion messages without verifying each spec requirement was actually implemented. This has caused entire features to ship with 1/4 of spec requirements met.
-
-## Step 0: Spec Context Injection (Mandatory)
-
-**Before spawning ANY subagent**, the orchestrator MUST:
-
-1. **Read `docs/spec-registry.yaml`** to get the domain→spec mapping
-2. **Identify which spec(s) are relevant** to the subagent's task (match by domain, skill, or keyword)
-3. **Inject a Mandatory Context block** into the subagent prompt:
-
-```markdown
-## Mandatory Context (injected by orchestrator)
-- **Spec:** docs/plans/[relevant-spec].md — READ THIS BEFORE CODING
-- **Skills:** [skill1, skill2] (from registry)
-- **Schemas:** [schema/path.yaml] (from registry)
-```
-
-4. If no matching spec is found in the registry, **do not silently proceed** — add `NO_SPEC_REQUIRED` to the prompt with a comment explaining why, or escalate to the user.
-
-**Why:** PR #93 revealed that 137 e2e tests missed NL capabilities because the orchestrator never passed spec references to subagents. This step ensures specs are always propagated.
-
-## Step 0.5: Per-Task Architect Gate
-
-Before spawning a CODER subagent for any T-XXX, evaluate whether the task needs per-task architecture design.
-
-**Skip Architect When:**
-- Task is setup/config (e.g., "add env variable")
-- Task is a bash command or script execution
-- Task is extremely rote with no design decisions
-- Task mini-spec Build Guidance is already file-level specific
-
-**Require Architect When:**
-- Task introduces new components or services
-- Task touches 3+ files with non-obvious integration
-- Task involves data model changes
-- Task has ambiguous implementation approach
-
-**If unsure:** AskUserQuestion — "T-XXX: [task title]. Does this need per-task architecture design? (A) Yes, spawn architect (B) No, proceed to coder."
-
-**When architect is needed:**
-1. Read `templates/architect-prompt.md`, fill all placeholders with:
-   - `T-XXX` → task ID
-   - `[TASK_TITLE]` → task name from mini-spec
-   - `[TASK_MINI_SPEC]` → full mini-spec from FEAT design doc
-   - Mandatory Context → spec path, skills, schemas from spec-registry
-   - Feature Architecture → path to `docs/arch/` doc
-2. Spawn via Agent tool with `subagent_type: "general-purpose"`
-3. Wait for architect output (task design + files to create/modify)
-4. Inject architect output into the CODER subagent prompt under a new section:
-   `## Task Design (from architect)`
-
-**Light-level shortcut:** At `light` VIBE level, architect step is always optional. Only spawn if the task clearly needs design (new components, data model changes).
-
-## Subagent Prompts
-
-**IMPORTANT:** Every subagent prompt below includes hardcoded VIBE protocol compliance.
-These are the DEFAULT templates. Only omit protocol sections if the orchestrator is
-explicitly told to skip them for a specific subagent.
-
-### Coder Subagent
-
-**Template:** Read `templates/coder-prompt.md` and fill in placeholders before spawning.
-
-### Architect Subagent (Per-Task)
-
-**Template:** Read `templates/architect-prompt.md` and fill in placeholders before spawning.
-Use `subagent_type: "general-purpose"`. The architect receives the task mini-spec from
-the FEAT design doc (produced by eng-planning) and the feature architecture doc as primary
-inputs. Its output (files to create/modify, data flow, test mapping) is injected into the
-subsequent coder subagent prompt.
-
-### QA Subagent (Cycle 1)
-
-**Template:** Read `templates/qa-cycle1-prompt.md` and fill in placeholders before spawning.
-
-### QA Subagent (Cycle 2)
-
-**Template:** Read `templates/qa-cycle2-prompt.md` and fill in placeholders before spawning.
-
-### Test Writer Subagent
-
-**Template:** Read `templates/test-writer-prompt.md` and fill in placeholders before spawning.
-
-## Red Flags - STOP Immediately
-
-If you catch yourself:
-- Opening Edit tool on .py/.ts/.js files → STOP, spawn coder
-- Writing "let me fix that" → STOP, spawn coder
-- Running implementation tests yourself → That's coder's job
-- Skipping QA cycle "to save time" → Violation
-- "I'll do QA inline" → No, spawn QA subagent
-- Proceeding without artifact → STOP, wait for it
-- Skipping e2e at FEAT completion → Violation
-- Merging to main without P0 e2e pass → Violation
-- "E2E can wait" → No, it cannot. FEAT is not complete without e2e.
-- Running Bash on implementation code → STOP (Bash is for lifecycle only)
-
-**All of these mean: You've confused your role. Return to orchestration.**
-
-## Escalation (N=1 Rule)
-
-If a task fails more than 1 fix cycle:
-1. STOP
-2. Use AskUserQuestion to inform user
-3. Wait for guidance
-
-Do not attempt fix #3 on your own.
-
-## Self-Correction Limits
-
-When subagent output fails validation:
-- **Deterministic failures** (test errors, type errors, lint errors): max 2 retries, then escalate
-- **Structural failures** (spec ambiguity, missing dependencies, wrong architecture): immediate escalate, no retries
-- **Rationale**: 2 failures on the same deterministic issue = spec problem, not execution problem. Retrying wastes tokens.
-
-## Common Rationalizations
-
-| Excuse | Reality |
-|--------|---------|
-| "Quick fix, no need for subagent" | Quick fixes still need QA. Spawn subagent. |
-| "I already know what's wrong" | Knowing ≠ orchestrating. Spawn coder to fix. |
-| "User said to fix it" | User expects you to spawn fixer, not be the fixer. |
-| "Subagents are overkill for this" | Subagent isolation prevents context pollution. Use them. |
-| "I'll run QA myself inline" | Inline review skips artifacts. Spawn QA subagent. |
-| "Just this once" | "Just this once" = always. Follow the process. |
-| "I'll skip tab setup and reuse tabs" | Each subagent MUST create its own tab. Shared tabs = race conditions. |
+- **Editing implementation files** (Edit/Write on .py/.ts/.js) → spawn coder
+- **Running implementation tests** → coder's job
+- **Skipping QA cycles or e2e** → violation, no exceptions
+- **Proceeding without artifact** → wait for it
+- **Running Bash on implementation code** → Bash is for lifecycle only
+- **"Just this once" / "Quick fix" / "I already know"** → spawn the subagent anyway. Subagent isolation prevents context pollution.
 
 ## Orchestration Log
 
-Create `logs/build-{timestamp}.md` to track:
+Write `logs/build-{timestamp}.md`:
 
 ```markdown
 # FEAT-XXX Orchestration Log
 
 ## T-101: [Task Name]
-- [ ] Coder spawned: [subagent ID]
-- [ ] ready-for-review.md created
-- [ ] QA Cycle 1 spawned: [subagent ID]
-- [ ] cycle-1.md created (PASS/FAIL)
-- [ ] QA Cycle 2 spawned: [subagent ID]
-- [ ] cycle-2.md created (PASS/FAIL)
+- [ ] Coder spawned / ready-for-review.md
+- [ ] QA C1 spawned / cycle-1.md (PASS/FAIL)
+- [ ] QA C2 spawned / cycle-2.md (PASS/FAIL)
 
-## E2E Suite Run
-- [ ] Setup complete (session.json)
-- [ ] Tests discovered: N
-- [ ] Backend tests spawned: [subagent ID]
-- [ ] Browser tests spawned: [subagent IDs]
-- [ ] All reports collected
-- [ ] Suite report written: qa/e2e/suite-*.md
-- [ ] Teardown complete
-- [ ] P0 pass: YES/NO
+## E2E Suite
+- [ ] Setup / Tests discovered: N
+- [ ] Subagents spawned / Reports collected
+- [ ] Suite report: qa/e2e/suite-*.md
+- [ ] Teardown / P0 pass: YES/NO
 ```
