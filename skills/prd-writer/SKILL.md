@@ -304,6 +304,30 @@ After the user reviews, they may want to:
 
 Update the file in place and re-present. Each iteration should reduce the number of flagged items.
 
+### Step 7: Adversarial Review (Recommended)
+
+After the PRD is drafted and the user is satisfied with the content, offer adversarial review.
+
+Use AskUserQuestion:
+```
+Your PRD is ready for adversarial review. This spawns 5 independent expert reviewers
+(Product Thinker, UX Designer, Engineering Manager, Customer Expert, QA Expert) who
+read ONLY the PRD with zero prior context. They probe for ambiguities, hidden complexity,
+untestable requirements, and persona coverage gaps.
+
+Typical result: 10-20 findings, half auto-fixed, half surfaced as decisions for you.
+
+A) Run /prd-review now (Recommended)
+B) Skip — I'll review it myself
+C) Run later — save PRD first
+```
+
+**If A:** Invoke the `/prd-review` skill using the Skill tool, with the PRD file path as argument. After the review completes and fixes are applied, present the updated PRD to the user for final approval.
+
+**If B:** Skip and proceed to final output. Note in the PRD metadata that adversarial review was skipped.
+
+**If C:** Save the PRD, tell the user: "Run `/prd-review <path>` when ready. The review works on any saved PRD."
+
 ---
 
 ## Critique Mode
