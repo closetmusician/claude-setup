@@ -36,6 +36,33 @@ Before writing anything, internalize these — they distinguish great PRDs from 
 
 ## Workflow
 
+### Working Files (Context Preservation)
+
+To prevent context loss during long PRD sessions, this skill writes intermediary checkpoint files after each phase. These files are cleaned up when the final PRD is produced.
+
+**File naming:** Derive a working name from the user's initial input by slugifying the feature name (e.g., "Board Briefcase" → `board-briefcase`). If unclear, use `prd-draft-YYYY-MM-DD`. Establish the working name in Step 1.
+
+**Output directory:** Use the project's `docs/` directory if it exists, otherwise the current working directory.
+
+**Intermediary files:**
+- `<working-name>-context.md` — Step 1 checkpoint (extracted context, gaps)
+- `<working-name>-interview.md` — Step 2 checkpoint (questions, answers, decisions)
+- `<working-name>-research.md` — Step 3 checkpoint (web search findings, evidence)
+
+**Cleanup:** After the final PRD is saved (Step 5 or Step 7), delete all three intermediary files.
+
+### Step 0: Resume Detection
+
+Before starting a new PRD, check for existing working files:
+
+1. Use Glob to search for `*-context.md`, `*-interview.md`, `*-research.md` in `docs/` and the project root
+2. If found, read the context file to identify the PRD-in-progress
+3. Use AskUserQuestion: "Found in-progress PRD working files for **[feature name]** (last updated [date]). Resume where you left off, or start fresh?"
+   - **Resume:** Read all existing working files, load as context, and skip to the next incomplete step (if interview.md exists but not research.md, skip to Step 3)
+   - **Start fresh:** Delete the old working files and proceed to Step 1
+
+If no working files found, proceed directly to Step 1.
+
 ### Step 1: Gather Context
 
 When the user initiates a PRD, first assess what they've brought:
@@ -49,6 +76,29 @@ When the user initiates a PRD, first assess what they've brought:
 
 **If they've uploaded a custom PRD template:**
 - Use their template structure instead of the default. Still apply all quality patterns.
+
+**Checkpoint:** After gathering context, determine the working name and output directory, then write `<working-name>-context.md`:
+```markdown
+# PRD Working Context: [Feature Name]
+**Created:** [date]
+**Working name:** [slug]
+**Output directory:** [path]
+
+## Raw Input
+[User's original input, summarized or quoted]
+
+## Extracted Context
+- **Product/Feature:** [description]
+- **Target User:** [persona]
+- **Problem:** [statement]
+- **Data/Metrics:** [any numbers provided]
+- **Prior Art:** [references]
+- **Org Context:** [team, timeline, constraints]
+
+## Identified Gaps
+- [ ] [gap 1 — to ask in interview]
+- [ ] [gap 2]
+```
 
 ### Step 2: Interview for Gaps
 
@@ -75,6 +125,33 @@ After assessing the raw input, ask targeted questions to fill gaps. Group questi
 
 Use `AskUserQuestions` when presenting bounded choices (e.g., "Which of these metrics should be primary?"). Use prose questions for open-ended gaps.
 
+**Checkpoint:** After the interview is complete, write `<working-name>-interview.md`:
+```markdown
+# PRD Interview Notes: [Feature Name]
+**Updated:** [date]
+
+## Decisions
+- **Priority scope:** [within build / full timeline]
+- **KPI approach:** [quantitative / qualitative primary]
+- **UX detail level:** [flows only / flows + IA / wireframes]
+- **Tech stack:** [frontend / backend]
+
+## Q&A
+### Why now?
+[User's answer]
+
+### Prior art?
+[User's answer]
+
+### Success metrics?
+[User's answer]
+
+[... all questions and answers ...]
+
+## Open Items
+- [anything unresolved]
+```
+
 ### Step 3: Research & Validate
 
 Before drafting, use web search to strengthen the PRD's data-driven foundation:
@@ -88,6 +165,27 @@ Before drafting, use web search to strengthen the PRD's data-driven foundation:
 - Clearly mark which data came from web search vs. user-provided context.
 - If you can't find supporting data for a claim, flag it honestly: "[Data needed: no public benchmarks found for X — recommend internal research]"
 - Search for counterarguments too. A PRD that only presents supporting evidence is weaker than one that acknowledges challenges.
+
+**Checkpoint:** After research is complete, write `<working-name>-research.md`:
+```markdown
+# PRD Research: [Feature Name]
+**Updated:** [date]
+
+## Market Context
+- [finding] — [source URL]
+
+## Supporting Evidence
+- [data point] — [source]
+
+## Prior Art
+- [competitor/internal attempt] — [what happened] — [source]
+
+## Counterarguments
+- [challenge or risk] — [source]
+
+## Data Gaps
+- [metric/claim that couldn't be verified]
+```
 
 ### Step 4: Draft the PRD
 
@@ -286,9 +384,10 @@ If no Figma mockups exist, state this explicitly and note that component behavio
 
 ### Step 5: Output and Present
 
-1. Save the PRD as a markdown file (`.md`) to `/mnt/user-data/outputs/`
-2. Present the file to the user
-3. Provide a brief summary in chat covering:
+1. Save the PRD as a markdown file (`.md`) to the output directory (project `docs/` or current directory)
+2. **Cleanup working files:** Delete `<working-name>-context.md`, `<working-name>-interview.md`, and `<working-name>-research.md`. Only clean up after the final PRD is successfully written.
+3. Present the file to the user
+4. Provide a brief summary in chat covering:
    - What the PRD proposes (1 sentence)
    - Key data points that anchor the proposal
    - Sections flagged for user review (missing data, assumptions, open questions)
@@ -322,7 +421,7 @@ B) Skip — I'll review it myself
 C) Run later — save PRD first
 ```
 
-**If A:** Invoke the `/prd-review` skill using the Skill tool, with the PRD file path as argument. After the review completes and fixes are applied, present the updated PRD to the user for final approval.
+**If A:** Invoke the `/prd-review` skill using the Skill tool, with the PRD file path as argument. After the review completes and fixes are applied, present the updated PRD to the user for final approval. Ensure any remaining working files (`*-context.md`, `*-interview.md`, `*-research.md`) are cleaned up after the final PRD is saved.
 
 **If B:** Skip and proceed to final output. Note in the PRD metadata that adversarial review was skipped.
 
