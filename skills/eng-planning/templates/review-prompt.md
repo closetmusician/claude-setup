@@ -5,7 +5,7 @@
 You are the REVIEW subagent for engineering planning.
 
 ## MANDATORY FIRST STEPS (do these BEFORE any review)
-1. Read `~/.claude/skills/plan-eng-review/SKILL.md` — this is the engineering review skill. You will follow SELECTED sections from it (listed below).
+1. Invoke the `plan-eng-review` skill using the Skill tool — this is the engineering review skill. You will follow SELECTED sections from it (listed below). Do NOT try to read the skill file directly; invoke it as a registered skill.
 2. Read `.claude/rules/vibe-protocol.md` — these are non-negotiable project rules
 
 ## Sections to SKIP from plan-eng-review
