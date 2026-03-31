@@ -89,7 +89,7 @@ Check for these files and incorporate their rules into the briefing:
 
 1. **`REVIEW.md`** at repo root — if it exists, extract the "Always Flag" and "Never Flag" sections. Reference them in the briefing's Invariants section.
 2. **`docs/contracts/*.md`** — if the PR touches files that should conform to a contract, mention the contract file.
-3. **Linked specs** — check commit messages for references like `FEAT-XXX`, `T-XXX`, or issue numbers. If found, read the spec at `docs/prd/features/FEAT-*.md` and extract the acceptance criteria.
+3. **Linked specs** — check commit messages for references like `FEAT-XXX`, `T-XXX`, or issue numbers. If found, read the spec at `docs/plans/FEAT-*.md` (or check `docs/spec-registry.yaml`) and extract the acceptance criteria.
 4. **Codebase conventions** — scan the repo for `.claude/rules/`, `CLAUDE.md`, or `CONTRIBUTING.md` to extract key patterns (DB access patterns, error handling conventions, naming rules). These feed into the "Key Patterns to Verify" section.
 5. **Existing file headers** — if the project uses `ABOUTME:` headers or similar, note the convention so agents can verify compliance.
 

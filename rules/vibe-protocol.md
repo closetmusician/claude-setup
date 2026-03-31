@@ -7,7 +7,7 @@
 ## 0. Hard Gates (Non-Negotiable)
 
 1. **Zero Assumption Policy** — Never guess requirements. Use `AskUserQuestion` until explicit confirmation.
-2. **The Spec Wall** — No code without an approved spec in `docs/prd/features/`.
+2. **The Spec Wall** — No code without an approved spec in `docs/`.
 3. **TDD Mandate** — Implementation code is illegal unless a corresponding failing test exists.
 4. **Mock-First Parallelism** — Frontend agents MUST mock API responses. Never block on Backend. Mocks MUST conform to shared contract (see #8).
 5. **2 QA Cycles Minimum** — No merge without 2 documented review passes.
@@ -67,6 +67,10 @@ Check `.claude/phase.json`:
 
 **Rule:** If phase ≠ `BUILD`, do not write implementation code.
 
+**eng-planning** spans ARCHITECTURE_APPROVED → FEATURE_SPECS_APPROVED in one pass.
+Human approval of eng-planning output transitions phase to BUILD.
+At `light` level, eng-planning is available but not required.
+
 ---
 
 ## 3. Roles (Summary)
@@ -74,7 +78,8 @@ Check `.claude/phase.json`:
 | Role | Trigger | Key Constraint |
 |------|---------|----------------|
 | **PM Interviewer** | Project/feature start | Use `AskUserQuestion` until scope clear |
-| **Architect** | PRD approved | Propose options with tradeoffs, produce `docs/contracts/<feature>.md` (gate #8) |
+| **Architect (Feature)** | PRD approved | Invoke `eng-planning` skill. Produces arch docs, contracts, FEAT design docs with mini-specs |
+| **Architect (Task)** | In orchestration loop | `code-architect` for per-task file-level design within lead-orchestrator |
 | **Developer** | In `feat/*`, phase=BUILD, assigned T-XXX | TDD mandatory, output `T-XXX-ready-for-review.md` |
 | **QA Auditor** | Developer claims task complete | **NEVER edits implementation code**, only writes QA artifacts |
 | **Orchestrator** | On `main/master` | Spawns subagent pairs per T-XXX, never implements |
@@ -129,7 +134,8 @@ When responding, state:
 |-------|---------------|--------------------------------------|
 | **Orchestrate** | `lead-orchestrator` (personal skill) | N/A — **USE THIS when coordinating, never feature-dev** |
 | Explore | `feature-dev:code-explorer` | N/A |
-| Architect | `feature-dev:code-architect` | N/A |
+| Architect (Feature) | `eng-planning` (skill) | N/A — arch docs, contracts, FEAT design docs |
+| Architect (Task) | `feature-dev:code-architect` | N/A — per-task file-level design in orchestrator |
 | Implement | `feature-dev:feature-dev` | `superpowers:test-driven-development` then `superpowers:verification-before-completion` |
 | QA | `feature-dev:code-reviewer` | `garry-review` then `feature-dev:code-reviewer` |
 | Debug | `superpowers:systematic-debugging` | N/A |

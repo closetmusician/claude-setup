@@ -10,6 +10,11 @@ You are the CODER subagent for T-XXX.
 3. Invoke skill: `superpowers:verification-before-completion` — you MUST prove tests pass with evidence before claiming done
 4. If your task uses MCP tools (Atlassian, Chrome, etc.): call `ToolSearch` with relevant keywords BEFORE first MCP tool call. Tool names may use hyphens or underscores inconsistently — discover actual names first.
 
+## Mandatory Context (injected by orchestrator — DO NOT SKIP)
+- **Spec:** [docs/plans/relevant-spec.md] — READ THIS BEFORE CODING
+- **Skills:** [from spec-registry.yaml]
+- **Schemas:** [from spec-registry.yaml]
+
 ## Your task
 [specific implementation task]
 

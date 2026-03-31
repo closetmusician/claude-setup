@@ -5,7 +5,7 @@
 ---
 ## 0. Rule Index (Hard Gates)
 1. **R0 Zero Assumption Policy** -- Never guess requirements. Use `AskUserQuestion` until explicit confirmation.
-2. **R1 The Spec Wall** -- No code without an approved spec in `docs/prd/features/`.
+2. **R1 The Spec Wall** -- No code without an approved spec in `docs/`.
 3. **R2 TDD Mandate** -- Implementation code is illegal unless a corresponding failing test exists.
 4. **R3 Mock-First Parallelism** -- Frontend agents MUST mock API responses. Never block on Backend. Mocks MUST conform to the shared contract artifact (R16) — never invent field names.
 5. **R4 2 QA Cycles Minimum** -- No merge without 2 documented review passes.
@@ -64,8 +64,8 @@ Use `.claude/phase.json` (e.g., `{ "phase": "DISCOVERY" }`) to enforce workflow 
 | Phase | Allowed Actions |
 |-------|-----------------|
 | `DISCOVERY` | Interview, read-only analysis, docs/specs only |
-| `ARCHITECTURE_APPROVED` | Specs, decomposition, worktree setup |
-| `FEATURE_SPECS_APPROVED` | Specs finalized, ready to build |
+| `ARCHITECTURE_APPROVED` | eng-planning: exploration, design decisions, arch docs, contracts, FEAT design docs with mini-specs |
+| `FEATURE_SPECS_APPROVED` | eng-planning complete and approved. All FEAT design docs finalized. Ready for BUILD. |
 | `BUILD` | Implementation allowed |
 **Rule:** If phase != `BUILD`, do not write implementation code (R5).
 
@@ -111,10 +111,21 @@ logs/
 ---
 ## 5. Roles
 ### 5.1 PM Interviewer (Requirements Extraction)
-Trigger: Project start or new feature. Use `AskUserQuestion` until scope is clear, constraints explicit, success metrics exist, edge cases enumerated. Output: `docs/prd/<project>-master-prd.md` or `docs/prd/features/FEAT-XXX-*.md`.
+Trigger: Project start or new feature. Use `AskUserQuestion` until scope is clear, constraints explicit, success metrics exist, edge cases enumerated. Output: `docs/prd/<project>-master-prd.md` or `docs/plans/FEAT-XXX-*.md`.
 
-### 5.2 Principal Architect
-Trigger: PRD approved. Use `/feature-dev:code-architect` task subagent and superpowers. Propose 2-3 architecture options with tradeoffs. Define DB schema + API contracts (OpenAPI style). **MUST produce `docs/contracts/<feature>.md` for every cross-boundary data flow (R16)** — SSE event schemas, REST payloads, shared enums/types with exact field names. **MUST verify every new external dependency is installable before approving for BUILD (R17)** — run `pip install` / `npm install`, confirm the package exists, document the URL. If a dependency doesn't exist or is speculative, the design CANNOT proceed to BUILD. Output: `docs/arch/<project>-architecture.md`, `docs/arch/adrs/ADR-XXXX.md`, `docs/contracts/<feature>.md` (R16), `docs/decisions.md` (for quick decisions). Decompose into 3-5 feature tasks with minimal coupling.
+### 5.2 Principal Architect (Feature-Level)
+Trigger: PRD approved, phase = ARCHITECTURE_APPROVED. Invoke the `eng-planning` skill (`/eng-planning [prd-path]`). The skill:
+1. Spawns codebase exploration subagents
+2. Runs scope challenge (reuse, complexity, completeness checks)
+3. Identifies major design decisions → asks user upfront via AskUserQuestion
+4. Produces autonomously: architecture docs (`docs/arch/`), API contracts per R16 (`docs/contracts/<feature>.md`), FEAT design docs with task mini-specs (`docs/plans/FEAT-XXX-design.md`), codepath coverage diagrams, failure modes analysis
+5. Verifies all new dependencies are installable (R17)
+6. Spawns fresh `/plan-eng-review` subagent for independent review
+7. Auto-fixes SPECIFIABLE issues (max 2 iterations); surfaces REQUIRES_DECISION to user
+
+All specs include frontmatter for spec-registry. Output approval transitions phase to BUILD.
+
+**Two-tier architecture:** eng-planning runs ONCE per FEAT-XXX. For per-task file-level design within the orchestration loop, lead-orchestrator spawns `code-architect` (see §6.0).
 
 ### 5.3 Developer (Task Builder)
 Trigger: Inside `feat/*` worktree, phase = `BUILD`, assigned a specific T-XXX task. Requirements: use a subagent and invoke skills IN ORDER below; use `superpowers:systematic-debugging` when stuck; R8 applies.
@@ -154,7 +165,8 @@ Trigger: On `main/master` worktree (Management mode). Creates feature lanes + as
 | Phase | Subagent Type | Mandatory Skills (hardcode in prompt) | Output |
 |-------|---------------|--------------------------------------|--------|
 | Explore | `feature-dev:code-explorer` | N/A | Patterns, dependencies report |
-| Architect | `feature-dev:code-architect` | N/A | Task design, file changes needed |
+| Architect (Feature) | `eng-planning` skill | N/A | Arch docs, contracts, FEAT design docs with mini-specs |
+| Architect (Task) | `feature-dev:code-architect` | N/A | Per-task file-level design, files to create/modify |
 | Implement | `feature-dev:feature-dev` | `superpowers:test-driven-development` then `superpowers:verification-before-completion` | Code + tests + `T-XXX-ready-for-review.md` |
 | QA | `feature-dev:code-reviewer` | `garry-review` then `feature-dev:code-reviewer` | `T-XXX-cycle-1.md`, `T-XXX-cycle-2.md` |
 | Debug | `superpowers:systematic-debugging` | N/A | Diagnosis + fix |
@@ -217,7 +229,7 @@ Orchestrator spawns dedicated subagent pairs per T-XXX (architect + coder + QA).
 **Per-Task Deterministic Loop**
 ```
 For each T-XXX in feature spec (respecting depends_on order):
-  1. ARCHITECT (skip if trivial/rote): spawn `feature-dev:code-architect`; read task mini-spec + existing code patterns; output task design + files to create/modify; STOP.
+  1. ARCHITECT (skip if trivial/rote — see Skip Criteria): spawn `feature-dev:code-architect`; read task mini-spec from `docs/plans/FEAT-XXX-design.md` (produced by eng-planning) + feature architecture from `docs/arch/` + existing code patterns; output per-task file-level design (files to create/modify, data flow, test mapping); STOP.
   2. CODER: spawn `feature-dev:feature-dev`; MUST invoke `superpowers:test-driven-development` FIRST then `superpowers:verification-before-completion` before claiming done; TDD to acceptance criteria; all tests use real DB via SavepointConnection (R18); run `make test` + `make lint`; git commit `qa/FEAT-XXX/T-XXX-ready-for-review.md` with ReviewCommit:<SHA>; STOP.
   3. QA CYCLE 1 (P0 Hard Gate): spawn `feature-dev:code-reviewer`; MUST invoke `garry-review` FIRST then `feature-dev:code-reviewer`; checkout ReviewCommit; apply auto-reject criteria (R18); classify bugs P0/P1/P2; git commit `qa/FEAT-XXX/T-XXX-cycle-1.md` with STATUS: PASS|FAIL; STOP.
   4. IF CYCLE 1 FAIL: spawn coder to fix P0; re-run Cycle 1; if still fail -> ESCALATE (N=1).
@@ -225,6 +237,11 @@ For each T-XXX in feature spec (respecting depends_on order):
   6. IF CYCLE 2 FAIL: spawn coder to fix P1 (P2 -> `docs/backlog.md`); re-run Cycle 2; if still fail -> ESCALATE.
   7. ON PASS -- MANDATORY before next task: `git add -A && git commit -m "T-XXX: [desc]" && git push`; update progress log; proceed.
 ```
+
+**Two-Tier Architecture:**
+- **eng-planning (feature-level):** Runs once per FEAT-XXX before orchestration. Produces FEAT design doc with mini-specs.
+- **code-architect (task-level):** Runs per T-XXX within orchestration loop. Produces file-level design referencing the FEAT design doc.
+- **Skip Criteria:** setup/config, bash commands, rote tasks, or when Build Guidance is already file-level specific. If unsure, ask the user.
 
 **Dependency-Aware Parallelism**
 - Parse `depends_on` from each T-XXX mini-spec; tasks with no unmet dependencies can run in parallel.
@@ -540,7 +557,7 @@ If fix fails -> ESCALATE immediately (no second attempt)
 ### New Dependencies (R17 — MANDATORY for any new package)
 - `package-name>=X.Y.Z` — [PyPI](https://pypi.org/project/package-name/) or [GitHub](https://github.com/org/repo) — Purpose: [why needed]
 - **HARD RULE:** Every dependency MUST have an installable name + URL. "Or equivalent" = BLOCKER. Speculative packages = BLOCKER. Architect MUST `pip install`/`npm install` to verify before BUILD.
-## Tasks
+## Tasks mini-spec template
 ### T-101: [Task Title]
 **Priority:** P0 | P1 | P2
 **Depends On:** - (none) | T-100, T-102
@@ -579,6 +596,15 @@ If fix fails -> ESCALATE immediately (no second attempt)
 - [...]
 ---
 [Continue for all tasks...]
+**Generation:** Feature specs following this template are produced by the `eng-planning` skill (`/eng-planning [prd-path]`). Manual creation is also valid but must follow this template exactly. All specs MUST include YAML frontmatter for the spec-registry:
+```yaml
+---
+domain: <feature-domain>
+skills: [<relevant-skills>]
+schemas: [<relevant-schema-paths>]
+---
+```
+
 ## Task Dependencies Graph
 ```
 T-101 (no deps)

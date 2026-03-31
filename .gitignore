@@ -82,3 +82,9 @@ schedules.json
 # Personal PM/voice skills (symlinked from ~/Code/pm_os)
 skills/pm-*
 skills/yk-voice.md
+
+# gstack local state
+.gstack/
+
+# Session data (ephemeral)
+sessions/

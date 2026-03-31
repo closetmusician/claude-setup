@@ -105,9 +105,12 @@ for pf in "${PROTECTED_FILES[@]}"; do
   fi
 done
 
-# 7. gh pr create (requires explicit user approval -- never auto-create PRs)
+# 7. gh pr create -- warn on stderr so the agent sees the reminder, but let
+#    Claude Code's built-in permission prompt handle the actual approval gate.
+#    Previous behavior: hard deny (exit 2) which could not be overridden even
+#    after the user approved. Now: advisory message, no block.
 if echo "$STRIPPED" | grep -qE '\bgh\s+pr\s+create\b'; then
-  deny_and_exit "Blocked: 'gh pr create' requires Yu-Kuan's explicit approval. Present the PR title/summary and ask before creating."
+  echo "git-safety-hook: 'gh pr create' detected — Claude Code will prompt for approval." >&2
 fi
 
 # All checks passed -- allow the command.

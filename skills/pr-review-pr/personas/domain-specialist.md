@@ -30,7 +30,7 @@ implementation level.
 ### Step 1: Understand intent
 
 - Read the PR description, linked issues, or commit messages.
-- If a spec exists in `docs/prd/features/` or a contract in `docs/contracts/`,
+- If a spec exists in `docs/plans/` or a contract in `docs/contracts/`,
   read it. This is the ground truth for "correct behavior."
 - Identify acceptance criteria if available.
 

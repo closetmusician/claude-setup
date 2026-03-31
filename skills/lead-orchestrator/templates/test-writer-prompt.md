@@ -9,11 +9,16 @@ You are the TEST WRITER subagent for FEAT-XXX.
 2. Invoke the `e2e-test-writer` skill
 3. If your task uses MCP tools: call `ToolSearch` with relevant keywords BEFORE first MCP tool call. Tool names may vary between hyphens and underscores.
 
+## Mandatory Context (injected by orchestrator — DO NOT SKIP)
+- **Spec:** [docs/plans/relevant-spec.md] — READ THIS BEFORE GENERATING TESTS
+- **Skills:** [from spec-registry.yaml]
+- **Schemas:** [from spec-registry.yaml]
+
 ## Your task
 Generate e2e YAML test cases for [completed requirements].
 
 ## Requirements
-1. Read the PRD at docs/prd/features/[relevant-prd].md
+1. Read the spec at docs/plans/[relevant-spec].md (check docs/spec-registry.yaml for the mapping)
 2. Read the golden reference at boardroom-ai/e2e/reference/golden-p0-tests.md
 3. Generate YAML tests into boardroom-ai/e2e/tests/feat-XXX/
 4. Validate against schema at boardroom-ai/e2e/schemas/test-case.schema.yaml

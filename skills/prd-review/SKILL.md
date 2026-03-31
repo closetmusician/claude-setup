@@ -77,28 +77,57 @@ Ask yourself (do not ask the user yet):
 3. **What happens if we do nothing?** Is the status quo actually painful enough to justify
    this work? What are users doing TODAY to solve this badly?
 
-**Step 1.3: Present Premises to User**
+**Step 1.3: Present Premises and Collect Adjustments One at a Time**
 
-Show the premises and challenge questions. Use AskUserQuestion:
+Show all extracted premises as text output (not inside AskUserQuestion — the user
+needs to read them all first for context). Include the strongest challenge question
+from Step 1.2 at the end.
+
+Then walk through each premise **one at a time** using separate AskUserQuestion calls.
+For each premise, present:
+
 ```
-I found these implicit premises in the PRD. Confirm or adjust before the
-deep review:
+PREMISE N: [Concrete claim]
+Evidence: [Quote or "none — assumed"]
+Risk if wrong: [What breaks]
 
-1. PREMISE: [claim] — Evidence: [quote]. Risk if wrong: [consequence].
-2. PREMISE: [claim] — ...
-3. ...
-
-Challenge: [The strongest challenge question from 1.2]
-
-A) Premises are correct, proceed to deep review
-B) Let me adjust some premises first
-C) Go deeper — run /office-hours or /plan-ceo-review for full treatment
+A) Correct as stated — no change needed
+B) [Suggested adjustment 1 — your best guess at how this premise might be wrong]
+C) [Suggested adjustment 2 — a different way it could be wrong]
+D) Other — let me reframe this premise
 ```
 
-If user picks C: invoke the actual gstack skill via the Skill tool (`office-hours` or
+**Rules for per-premise questions:**
+- Ask ONE premise per AskUserQuestion call. Wait for the response before asking the next.
+- Each question MUST include 1 "correct" option + 2-3 suggested adjustments + implicit "Other" for free-text.
+- Suggested adjustments should be specific and informed by the PRD's own evidence gaps.
+  Do NOT use generic options like "I have a different view" — propose concrete alternative framings.
+- Record the user's adjustment (or confirmation) for each premise before moving on.
+- After all premises are collected, present the strongest challenge question from Step 1.2
+  as a final AskUserQuestion.
+
+After ALL premises and the challenge question are resolved, present a brief summary:
+```
+Adjusted premises:
+- P1: [confirmed or adjusted text]
+- P2: [confirmed or adjusted text]
+- ...
+
+Challenge resolution: [user's response]
+
+Proceeding to deep review with these premises in mind.
+```
+
+**Escape hatches (offer as the LAST question after all premises):**
+```
+A) Proceed to deep review with adjusted premises (Recommended)
+B) Go deeper — run /office-hours or /plan-ceo-review for full strategic treatment
+```
+
+If user picks B: invoke the actual gstack skill via the Skill tool (`office-hours` or
 `plan-ceo-review`). After it completes, resume Phase 2 with any updated framing.
 
-If user picks A or B: apply adjustments and proceed.
+If user picks A: proceed to Phase 2.
 
 ---
 

@@ -33,7 +33,7 @@ grep -q "PutCORSConfigurationAsync" "$SRC/Infrastructure/Infrastructure.Local/Ex
 
 grep -q "PresignedUrlProtocol = Protocol.HTTP" "$SRC/Infrastructure/Infrastructure.Local/Infrastructure/LocalStack/LocalStackSetupInitializationHook.cs" 2>/dev/null \
   && echo "[4] S3Storage DI with HTTP:        APPLIED" \
-  || echo "[4] S3Storage DI with HTTP:        APPLIED"
+  || echo "[4] S3Storage DI with HTTP:        MISSING"
 ```
 
 ---

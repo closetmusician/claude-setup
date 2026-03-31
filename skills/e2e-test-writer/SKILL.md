@@ -15,7 +15,7 @@ This skill teaches agents to translate PRD requirements, acceptance criteria, an
 
 | Direction | Format | Location |
 |-----------|--------|----------|
-| **Input** | PRD feature spec, execution plan, task description, or acceptance criteria | `docs/prd/features/` |
+| **Input** | PRD feature spec, execution plan, task description, or acceptance criteria | `docs/` (plans, contracts, prd) |
 | **Output** | YAML test files following `test-case.schema.yaml` | `boardroom-ai/e2e/tests/feat-XXX/` |
 
 One acceptance criterion produces one YAML test file. If a single AC covers multiple concerns (e.g., "user creates item AND sees confirmation AND receives email"), split into focused tests that each verify one observable behavior.

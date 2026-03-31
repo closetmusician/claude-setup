@@ -22,7 +22,7 @@ Before orchestrating, check `.claude/phase.json` for the `"vibe_level"` field:
 
 At `light` level:
 - **Skip QA Cycle 2** — 1 review pass (Cycle 1) is sufficient for task completion
-- **Skip spec wall checks** — no `docs/prd/features/` requirement
+- **Skip spec wall checks** — no `docs/` spec requirement
 - **Skip phase gate enforcement** — do not block on `.claude/phase.json` phase value
 - **Skip API contract verification** — no `docs/contracts/` requirement
 - **Subagent pairs simplified** — coder + 1 QA pass, not coder + QA C1 + QA C2
@@ -343,6 +343,9 @@ digraph orchestration {
     rankdir=TB;
 
     start [label="Task T-XXX assigned" shape=oval];
+    check_arch [label="Needs per-task\narchitecture?" shape=diamond];
+    spawn_arch [label="Spawn ARCHITECT\nsubagent" shape=box];
+    wait_arch [label="STOP - Wait for\ntask design" shape=diamond];
     spawn_coder [label="Spawn CODER subagent\n(Task tool)" shape=box];
     wait_coder [label="STOP - Wait for\nT-XXX-ready-for-review.md" shape=diamond];
     spawn_qa1 [label="Spawn QA subagent\nfor Cycle 1" shape=box];
@@ -353,7 +356,11 @@ digraph orchestration {
     wait_qa2 [label="STOP - Wait for\nT-XXX-cycle-2.md" shape=diamond];
     complete [label="Task complete\nMerge allowed" shape=oval];
 
-    start -> spawn_coder;
+    start -> check_arch;
+    check_arch -> spawn_arch [label="needs design"];
+    check_arch -> spawn_coder [label="trivial/rote"];
+    spawn_arch -> wait_arch;
+    wait_arch -> spawn_coder [label="design complete"];
     spawn_coder -> wait_coder;
     wait_coder -> spawn_qa1 [label="artifact exists"];
     spawn_qa1 -> wait_qa1;
@@ -445,6 +452,57 @@ At `light` VIBE level, a brief inline check suffices. At `full` level, document 
 
 **Anti-pattern this prevents:** Checking off items based on agent completion messages without verifying each spec requirement was actually implemented. This has caused entire features to ship with 1/4 of spec requirements met.
 
+## Step 0: Spec Context Injection (Mandatory)
+
+**Before spawning ANY subagent**, the orchestrator MUST:
+
+1. **Read `docs/spec-registry.yaml`** to get the domain→spec mapping
+2. **Identify which spec(s) are relevant** to the subagent's task (match by domain, skill, or keyword)
+3. **Inject a Mandatory Context block** into the subagent prompt:
+
+```markdown
+## Mandatory Context (injected by orchestrator)
+- **Spec:** docs/plans/[relevant-spec].md — READ THIS BEFORE CODING
+- **Skills:** [skill1, skill2] (from registry)
+- **Schemas:** [schema/path.yaml] (from registry)
+```
+
+4. If no matching spec is found in the registry, **do not silently proceed** — add `NO_SPEC_REQUIRED` to the prompt with a comment explaining why, or escalate to the user.
+
+**Why:** PR #93 revealed that 137 e2e tests missed NL capabilities because the orchestrator never passed spec references to subagents. This step ensures specs are always propagated.
+
+## Step 0.5: Per-Task Architect Gate
+
+Before spawning a CODER subagent for any T-XXX, evaluate whether the task needs per-task architecture design.
+
+**Skip Architect When:**
+- Task is setup/config (e.g., "add env variable")
+- Task is a bash command or script execution
+- Task is extremely rote with no design decisions
+- Task mini-spec Build Guidance is already file-level specific
+
+**Require Architect When:**
+- Task introduces new components or services
+- Task touches 3+ files with non-obvious integration
+- Task involves data model changes
+- Task has ambiguous implementation approach
+
+**If unsure:** AskUserQuestion — "T-XXX: [task title]. Does this need per-task architecture design? (A) Yes, spawn architect (B) No, proceed to coder."
+
+**When architect is needed:**
+1. Read `templates/architect-prompt.md`, fill all placeholders with:
+   - `T-XXX` → task ID
+   - `[TASK_TITLE]` → task name from mini-spec
+   - `[TASK_MINI_SPEC]` → full mini-spec from FEAT design doc
+   - Mandatory Context → spec path, skills, schemas from spec-registry
+   - Feature Architecture → path to `docs/arch/` doc
+2. Spawn via Agent tool with `subagent_type: "general-purpose"`
+3. Wait for architect output (task design + files to create/modify)
+4. Inject architect output into the CODER subagent prompt under a new section:
+   `## Task Design (from architect)`
+
+**Light-level shortcut:** At `light` VIBE level, architect step is always optional. Only spawn if the task clearly needs design (new components, data model changes).
+
 ## Subagent Prompts
 
 **IMPORTANT:** Every subagent prompt below includes hardcoded VIBE protocol compliance.
@@ -454,6 +512,14 @@ explicitly told to skip them for a specific subagent.
 ### Coder Subagent
 
 **Template:** Read `templates/coder-prompt.md` and fill in placeholders before spawning.
+
+### Architect Subagent (Per-Task)
+
+**Template:** Read `templates/architect-prompt.md` and fill in placeholders before spawning.
+Use `subagent_type: "general-purpose"`. The architect receives the task mini-spec from
+the FEAT design doc (produced by eng-planning) and the feature architecture doc as primary
+inputs. Its output (files to create/modify, data flow, test mapping) is injected into the
+subsequent coder subagent prompt.
 
 ### QA Subagent (Cycle 1)
 

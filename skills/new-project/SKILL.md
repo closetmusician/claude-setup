@@ -95,7 +95,7 @@ Follows global engineering standards from `~/.claude/rules/code-style.md`.
 
 ### Conditional (full VIBE only)
 
-If vibe_level is `full`, also create `docs/contracts/.gitkeep` and `docs/prd/features/.gitkeep`.
+If vibe_level is `full`, also create `docs/contracts/.gitkeep` and `docs/plans/.gitkeep`.
 
 ### Conditional (MCP config)
 
@@ -131,7 +131,7 @@ Scaffolded <PROJECT_NAME> at <path>:
   memory/lessons.md           — Lessons learned log
   qa/                         — QA artifacts directory
   [docs/contracts/]           — API contracts (full VIBE only)
-  [docs/prd/features/]        — Feature specs (full VIBE only)
+  [docs/plans/]               — Feature specs (full VIBE only)
   [.claude/settings.local.json] — MCP server config
 
 Next steps:
