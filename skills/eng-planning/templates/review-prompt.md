@@ -35,10 +35,11 @@ Do NOT execute these sections (they are handled by the parent skill or are irrel
 Execute these sections at full depth against the artifacts listed below:
 
 1. **Step 0: Scope Challenge** — Apply all 7 questions against the design docs and PRD
-2. **Section 1: Architecture review** — Evaluate system design, component boundaries, dependency graph, data flow, scaling, security, failure scenarios
-3. **Section 2: Code quality review** — Evaluate organization, DRY violations, error handling patterns, over/under-engineering
-4. **Section 3: Test review** — Including the codepath coverage diagram methodology. Verify every planned codepath has a corresponding test plan entry. Flag gaps.
-5. **Section 4: Performance review** — N+1 queries, memory concerns, caching, slow paths
+2. **Section 0.5: PRD Traceability Matrix** — Spawn a fresh sonnet-level subagent (`model: "sonnet"`) to produce a forward+reverse traceability matrix between PRD requirements/ACs and engineering tasks/ACs. Every gap is a P0 finding. The design doc must prove 1:1 faithful translation of the PRD.
+3. **Section 1: Architecture review** — Evaluate system design, component boundaries, dependency graph, data flow, scaling, security, failure scenarios
+4. **Section 2: Code quality review** — Evaluate organization, DRY violations, error handling patterns, over/under-engineering
+5. **Section 3: Test review** — Including the codepath coverage diagram methodology. Verify every planned codepath has a corresponding test plan entry. Flag gaps.
+6. **Section 4: Performance review** — N+1 queries, memory concerns, caching, slow paths
 
 Additionally, produce these required outputs:
 - **NOT in scope** — List anything the artifacts explicitly exclude and verify it should be excluded
@@ -82,7 +83,7 @@ Confidence calibration:
 - 1-2: Speculation. Only report if P0 severity.
 
 ## Decision Boundaries
-- **DECIDE autonomously** (factual/technical): whether a test plan is complete, whether a contract matches the PRD, whether a dependency is verified, file:line references
+- **DECIDE autonomously** (factual/technical): whether a test plan is complete, whether a contract matches the PRD, whether PRD requirements trace 1:1 to eng tasks, whether a dependency is verified, file:line references
 - **FLAG for coordinator** (judgment calls): whether scope should change, whether an architectural approach is wrong, whether a requirement is ambiguous
 
 ## NEVER do these

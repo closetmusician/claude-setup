@@ -103,6 +103,10 @@ PHASE E: Enrichment (parallel, append to FEAT design doc)
   ├─ Step 7: Worktree Parallelization Strategy
   ↓ (enrichment complete)
 
+PHASE E.5: PRD Traceability (sequential — must pass before presenting)
+  Step 7.5: Spawn Traceability Auditor (sonnet) → fix gaps → re-check (max 2 iterations)
+  ↓ (traceability verified or gaps reported)
+
 PHASE F: Review Gate (sequential)
   Step 8: Present Written Artifacts → approve to proceed to engineering review
   ↓
@@ -111,6 +115,8 @@ PHASE F: Review Gate (sequential)
   Step 10: Auto-Fix Loop (max 2 iterations)
   ↓
   Step 11: Final Output
+  ↓
+  Step 12: Final PRD Traceability Gate (sonnet) → verify post-review
 ```
 
 ### Multi-Repo Explorer Splitting
@@ -145,7 +151,7 @@ Planning runs are long. Subagent reports vanish when the agent returns. Conversa
 
 | Phase | File | Written By | Consumed By |
 |-------|------|-----------|-------------|
-| A | `docs/.eng-planning/prd-summary.md` | Step 0 (main agent extracts key facts from PRD) | Steps 2, 3, 5a, 5b (main agent uses THIS, not the full PRD) |
+| B | `docs/.eng-planning/explorer-summary.md` | Step 1 (main agent extracts key patterns from explorer report) | Steps 2, 3, 5a (main agent uses THIS instead of the full explorer report) |
 | B | `docs/.eng-planning/explorer-report.md` | Step 1 (orchestrator, from subagent output) | Steps 2, 3, 5a, 5b |
 | B | `docs/.eng-planning/explorer-report-fe.md` | Step 1 (FE explorer, multi-repo only) | Merged into explorer-report.md |
 | B | `docs/.eng-planning/explorer-report-be.md` | Step 1 (BE explorer, multi-repo only) | Merged into explorer-report.md |
@@ -154,6 +160,11 @@ Planning runs are long. Subagent reports vanish when the agent returns. Conversa
 | B | `docs/.eng-planning/backlog-crossref.md` | Step 2.7 | Step 2 (full) |
 | C | `docs/.eng-planning/scope-challenge.md` | Step 2 (full synthesis) | Step 3, Step 5a |
 | C | `docs/.eng-planning/design-decisions.md` | Step 3 (accumulated after each user answer) | Steps 5a, 5b |
+| E.5 | `docs/.eng-planning/traceability/prd-extract.md` | Step 7.5 Phase 1 Agent A | Phase 2 Agents C, D; Phase 3 Agent E |
+| E.5 | `docs/.eng-planning/traceability/eng-extract.md` | Step 7.5 Phase 1 Agent B | Phase 2 Agents C, D; Phase 3 Agent E |
+| E.5 | `docs/.eng-planning/traceability/forward-trace.md` | Step 7.5 Phase 2 Agent C | Phase 3 Agent E |
+| E.5 | `docs/.eng-planning/traceability/reverse-trace.md` | Step 7.5 Phase 2 Agent D | Phase 3 Agent E |
+| E.5 | `docs/.eng-planning/traceability/traceability-matrix.md` | Step 7.5 Phase 3 Agent E | Steps 8, 10 |
 | F | `docs/.eng-planning/review-findings.md` | Step 9 (from reviewer subagent output) | Step 10 |
 | All | `docs/.eng-planning/progress.json` | Steps -1 through 11 (checkpoint after each major step) | Step -1 (resume detection) |
 
@@ -163,8 +174,9 @@ Planning runs are long. Subagent reports vanish when the agent returns. Conversa
 3. **Append, don't overwrite** for `design-decisions.md` — each user answer adds to the file.
 4. **Partial cleanup at Step 5c, full cleanup at Step 11.** Step 5c deletes intermediate content files (explorer reports, websearch findings, etc.) but preserves `progress.json` (needed for session resume) and `review-findings.md` (needed for Step 10). Step 11 deletes the entire `docs/.eng-planning/` directory as final cleanup.
 5. **If a step needs data from a prior phase:** Read it from the intermediate file, not from conversation context. This is the whole point — conversation context may have been compressed.
-6. **Context budget: the main agent should NEVER hold the full PRD and full explorer report simultaneously.** After Step 0, the main agent works from `prd-summary.md` (not the full PRD). The full PRD is passed to subagents via their prompts — subagents hold the heavy documents, the main agent holds summaries. Do NOT re-read the full PRD in later steps.
-7. **Do NOT read individual codebase files after Step 1.** The explorer report IS the codebase summary. If you need file:line details, they are in the explorer report. Reading source files directly in Steps 2-11 defeats the purpose of the explorer subagent.
+6. **The PRD is the source of truth — always read it in full when needed.** Never summarize the PRD into a lossy intermediate. It contains critical details (field constraints, business rules, edge cases in AC specs) that a summary would lose. Re-read the PRD from disk whenever a step needs it.
+7. **The explorer report is a codebase summary — NEVER hold the full report in main agent context.** After Step 1, write `docs/.eng-planning/explorer-summary.md` (key patterns, reuse opportunities, gaps — ~50 lines max). The main agent works from this summary. The full explorer report stays on disk for subagents to reference. Do NOT read individual codebase files after Step 1.
+8. **Context budget:** The main agent should never hold the full PRD AND the full explorer report simultaneously. Read the PRD when needed, work from the explorer summary, and re-read targeted sections of intermediates from disk rather than holding everything in conversation memory.
 
 ---
 
@@ -188,7 +200,7 @@ Before starting any work, check if a prior planning session left state on disk.
    }
    ```
    - Report to the user: "Resuming eng-planning from Step [N]. Steps completed: [list]. Next step: [N]."
-   - Re-read `docs/.eng-planning/prd-summary.md` (NOT the full PRD — use the summary for main agent context).
+   - Re-read the full PRD from the `prd_path` stored in `progress.json`. The PRD is the source of truth — always read it in full.
    - Re-read any intermediate files that still exist in `docs/.eng-planning/` (they survive until Step 5c cleanup).
    - **After determining resume point, proceed to that step. Do NOT skip remaining steps.**
 
@@ -207,7 +219,7 @@ After each major step completion, write/update `docs/.eng-planning/progress.json
 | `step_8_approved` | boolean | Whether Step 8 user approval was obtained |
 | `review_iteration` | number | Current review iteration count (0, 1, or 2) |
 
-**Checkpoint steps:** 1, 2, 3, 5, 6, 7, 8, 9, 10, 11. Step 0 creates the initial file. Step 4 runs in parallel with Step 1 so its completion is recorded when Step 1's checkpoint fires (or whichever Phase B step completes last).
+**Checkpoint steps:** 1, 2, 3, 5, 6, 7, 7.5, 8, 9, 10, 11, 12. Step 0 creates the initial file. Step 4 runs in parallel with Step 1 so its completion is recorded when Step 1's checkpoint fires (or whichever Phase B step completes last).
 
 ## Step 0: Locate PRD
 
@@ -220,9 +232,9 @@ After each major step completion, write/update `docs/.eng-planning/progress.json
 3. **Ambiguous?** — If multiple candidates or none found, use AskUserQuestion:
    > "I found [N] potential PRD files: [list]. Which one should I plan against? Or provide a path."
 4. **Read the PRD** — Parse it completely. Extract: objectives, requirements (P0/P1/P2), constraints, user stories, success metrics, non-goals.
-5. **Write PRD summary to disk** — Immediately write `docs/.eng-planning/prd-summary.md` containing: feature name, objectives (1-2 sentences each), all requirements grouped by priority, constraints, non-goals, new dependencies listed, and success metrics. This is a structured extraction, not a copy. **After this point, the main agent works from `prd-summary.md` — do NOT re-read the full PRD.** The full PRD text is only used when filling `[PRD_CONTENT]` in subagent prompt templates (Step 1 explorer, Step 9 reviewer). Store the PRD path for subagent use but do not hold the full PRD content in conversation context.
+5. **Store PRD path** — Record the PRD path in `progress.json` for subagent use. The PRD is the source of truth and should be re-read in full whenever needed — never summarize it into a lossy intermediate.
 
-**→ Checkpoint:** Write `docs/.eng-planning/progress.json` with `last_completed_step: 0`, `prd_path` set, `remaining_steps: [1, 2, 3, 5, 6, 7, 8, 9, 10, 11]`, empty `artifacts_produced`, `step_8_approved: false`, `review_iteration: 0`.
+**→ Checkpoint:** Write `docs/.eng-planning/progress.json` with `last_completed_step: 0`, `prd_path` set, `remaining_steps: [1, 2, 3, 5, 6, 7, 7.5, 8, 9, 10, 11, 12]`, empty `artifacts_produced`, `step_8_approved: false`, `review_iteration: 0`, `traceability_pass: false`.
 
 ## Step 1: Codebase Exploration
 
@@ -238,6 +250,7 @@ Spawn explorer subagent(s) to map the codebase against PRD requirements.
 4. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`. Each explorer runs in isolated context and returns a structured report.
 5. **Wait for all explorer reports** — Do not proceed to Phase C until all explorers return. The reports contain: project structure, tech stack, existing patterns with file:line references, code mapped to PRD requirements, dependency map, test infrastructure, DB schema.
 6. **Write to disk immediately.** For single-repo: write the report to `docs/.eng-planning/explorer-report.md`. For multi-repo: write each sub-report to `docs/.eng-planning/explorer-report-fe.md` and `docs/.eng-planning/explorer-report-be.md`, then merge into `docs/.eng-planning/explorer-report.md`.
+7. **Write explorer summary.** Extract a concise summary (~50 lines max) from the explorer report into `docs/.eng-planning/explorer-summary.md`. Include: key patterns to follow (with file:line refs), reuse opportunities mapped to PRD requirements, critical gaps, and risks. **The main agent works from this summary in later steps.** The full explorer report stays on disk for subagents to reference if needed.
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 1`, remove `1` from `remaining_steps`. (Step 4 runs in parallel; if it finished first, this checkpoint captures both.)
 
@@ -257,11 +270,11 @@ Spawn explorer subagent(s) to map the codebase against PRD requirements.
 **2.7 — TODOS.md cross-reference:** Read `TODOS.md` / `docs/backlog.md` if they exist. Are any deferred items blocking this plan? Can any be bundled without expanding scope? Does this plan create new work to capture?
    **→ Write results to `docs/.eng-planning/backlog-crossref.md`**
 
-### Phase C (after explorer report — read from `docs/.eng-planning/explorer-report.md`):
+### Phase C (after explorer report):
 
-Before starting, re-read intermediate files from Phase B (do NOT re-read the full PRD — use `prd-summary.md`):
-- `docs/.eng-planning/prd-summary.md`
-- `docs/.eng-planning/explorer-report.md`
+Before starting, re-read these intermediate files from Phase B:
+- The **full PRD** (re-read from disk — it is the source of truth, never summarized)
+- `docs/.eng-planning/explorer-summary.md` (NOT the full explorer report — use the summary)
 - `docs/.eng-planning/websearch-findings.md`
 - `docs/.eng-planning/backlog-crossref.md`
 
@@ -285,7 +298,7 @@ Then answer the remaining questions:
 
 ## Step 3: Major Design Decisions
 
-Re-read `docs/.eng-planning/scope-challenge.md` and `docs/.eng-planning/explorer-report.md` from disk. Use these intermediates (not the full PRD) to identify every significant design decision. Categories:
+Re-read the PRD, `docs/.eng-planning/scope-challenge.md`, and `docs/.eng-planning/explorer-summary.md` from disk to identify every significant design decision. Categories:
 
 - **Architecture approach** — monolith vs service, sync vs async, polling vs push
 - **Data model** — schema design, relationships, migration strategy
@@ -499,7 +512,7 @@ rm -f docs/.eng-planning/websearch-findings.md
 rm -f docs/.eng-planning/backlog-crossref.md
 rm -f docs/.eng-planning/scope-challenge.md
 rm -f docs/.eng-planning/design-decisions.md
-rm -f docs/.eng-planning/prd-summary.md
+rm -f docs/.eng-planning/explorer-summary.md
 ```
 
 Do this NOW, before proceeding to Step 6. The review subagent (Step 9) reads from the final artifacts in `docs/plans/` and `docs/contracts/`, not from intermediates. `progress.json` and `review-findings.md` are NOT intermediates — they are infrastructure files needed by later steps.
@@ -591,11 +604,46 @@ Lane B (Frontend): T-103 (independent)
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 7`, remove `7` from `remaining_steps`.
 
+## Step 7.5: PRD Traceability Self-Check
+
+**Purpose:** Before presenting artifacts for approval, verify 1:1 mapping between PRD requirements/acceptance criteria and engineering tasks/acceptance criteria. Catch gaps before the approval gate.
+
+Execute the **5-agent traceability pipeline** defined in plan-eng-review Section 0.5. This is a multi-agent audit, not a single-agent check.
+
+1. **Set up working directory:**
+   ```bash
+   mkdir -p docs/.eng-planning/traceability/
+   ```
+
+2. **Re-read the PRD** from the path in `progress.json`.
+
+3. **Run the 3-phase pipeline** with `{TRACE_DIR}` = `docs/.eng-planning/traceability/`:
+   - **Phase 1 (parallel):** Spawn Agent A (PRD Extractor) and Agent B (Eng Doc Extractor) simultaneously. Both `model: "sonnet"`, `subagent_type: "general-purpose"`. Each writes its extraction to disk.
+   - **Phase 2 (parallel):** After Phase 1 completes, re-read both extraction files from disk. Spawn Agent C (Forward Tracer) and Agent D (Reverse Tracer) simultaneously. Pass extraction file contents into prompts. Each writes trace results to disk.
+   - **Phase 3 (sequential):** After Phase 2 completes, re-read all four intermediate files from disk. Spawn Agent E (Synthesis & Verdict). Writes final matrix to disk.
+
+4. **Read `docs/.eng-planning/traceability/traceability-matrix.md`** from disk — this is the authoritative result.
+
+**If VERDICT is PASS:** Proceed to Step 8.
+
+**If VERDICT is FAIL:** Fix every gap autonomously:
+   - **DROPPED** → Add missing requirement to appropriate T-XXX task or create a new task with all required fields
+   - **DILUTED** → Strengthen eng acceptance criteria to match PRD specificity (thresholds, edge cases, conditions)
+   - **DOWNGRADED** → Correct task priority to match PRD priority
+   - **SPLIT_RISK** → Add explicit cross-reference notes to affected tasks ensuring no detail is lost
+   - **SCOPE_CREEP** → Remove unauthorized work OR add explicit "Engineering Necessity" justification in the task
+   - **REINTERPRETED** → Rewrite eng version to match original PRD intent verbatim
+   - **NON_GOAL_VIOLATION** → Remove eng task that implements a PRD non-goal
+
+After fixing, **re-run the full 5-agent pipeline** (all fresh agents — do NOT reuse prior ones). Maximum 2 iterations. If gaps persist after 2 iterations, report remaining gaps when presenting in Step 8. Keep all intermediate files in `docs/.eng-planning/traceability/` — they are the audit trail for Steps 8 and 10.
+
+**→ Checkpoint:** Update `progress.json` — `last_completed_step: 7.5`, remove `7.5` from `remaining_steps`. Add `traceability_pass: true|false` and `traceability_gaps_remaining: N`.
+
 ---
 
 ### MANDATORY CHECKPOINT — YOU ARE NOT DONE
 
-**STOP HERE and read this.** Steps 8-11 (Phase F: Review Gate) are MANDATORY. You have produced artifacts in Steps 5-7 — you have NOT reviewed them. The review chain (present artifacts -> engineering review -> auto-fix -> final output) is non-negotiable. Do not declare victory. Do not report completion. Do not summarize what you did and stop. You MUST proceed to Step 8 now.
+**STOP HERE and read this.** Steps 8-12 (Phase F: Review Gate) are MANDATORY. You have produced artifacts in Steps 5-7.5 — you have NOT had them independently reviewed. The review chain (present artifacts -> engineering review -> auto-fix -> final output -> final traceability gate) is non-negotiable. Do not declare victory. Do not report completion. Do not summarize what you did and stop. You MUST proceed to Step 8 now.
 
 ---
 
@@ -655,19 +703,52 @@ If iteration 2 still has specifiable findings: log them as known issues in the d
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 10`, remove `10` from `remaining_steps`, set `review_iteration` to the final iteration count.
 
-## Step 11: Final Output
+## Step 11: Pre-Final Output
 
-Confirm all artifacts have been written to disk. **Final cleanup** — delete the entire `docs/.eng-planning/` directory (progress.json, review-findings.md, and any stragglers from Step 5c):
+Confirm all artifacts have been written to disk. Do NOT clean up intermediate files yet — Step 12 needs the final artifacts in place for the traceability gate.
+
+**→ Checkpoint:** Update `progress.json` — `last_completed_step: 11`, remove `11` from `remaining_steps`.
+
+---
+
+### MANDATORY CHECKPOINT — STEP 12 IS NOT OPTIONAL
+
+**STOP.** You must proceed to Step 12 (Final PRD Traceability Gate) before declaring completion. The review loop (Steps 9-10) may have introduced fixes that broke traceability. Step 12 verifies the final state.
+
+---
+
+## Step 12: Final PRD Traceability Gate
+
+**Purpose:** After the full review cycle (Steps 9-10) and fix iterations, verify the final artifacts still maintain 1:1 PRD traceability. Review fixes may have introduced new gaps or broken existing mappings.
+
+1. **Clean prior traceability state and re-run the full 5-agent pipeline:**
+   ```bash
+   rm -rf docs/.eng-planning/traceability/
+   mkdir -p docs/.eng-planning/traceability/
+   ```
+   Run the complete 3-phase pipeline from plan-eng-review Section 0.5 with `{TRACE_DIR}` = `docs/.eng-planning/traceability/`. All fresh sonnet agents — the Step 7.5 agents are long gone.
+
+2. **If VERDICT is PASS:** Proceed to final output with `PRD Traceability: VERIFIED (100% forward trace, confirmed post-review)`.
+
+3. **If VERDICT is FAIL:**
+   - Fix gaps using the same rules as Step 7.5 (DROPPED → add task, DILUTED → strengthen AC, etc.)
+   - Do NOT re-enter the full review loop (Steps 9-10) — only fix traceability gaps
+   - Maximum 1 fix iteration with full pipeline re-run
+   - If gaps persist after 1 iteration: report status as `DONE_WITH_CONCERNS` and list remaining traceability gaps
+
+4. **Final cleanup** — Delete the entire `docs/.eng-planning/` directory:
 
 ```bash
 rm -rf docs/.eng-planning/
 ```
 
-The final artifacts in `docs/plans/` and `docs/contracts/` are the permanent record. The progress file has served its purpose and is deleted with the directory.
+The final artifacts in `docs/plans/` and `docs/contracts/` are the permanent record.
+
+**→ Checkpoint:** Update `progress.json` — `last_completed_step: 12`, remove `12` from `remaining_steps`.
 
 Report completion status:
 
-- **DONE** — All artifacts produced, review passed, no outstanding concerns.
+- **DONE** — All artifacts produced, review passed, traceability verified, no outstanding concerns.
 - **DONE_WITH_CONCERNS** — All artifacts produced, but concerns remain. List each concern explicitly.
 - **BLOCKED** — Cannot complete. State what is blocking (unverified dependency, unresolved design decision, missing PRD information).
 
@@ -682,6 +763,10 @@ ARTIFACTS PRODUCED:
 INTERMEDIATE FILES: Cleaned up (docs/.eng-planning/ removed)
 
 REVIEW: [Passed after N iterations | Concerns listed below]
+
+PRD TRACEABILITY:
+- Step 7.5 (pre-approval): [PASS | PASS after N fix iterations | N gaps reported]
+- Step 12 (post-review): [VERIFIED 100% | N gaps remaining — listed below]
 
 NEXT STEPS:
 - Update .claude/phase.json to FEATURE_SPECS_APPROVED
