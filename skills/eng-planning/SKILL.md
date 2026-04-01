@@ -259,7 +259,7 @@ Spawn explorer subagent(s) to map the codebase against PRD requirements.
    - `[EXPLORER_REPORT_PATH]` — `docs/.eng-planning/explorer-report.md` (or `-fe.md`/`-be.md` for multi-repo)
    - `[EXPLORER_SUMMARY_PATH]` — `docs/.eng-planning/explorer-summary.md`
 3. **Multi-repo projects:** If the project has separate FE/BE repos, spawn **one explorer per repo** in parallel (see "Multi-Repo Explorer Splitting" above). Scope each explorer's `[PROJECT_PATH]` to its sub-repo. Each writes to its own `-fe.md`/`-be.md` report path. After both complete, merge into `explorer-report.md`.
-4. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`. Each explorer runs in isolated context and **writes its report + summary directly to disk**. The main agent does NOT read the subagent return value.
+4. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`, `model: "sonnet"`. Explorers are read-only pattern matching — Sonnet is the right tier. Each explorer runs in isolated context and **writes its report + summary directly to disk**. The main agent does NOT read the subagent return value.
 5. **Wait for all explorers to complete.** Verify output files exist:
    ```bash
    ls -la docs/.eng-planning/explorer-report.md docs/.eng-planning/explorer-summary.md
