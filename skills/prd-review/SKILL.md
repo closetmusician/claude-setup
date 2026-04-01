@@ -12,6 +12,14 @@ Four-phase adversarial review that catches spec ambiguities before agents hit th
 during implementation. Spawns 5 fresh subagents — each sees ONLY the PRD, no
 conversation history — to probe from different expert perspectives.
 
+**Model discipline:** This skill is Opus-heavy by design. The synthesis subagent
+(Phase 3) and triage subagent (Phase 4.1) MUST run as `model: opus`. The main agent
+should also be Opus; if running on Sonnet, note the limitation to the user.
+
+**Context discipline:** Phase 2 subagents write their findings to disk. Phases 3 and 4
+subagents read files from disk — they never receive raw Phase 2 outputs in context.
+The main agent reads only the final triage doc, keeping its context window thin.
+
 ## Core Principle
 
 A PRD is ready for implementation when an agent can build every requirement without
@@ -22,7 +30,7 @@ a wrong guess, or a rework cycle during BUILD.
 
 ## Workflow
 
-### Step 0: Locate the PRD
+### Step 0: Locate the PRD and Set Up Working Directory
 
 Determine the PRD file path:
 
@@ -46,7 +54,16 @@ Determine the PRD file path:
   C) Other — provide path
   ```
 
-Read the full PRD content. Store it — all subagents will receive this text.
+Read the full PRD content. Derive a slug from the filename (e.g., `docs/my-feature.md`
+→ `my-feature`). Create the working directory for this review run:
+
+```bash
+mkdir -p .prd-review/<slug>
+```
+
+All intermediary files for this review go under `.prd-review/<slug>/`. This directory
+is ephemeral — it can be gitignored. Store the PRD path and slug — all subagents will
+need them.
 
 ---
 
@@ -136,14 +153,19 @@ If user picks A: proceed to Phase 2.
 Spawn 5 fresh subagents in parallel. Each agent receives ONLY the PRD text — no
 conversation history, no prior context, no premises from Phase 1. Fresh eyes only.
 
+Each subagent **must write its complete findings to disk** before returning. The main
+agent does NOT read the subagent return values directly — it reads the files from disk
+after all 5 complete. This keeps Phase 2 output out of main context.
+
 Read `references/persona-prompts.md` for the exact system prompts. Each subagent
-gets its persona prompt + the full PRD text.
+gets its persona prompt + the full PRD text + the output file path it must write to.
 
 **Spawn all 5 in a single message using the Agent tool:**
 
 #### Agent 1: Product Thinker (Sonnet)
 - **Focus:** Problem-solution fit, user value, competitive positioning
 - **Model:** sonnet
+- **Output file:** `.prd-review/<slug>/reviewer-1-product-thinker.md`
 - **Draws from:** gstack 6 forcing questions (demand reality, status quo, desperate
   specificity, narrowest wedge, observation & surprise, future-fit)
 - **Output format:** Score each sub-dimension 1-10. List issues as SPECIFIABLE or REQUIRES_DECISION.
@@ -151,6 +173,7 @@ gets its persona prompt + the full PRD text.
 #### Agent 2: UX Designer (Sonnet)
 - **Focus:** User flows, interaction states, information hierarchy, accessibility
 - **Model:** sonnet
+- **Output file:** `.prd-review/<slug>/reviewer-2-ux-designer.md`
 - **Draws from:** gstack design-review first-impression framework + 7-pass design methodology
 - **Reviews:** Info architecture, interaction state coverage (loading/empty/error/success),
   user journey completeness, AI slop risk in UX descriptions, responsive/accessibility gaps,
@@ -160,6 +183,7 @@ gets its persona prompt + the full PRD text.
 #### Agent 3: Engineering Manager (Opus)
 - **Focus:** Consistency, clarity, implementability, hidden assumptions
 - **Model:** opus
+- **Output file:** `.prd-review/<slug>/reviewer-3-eng-manager.md`
 - **Draws from:** gstack /plan-eng-review diagram-forcing + od-claude Patrik 4-pass review
 - **Checks:**
   - Do parts of the PRD contradict each other?
@@ -173,6 +197,7 @@ gets its persona prompt + the full PRD text.
 #### Agent 4: Customer Expert (Sonnet)
 - **Focus:** Persona coverage for Diligent Boards' 3 core personas
 - **Model:** sonnet
+- **Output file:** `.prd-review/<slug>/reviewer-4-customer-expert.md`
 - **Evaluates against:**
   1. **Board Members** — Time-poor, low tech fluency. Need frictionless access to meeting
      materials, voting, governance documents. Will they understand this feature without training?
@@ -186,6 +211,7 @@ gets its persona prompt + the full PRD text.
 #### Agent 5: QA Expert (Opus)
 - **Focus:** Testability, feasibility, hidden complexity
 - **Model:** opus
+- **Output file:** `.prd-review/<slug>/reviewer-5-qa-expert.md`
 - **Grades every acceptance criterion:**
   - **BAD:** "Handler works correctly" (not testable, not falsifiable)
   - **OK:** "exports validateToken function" (testable but underspecified)
@@ -217,96 +243,173 @@ Return your findings as structured markdown with:
    - Proposed fix: [your suggested text, or "PM must decide: [question]"]
 4. Summary: X findings (Y specifiable, Z require decisions)
 
+CRITICAL: You MUST write your complete findings to disk at the path below
+using the Write tool. Do this BEFORE returning. The main agent reads from
+disk only — it does not receive your return value.
+
+Output file: [OUTPUT_FILE_PATH]
+
 THE PRD:
 ---
 [FULL PRD TEXT]
 ---
 ```
 
-**Wait for all 5 agents to complete.** Read all 5 outputs.
+**After spawning:** Verify all 5 output files exist before proceeding:
+```bash
+ls -la .prd-review/<slug>/reviewer-*.md
+```
+If any file is missing, re-spawn that specific agent before continuing.
 
 ---
 
-### Phase 3: Executability Adversarial Pass
+### Phase 3: Synthesis (Opus Subagent)
 
-This phase runs in the main agent after reading all Phase 2 outputs. It synthesizes
-findings and adds its own adversarial analysis.
+Spawn **one Opus synthesis subagent**. This agent reads the 5 reviewer files directly
+from disk — it does NOT receive their content in the prompt. This prevents the 5 large
+reports from bloating main context.
 
-**Step 3.1: Cross-Reviewer Synthesis**
+**Model:** opus (mandatory — this is the hardest analytical step)
 
-Categorize every finding from Phase 2:
+**Subagent prompt:**
+```
+You are a Senior Architect synthesizing findings from 5 PRD reviewers.
 
+Read these files from disk:
+- PRD: [PRD_FILE_PATH]
+- Reviewer reports: .prd-review/<slug>/reviewer-1-product-thinker.md
+                    .prd-review/<slug>/reviewer-2-ux-designer.md
+                    .prd-review/<slug>/reviewer-3-eng-manager.md
+                    .prd-review/<slug>/reviewer-4-customer-expert.md
+                    .prd-review/<slug>/reviewer-5-qa-expert.md
+
+Perform these four passes (in order) and write all output to:
+.prd-review/<slug>/synthesis.md
+
+PASS A — CROSS-REVIEWER SYNTHESIS
+Categorize every finding from all 5 reviewers:
 | Category | Meaning | Priority |
 |---|---|---|
-| **Reinforcing** | 2+ reviewers flagged the same issue | HIGHEST — definitely a real problem |
-| **Unique** | Only one reviewer found it | MEDIUM — may be real or perspective-specific |
-| **Conflicting** | Reviewers disagree about a requirement | HIGH — surface the disagreement to PM |
+| Reinforcing | 2+ reviewers flagged the same issue | HIGHEST |
+| Unique | Only one reviewer found it | MEDIUM |
+| Conflicting | Reviewers disagree | HIGH — surface disagreement |
 
-**Step 3.2: Acceptance Criteria Audit**
-
+PASS B — ACCEPTANCE CRITERIA AUDIT
 Walk every P0 and P1 requirement in the PRD. For each:
-1. Grade as BAD / OK / GOOD (use QA Expert's grades, verify independently)
-2. If BAD: write a GOOD replacement (SPECIFIABLE)
+1. Grade as BAD / OK / GOOD (cross-check with QA Expert's grades)
+2. If BAD: write a GOOD replacement
 3. If OK: identify what's missing to reach GOOD
+Compute: N% GOOD, M% OK, P% BAD before fixes.
 
-**Step 3.3: Shadow Path Tracing**
-
+PASS C — SHADOW PATH TRACING
 For every data flow in the PRD:
-- What happens on nil/null input?
-- What happens on empty input (empty string, empty array)?
-- What happens when upstream service errors?
-- What happens on timeout?
-
+- nil/null input, empty input, upstream error, timeout
 For every user interaction:
-- Double-click on submit button?
-- Navigate away mid-operation?
-- Slow connection (3G)?
-- Stale state (opened tab 2 hours ago)?
-- Back button after completion?
-- Rapid resubmit?
-- Concurrent actions from two tabs?
+- double-click, navigate-away mid-op, slow connection (3G),
+  stale state (2h old tab), back button, rapid resubmit, concurrent tabs
+Flag every unspecified case as a SPECIFIABLE finding with proposed behavior text.
 
-If any of these are unspecified in the PRD, add them as SPECIFIABLE findings with
-proposed behavior.
-
-**Step 3.4: Failure Scenario Generation**
-
-For each major feature (top-level JTBD), write one realistic scenario:
-```
+PASS D — FAILURE SCENARIO GENERATION
+For each major feature (top-level JTBD), write one realistic failure scenario:
 SCENARIO: [Feature name]
-An agent implementing this PRD would [specific wrong behavior] because
-the spec says [quote] but doesn't specify [missing detail]. Two competent
+An agent implementing this PRD would [specific wrong behavior] because the
+spec says "[quote]" but doesn't specify [missing detail]. Two competent
 engineers would build different things here.
 PROPOSED SPEC ADDITION: [exact text to add]
+
+Write your complete synthesis to .prd-review/<slug>/synthesis.md before returning.
 ```
+
+**After subagent completes:** Verify the file exists:
+```bash
+ls -la .prd-review/<slug>/synthesis.md
+```
+
+Main agent reads only the synthesis file — not the 5 raw reviewer files.
 
 ---
 
 ### Phase 4: Convergence or Escalation
 
-**Step 4.1: Compile All Findings**
+#### Step 4.1: Triage (Opus Subagent)
 
-Merge findings from Phases 2 and 3 into a single deduplicated list.
-Every finding gets exactly one disposition:
+Spawn **one Opus triage subagent**. It reads the synthesis file and PRD from disk,
+produces a deduplicated finding table, and writes it to disk.
+
+**Model:** opus (mandatory — triage decisions require strong judgment)
+
+**Subagent prompt:**
+```
+You are a Senior PM/Architect triaging PRD review findings.
+
+Read these files from disk:
+- PRD: [PRD_FILE_PATH]
+- Synthesis: .prd-review/<slug>/synthesis.md
+
+Merge all findings into a single deduplicated list. Every finding gets
+exactly one disposition:
 
 | Disposition | Meaning | Action |
 |---|---|---|
-| **Applied** | SPECIFIABLE fix — proposed text is unambiguous | Apply directly to PRD |
-| **Captured** | REQUIRES_DECISION — PM must choose | Add to Unresolved Decision Table |
-| **Dismissed** | False positive or out of scope | Note reason, no action |
+| Applied | SPECIFIABLE fix — proposed text is unambiguous | Ready to apply to PRD |
+| Captured | REQUIRES_DECISION — PM must choose | Add to Decision Table |
+| Dismissed | False positive or out of scope | Note reason, no action |
 
-**Do not cherry-pick.** Every finding from every reviewer must appear in the triage
-table with a disposition.
+Rules:
+- Do NOT cherry-pick. Every finding from every reviewer must appear with a disposition.
+- For "Applied" findings: include the exact proposed text and the target REQ-ID/section.
+- For "Captured" findings: state the decision question + concrete harm if deferred.
+- For "Dismissed" findings: state the reason concisely.
 
-**Step 4.2: Apply SPECIFIABLE Fixes**
+Output format:
 
-For each "Applied" finding, edit the PRD directly using the Edit tool. Make the
-smallest change that resolves the ambiguity. Preserve the PRD author's voice and
-structure.
+## Triage Table
+| Finding | Source | Disposition | Notes |
+|---|---|---|---|
+...
 
-**Step 4.3: Present REQUIRES_DECISION Items**
+## Applied Fixes (ready to edit into PRD)
+For each Applied finding:
+### FIX-N: [REQ-ID] [Title]
+Target: [section or requirement ID]
+Proposed text: [exact text to add or replace]
 
-Build an Unresolved Decision Table and present via AskUserQuestion:
+## Decisions Needed (REQUIRES_DECISION)
+| # | Decision | If Deferred, What Happens |
+|---|---|---|
+...
+
+## Dismissed
+| Finding | Reason |
+|---|---|
+...
+
+## AC Quality
+Before fixes: N% GOOD, M% OK, P% BAD
+After applied fixes: N'% GOOD, M'% OK, P'% BAD (projected)
+
+Write your complete triage to .prd-review/<slug>/triage.md before returning.
+```
+
+**After subagent completes:** Verify the file exists:
+```bash
+ls -la .prd-review/<slug>/triage.md
+```
+
+**Main agent now reads `triage.md`.** This is the only Phase 2-3 artifact the main
+agent ingests. Its context window at this point contains: PRD + premises from Phase 1
++ triage doc. Everything else lives on disk.
+
+#### Step 4.2: Apply SPECIFIABLE Fixes
+
+For each "Applied" finding from triage.md, edit the PRD directly using the Edit tool.
+Make the smallest change that resolves the ambiguity. Preserve the PRD author's voice
+and structure.
+
+#### Step 4.3: Present REQUIRES_DECISION Items
+
+Build an Unresolved Decision Table from the "Decisions Needed" section of triage.md
+and present via AskUserQuestion:
 
 ```
 ## Unresolved Decisions
@@ -323,7 +426,7 @@ B) [Option 2 — alternative]
 C) Defer — accept the risk described above
 ```
 
-**Step 4.4: Re-Review (if fixes were applied)**
+#### Step 4.4: Re-Review (if fixes were applied)
 
 If SPECIFIABLE fixes were applied to the PRD:
 1. Re-read the updated PRD
@@ -335,7 +438,7 @@ If SPECIFIABLE fixes were applied to the PRD:
 fixable by spec text alone. Persist it in a "## Reviewer Concerns" section at the
 end of the PRD and stop iterating.
 
-**Step 4.5: Final Report**
+#### Step 4.5: Final Report
 
 Present a summary to the user:
 
