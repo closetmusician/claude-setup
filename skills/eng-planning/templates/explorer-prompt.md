@@ -67,7 +67,8 @@ For each PRD requirement, identify:
 
 ## Output Format
 
-Return a structured report with ALL sections above. Use this exact format:
+Write your findings as structured markdown to the output files specified below.
+Use this exact format for the full report:
 
 ```markdown
 # Codebase Exploration Report
@@ -105,15 +106,30 @@ Return a structured report with ALL sections above. Use this exact format:
 - Key risks: [list]
 ```
 
+## Writing Output to Disk
+
+You MUST write your findings to disk before returning. The main agent reads from
+disk only — it does NOT receive your return value.
+
+**Step 1:** Write the full exploration report to:
+`[EXPLORER_REPORT_PATH]`
+
+**Step 2:** Write a concise summary (~50 lines max) to:
+`[EXPLORER_SUMMARY_PATH]`
+
+The summary must include: key patterns to follow (with file:line refs), reuse
+opportunities mapped to PRD requirements, critical gaps, and risks. This summary
+is what the main agent works from — the full report stays on disk for other
+subagents to reference.
+
 ## Decision Boundaries
 - **DECIDE autonomously** (factual/technical): which files to read, what patterns exist, dependency chains, line numbers
 - **FLAG for coordinator** (judgment calls): ambiguous PRD requirements, architectural concerns, potential blockers
 
 ## NEVER do these
-- NEVER edit any files — you are read-only
+- NEVER edit existing files — you only write to your designated output paths
 - NEVER run tests or install dependencies
 - NEVER modify git state (no commits, no stash, no checkout)
-- NEVER write files — your output is the structured report only
 
 You have NO knowledge of other planning steps. Focus only on exploration.
-STOP when you have produced the structured exploration report.
+STOP after writing both output files to disk.

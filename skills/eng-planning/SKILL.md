@@ -82,21 +82,21 @@ PHASE A: Bootstrap
   ↓ (PRD content available)
 
 PHASE B: Parallel Discovery (all items launch simultaneously)
-  ├─ Step 1: Codebase Exploration (explorer subagent(s))
+  ├─ Step 1: Codebase Exploration (explorer subagent(s) — write to disk)
   ├─ Step 4: Dependency Verification (deps are listed in PRD — no need to wait for design decisions)
   ├─ Step 2 partial: WebSearch checks + backlog cross-reference (need only PRD, not explorer report)
   ↓ (all Phase B items complete)
 
 PHASE C: Analysis & Decisions (sequential — each depends on prior)
-  Step 2 (full): Scope Challenge synthesis (needs explorer report from Step 1 + Phase B partial results)
+  Step 2 (full): Scope Challenge synthesis (reads explorer-summary.md from disk + Phase B intermediates)
   ↓
   Step 3: Major Design Decisions (needs scope challenge; user interaction is blocking)
   ↓ (all decisions made)
 
-PHASE D: Artifacts (parallel — both read from design-decisions.md + explorer report)
-  ├─ Step 5a: Feature Design Doc ─── architecture, decisions, task mini-specs (single file per feature)
-  ├─ Step 5b: API Contracts ─────── endpoint signatures, schemas, error shapes (separate file per feature)
-  ↓ (all artifacts written)
+PHASE D: Artifacts (parallel Opus subagents — read from disk, write to disk)
+  ├─ Step 5a: Feature Design Doc ─── Opus subagent reads intermediates, writes docs/plans/
+  ├─ Step 5b: API Contracts ─────── Opus subagent reads intermediates, writes docs/contracts/
+  ↓ (all artifacts written, verified by main agent)
 
 PHASE E: Enrichment (parallel, append to FEAT design doc)
   ├─ Step 6: Codepath Coverage Diagrams
@@ -104,19 +104,27 @@ PHASE E: Enrichment (parallel, append to FEAT design doc)
   ↓ (enrichment complete)
 
 PHASE E.5: PRD Traceability (sequential — must pass before presenting)
-  Step 7.5: Spawn Traceability Auditor (sonnet) → fix gaps → re-check (max 2 iterations)
+  Step 7.5: Spawn Traceability Auditor pipeline (agents read/write disk) → fix gaps → re-check (max 2 iterations)
   ↓ (traceability verified or gaps reported)
+
+PHASE E.6: Quality Synthesis (Opus subagent — reads all artifacts from disk)
+  Step 7.6: Independent coherence, consistency & quality check on draft artifacts
+  ↓ (quality issues fixed or reported)
 
 PHASE F: Review Gate (sequential)
   Step 8: Present Written Artifacts → approve to proceed to engineering review
   ↓
-  Step 9: Spawn Engineering Review (subagent)
+  Step 9: Spawn Engineering Review (subagent — writes findings to disk)
   ↓
   Step 10: Auto-Fix Loop (max 2 iterations)
   ↓
-  Step 11: Final Output
+  Step 11: Pre-Final Output
   ↓
-  Step 12: Final PRD Traceability Gate (sonnet) → verify post-review
+  Step 12: Final PRD Traceability Gate (agents read/write disk) → verify post-review
+  ↓
+  Step 12.5: Post-Review Coherence Spot-Check (Sonnet — targets only review-introduced changes)
+  ↓
+  Step 13: Final Cleanup & Output
 ```
 
 ### Multi-Repo Explorer Splitting
@@ -151,31 +159,33 @@ Planning runs are long. Subagent reports vanish when the agent returns. Conversa
 
 | Phase | File | Written By | Consumed By |
 |-------|------|-----------|-------------|
-| B | `docs/.eng-planning/explorer-summary.md` | Step 1 (main agent extracts key patterns from explorer report) | Steps 2, 3, 5a (main agent uses THIS instead of the full explorer report) |
-| B | `docs/.eng-planning/explorer-report.md` | Step 1 (orchestrator, from subagent output) | Steps 2, 3, 5a, 5b |
-| B | `docs/.eng-planning/explorer-report-fe.md` | Step 1 (FE explorer, multi-repo only) | Merged into explorer-report.md |
-| B | `docs/.eng-planning/explorer-report-be.md` | Step 1 (BE explorer, multi-repo only) | Merged into explorer-report.md |
-| B | `docs/.eng-planning/dependency-verification.md` | Step 4 | Steps 5a, 8 |
-| B | `docs/.eng-planning/websearch-findings.md` | Step 2.4 | Step 2 (full), Step 5a |
+| B | `docs/.eng-planning/explorer-summary.md` | Step 1 (explorer subagent writes directly to disk) | Steps 2, 3 (main agent uses THIS instead of the full explorer report) |
+| B | `docs/.eng-planning/explorer-report.md` | Step 1 (explorer subagent writes directly to disk) | Steps 5a, 5b subagents, Step 9 reviewer (full report on disk for subagents) |
+| B | `docs/.eng-planning/explorer-report-fe.md` | Step 1 (FE explorer subagent, multi-repo only) | Merged into explorer-report.md by main agent |
+| B | `docs/.eng-planning/explorer-report-be.md` | Step 1 (BE explorer subagent, multi-repo only) | Merged into explorer-report.md by main agent |
+| B | `docs/.eng-planning/dependency-verification.md` | Step 4 | Steps 5a subagent, 8 |
+| B | `docs/.eng-planning/websearch-findings.md` | Step 2.4 | Step 2 (full), Step 5a subagent |
 | B | `docs/.eng-planning/backlog-crossref.md` | Step 2.7 | Step 2 (full) |
-| C | `docs/.eng-planning/scope-challenge.md` | Step 2 (full synthesis) | Step 3, Step 5a |
-| C | `docs/.eng-planning/design-decisions.md` | Step 3 (accumulated after each user answer) | Steps 5a, 5b |
-| E.5 | `docs/.eng-planning/traceability/prd-extract.md` | Step 7.5 Phase 1 Agent A | Phase 2 Agents C, D; Phase 3 Agent E |
-| E.5 | `docs/.eng-planning/traceability/eng-extract.md` | Step 7.5 Phase 1 Agent B | Phase 2 Agents C, D; Phase 3 Agent E |
-| E.5 | `docs/.eng-planning/traceability/forward-trace.md` | Step 7.5 Phase 2 Agent C | Phase 3 Agent E |
-| E.5 | `docs/.eng-planning/traceability/reverse-trace.md` | Step 7.5 Phase 2 Agent D | Phase 3 Agent E |
+| C | `docs/.eng-planning/scope-challenge.md` | Step 2 (full synthesis) | Step 3, Step 5a subagent |
+| C | `docs/.eng-planning/design-decisions.md` | Step 3 (accumulated after each user answer) | Steps 5a, 5b subagents |
+| E.5 | `docs/.eng-planning/traceability/prd-extract.md` | Step 7.5 Phase 1 Agent A | Phase 2 Agents C, D (read from disk); Phase 3 Agent E |
+| E.5 | `docs/.eng-planning/traceability/eng-extract.md` | Step 7.5 Phase 1 Agent B | Phase 2 Agents C, D (read from disk); Phase 3 Agent E |
+| E.5 | `docs/.eng-planning/traceability/forward-trace.md` | Step 7.5 Phase 2 Agent C | Phase 3 Agent E (reads from disk) |
+| E.5 | `docs/.eng-planning/traceability/reverse-trace.md` | Step 7.5 Phase 2 Agent D | Phase 3 Agent E (reads from disk) |
 | E.5 | `docs/.eng-planning/traceability/traceability-matrix.md` | Step 7.5 Phase 3 Agent E | Steps 8, 10 |
-| F | `docs/.eng-planning/review-findings.md` | Step 9 (from reviewer subagent output) | Step 10 |
-| All | `docs/.eng-planning/progress.json` | Steps -1 through 11 (checkpoint after each major step) | Step -1 (resume detection) |
+| E.6 | `docs/.eng-planning/quality-synthesis.md` | Step 7.6 (Opus quality subagent writes to disk) | Main agent (fix issues before Step 8) |
+| F | `docs/.eng-planning/review-findings.md` | Step 9 (reviewer subagent writes directly to disk) | Step 10 |
+| F | `docs/.eng-planning/post-review-spotcheck.md` | Step 12.5 (Sonnet spot-check subagent) | Step 13 (main agent) |
+| All | `docs/.eng-planning/progress.json` | Steps -1 through 13 (checkpoint after each major step) | Step -1 (resume detection) |
 
 **Rules:**
-1. **Write immediately after each phase completes.** When a subagent returns a report, write it to disk in the same message before proceeding.
-2. **Re-read from disk at phase boundaries.** At the start of Phase C, read `explorer-report.md` + `websearch-findings.md` + `backlog-crossref.md` from disk — do not rely on conversation memory of the subagent output.
+1. **Subagents write to disk, not to main context.** Explorer, reviewer, artifact producers, and quality synthesis agents all write their output to disk using the Write tool. The main agent reads from disk — it does NOT ingest subagent return values. This is the primary context hygiene mechanism.
+2. **Re-read from disk at phase boundaries.** At the start of Phase C, read `explorer-summary.md` + `websearch-findings.md` + `backlog-crossref.md` from disk — do not rely on conversation memory of the subagent output.
 3. **Append, don't overwrite** for `design-decisions.md` — each user answer adds to the file.
-4. **Partial cleanup at Step 5c, full cleanup at Step 11.** Step 5c deletes intermediate content files (explorer reports, websearch findings, etc.) but preserves `progress.json` (needed for session resume) and `review-findings.md` (needed for Step 10). Step 11 deletes the entire `docs/.eng-planning/` directory as final cleanup.
+4. **No intermediate cleanup until Step 13.** Intermediate files persist throughout the entire pipeline because subagents in later phases read from them. Only Step 13 (Final Cleanup) deletes the `docs/.eng-planning/` directory.
 5. **If a step needs data from a prior phase:** Read it from the intermediate file, not from conversation context. This is the whole point — conversation context may have been compressed.
 6. **The PRD is the source of truth — always read it in full when needed.** Never summarize the PRD into a lossy intermediate. It contains critical details (field constraints, business rules, edge cases in AC specs) that a summary would lose. Re-read the PRD from disk whenever a step needs it.
-7. **The explorer report is a codebase summary — NEVER hold the full report in main agent context.** After Step 1, write `docs/.eng-planning/explorer-summary.md` (key patterns, reuse opportunities, gaps — ~50 lines max). The main agent works from this summary. The full explorer report stays on disk for subagents to reference. Do NOT read individual codebase files after Step 1.
+7. **The explorer report is a codebase summary — NEVER hold the full report in main agent context.** The explorer subagent writes both `explorer-report.md` (full) and `explorer-summary.md` (~50 lines) to disk. The main agent reads ONLY the summary. The full report stays on disk for subagents (Steps 5a, 5b, 9) to reference.
 8. **Context budget:** The main agent should never hold the full PRD AND the full explorer report simultaneously. Read the PRD when needed, work from the explorer summary, and re-read targeted sections of intermediates from disk rather than holding everything in conversation memory.
 
 ---
@@ -219,7 +229,7 @@ After each major step completion, write/update `docs/.eng-planning/progress.json
 | `step_8_approved` | boolean | Whether Step 8 user approval was obtained |
 | `review_iteration` | number | Current review iteration count (0, 1, or 2) |
 
-**Checkpoint steps:** 1, 2, 3, 5, 6, 7, 7.5, 8, 9, 10, 11, 12. Step 0 creates the initial file. Step 4 runs in parallel with Step 1 so its completion is recorded when Step 1's checkpoint fires (or whichever Phase B step completes last).
+**Checkpoint steps:** 1, 2, 3, 5, 6, 7, 7.5, 7.6, 8, 9, 10, 11, 12, 12.5, 13. Step 0 creates the initial file. Step 4 runs in parallel with Step 1 so its completion is recorded when Step 1's checkpoint fires (or whichever Phase B step completes last).
 
 ## Step 0: Locate PRD
 
@@ -234,7 +244,7 @@ After each major step completion, write/update `docs/.eng-planning/progress.json
 4. **Read the PRD** — Parse it completely. Extract: objectives, requirements (P0/P1/P2), constraints, user stories, success metrics, non-goals.
 5. **Store PRD path** — Record the PRD path in `progress.json` for subagent use. The PRD is the source of truth and should be re-read in full whenever needed — never summarize it into a lossy intermediate.
 
-**→ Checkpoint:** Write `docs/.eng-planning/progress.json` with `last_completed_step: 0`, `prd_path` set, `remaining_steps: [1, 2, 3, 5, 6, 7, 7.5, 8, 9, 10, 11, 12]`, empty `artifacts_produced`, `step_8_approved: false`, `review_iteration: 0`, `traceability_pass: false`.
+**→ Checkpoint:** Write `docs/.eng-planning/progress.json` with `last_completed_step: 0`, `prd_path` set, `remaining_steps: [1, 2, 3, 5, 6, 7, 7.5, 7.6, 8, 9, 10, 11, 12, 12.5, 13]`, empty `artifacts_produced`, `step_8_approved: false`, `review_iteration: 0`, `traceability_pass: false`.
 
 ## Step 1: Codebase Exploration
 
@@ -246,11 +256,16 @@ Spawn explorer subagent(s) to map the codebase against PRD requirements.
 2. **Fill placeholders:**
    - `[PRD_CONTENT]` — Re-read the full PRD from the path stored in `progress.json`. Pass the full text into the subagent prompt. The subagent holds the heavy document, not you.
    - `[PROJECT_PATH]` — Absolute path to the project root (or sub-repo root for split explorers)
-3. **Multi-repo projects:** If the project has separate FE/BE repos, spawn **one explorer per repo** in parallel (see "Multi-Repo Explorer Splitting" above). Scope each explorer's `[PROJECT_PATH]` to its sub-repo. Merge their reports after both complete.
-4. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`. Each explorer runs in isolated context and returns a structured report.
-5. **Wait for all explorer reports** — Do not proceed to Phase C until all explorers return. The reports contain: project structure, tech stack, existing patterns with file:line references, code mapped to PRD requirements, dependency map, test infrastructure, DB schema.
-6. **Write to disk immediately.** For single-repo: write the report to `docs/.eng-planning/explorer-report.md`. For multi-repo: write each sub-report to `docs/.eng-planning/explorer-report-fe.md` and `docs/.eng-planning/explorer-report-be.md`, then merge into `docs/.eng-planning/explorer-report.md`.
-7. **Write explorer summary.** Extract a concise summary (~50 lines max) from the explorer report into `docs/.eng-planning/explorer-summary.md`. Include: key patterns to follow (with file:line refs), reuse opportunities mapped to PRD requirements, critical gaps, and risks. **The main agent works from this summary in later steps.** The full explorer report stays on disk for subagents to reference if needed.
+   - `[EXPLORER_REPORT_PATH]` — `docs/.eng-planning/explorer-report.md` (or `-fe.md`/`-be.md` for multi-repo)
+   - `[EXPLORER_SUMMARY_PATH]` — `docs/.eng-planning/explorer-summary.md`
+3. **Multi-repo projects:** If the project has separate FE/BE repos, spawn **one explorer per repo** in parallel (see "Multi-Repo Explorer Splitting" above). Scope each explorer's `[PROJECT_PATH]` to its sub-repo. Each writes to its own `-fe.md`/`-be.md` report path. After both complete, merge into `explorer-report.md`.
+4. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`. Each explorer runs in isolated context and **writes its report + summary directly to disk**. The main agent does NOT read the subagent return value.
+5. **Wait for all explorers to complete.** Verify output files exist:
+   ```bash
+   ls -la docs/.eng-planning/explorer-report.md docs/.eng-planning/explorer-summary.md
+   ```
+   If any file is missing, re-spawn that explorer.
+6. **Main agent reads ONLY `explorer-summary.md`** for subsequent steps. The full `explorer-report.md` stays on disk for subagents (Steps 5a, 5b, 9) to reference.
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 1`, remove `1` from `remaining_steps`. (Step 4 runs in parallel; if it finished first, this checkpoint captures both.)
 
@@ -353,13 +368,29 @@ For every NEW external dependency identified in the PRD:
 
 At `light` VIBE level: warn on verification failure but do not block. Note: "Best-effort verification — manual check recommended before BUILD."
 
-## Step 5: Produce Artifacts
+## Step 5: Produce Artifacts (Opus Subagents)
 
-Generate all design artifacts autonomously. All files go under `docs/`.
+Spawn **parallel Opus subagents** to produce artifacts. Each subagent reads all inputs from disk — the main agent does NOT hold these documents in context. This is the largest context-saving optimization in the pipeline.
 
 **Output: TWO files per feature.** Architecture, design decisions, and task specs are consolidated into a single feature design doc. Only the API contract is separate (because FE and BE teams reference it independently).
 
+**Each subagent receives this preamble in its prompt:**
+```
+Read the following files from disk before producing your artifact:
+- PRD: [PRD_PATH]
+- Explorer report (full): docs/.eng-planning/explorer-report.md
+- Explorer summary: docs/.eng-planning/explorer-summary.md
+- Design decisions: docs/.eng-planning/design-decisions.md
+- Scope challenge: docs/.eng-planning/scope-challenge.md
+- Dependency verification: docs/.eng-planning/dependency-verification.md
+
+Write your complete artifact to [OUTPUT_PATH] using the Write tool.
+Do NOT return the artifact content — write to disk only.
+```
+
 ### 5a. Feature Design Doc — `docs/plans/FEAT-XXX-design.md`
+
+**Model:** opus (mandatory — this is the primary artifact requiring strongest reasoning)
 
 **This is the primary artifact.** One file per feature containing architecture, design decisions, and task mini-specs. Must include spec-registry frontmatter and ALL of the following sections:
 
@@ -480,7 +511,14 @@ T-104 (no deps, parallel with T-101)
 
 **Mini-Spec Rules (non-negotiable):** Every T-XXX MUST have ALL fields: Priority, Depends On, Objective, Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan. Build Guidance must be SPECIFIC — name the exact patterns, classes, and utilities from the codebase to use. NOT generic principles like "keep it DRY" or "follow SOLID". Depends On is authoritative — the orchestrator uses it to determine execution order and parallelism.
 
+**After 5a subagent completes:** Verify the artifact exists:
+```bash
+ls -la docs/plans/FEAT-*-design.md
+```
+
 ### 5b. API Contracts — `docs/contracts/<feature>.md`
+
+**Model:** opus (mandatory — contracts require precise field-level reasoning)
 
 **Separate file** because FE and BE teams reference it independently. Per R16: one contract per feature with cross-boundary data flow. Must include:
 - Spec-registry frontmatter (at `full` level)
@@ -499,23 +537,12 @@ schemas: [<relevant-schema-paths>]
 ---
 ```
 
-### 5c. Cleanup Intermediate Content Files
-
-All intermediate CONTENT files have been consumed and their content is now in the final artifacts. Delete them, but **preserve `progress.json`** (needed for resume across sessions) and `review-findings.md` (needed for Step 10):
-
+**After 5b subagent completes:** Verify the artifact exists:
 ```bash
-rm -f docs/.eng-planning/explorer-report.md
-rm -f docs/.eng-planning/explorer-report-fe.md
-rm -f docs/.eng-planning/explorer-report-be.md
-rm -f docs/.eng-planning/dependency-verification.md
-rm -f docs/.eng-planning/websearch-findings.md
-rm -f docs/.eng-planning/backlog-crossref.md
-rm -f docs/.eng-planning/scope-challenge.md
-rm -f docs/.eng-planning/design-decisions.md
-rm -f docs/.eng-planning/explorer-summary.md
+ls -la docs/contracts/*.md
 ```
 
-Do this NOW, before proceeding to Step 6. The review subagent (Step 9) reads from the final artifacts in `docs/plans/` and `docs/contracts/`, not from intermediates. `progress.json` and `review-findings.md` are NOT intermediates — they are infrastructure files needed by later steps.
+**No intermediate cleanup at this stage.** Intermediates persist for subagents in later phases (reviewer in Step 9 benefits from `explorer-report.md`, etc.). All cleanup happens in Step 13.
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 5`, remove `5` from `remaining_steps`, populate `artifacts_produced` with the paths of all artifacts written in 5a and 5b.
 
@@ -619,8 +646,8 @@ Execute the **5-agent traceability pipeline** defined in plan-eng-review Section
 
 3. **Run the 3-phase pipeline** with `{TRACE_DIR}` = `docs/.eng-planning/traceability/`:
    - **Phase 1 (parallel):** Spawn Agent A (PRD Extractor) and Agent B (Eng Doc Extractor) simultaneously. Both `model: "sonnet"`, `subagent_type: "general-purpose"`. Each writes its extraction to disk.
-   - **Phase 2 (parallel):** After Phase 1 completes, re-read both extraction files from disk. Spawn Agent C (Forward Tracer) and Agent D (Reverse Tracer) simultaneously. Pass extraction file contents into prompts. Each writes trace results to disk.
-   - **Phase 3 (sequential):** After Phase 2 completes, re-read all four intermediate files from disk. Spawn Agent E (Synthesis & Verdict). Writes final matrix to disk.
+   - **Phase 2 (parallel):** After Phase 1 completes, spawn Agent C (Forward Tracer) and Agent D (Reverse Tracer) simultaneously. **Tell each agent to read the extraction files from disk** — do NOT pass file contents in the prompt. Each writes trace results to disk.
+   - **Phase 3 (sequential):** After Phase 2 completes, spawn Agent E (Synthesis & Verdict). **Tell it to read all four intermediate files from disk.** Writes final matrix to disk.
 
 4. **Read `docs/.eng-planning/traceability/traceability-matrix.md`** from disk — this is the authoritative result.
 
@@ -638,6 +665,65 @@ Execute the **5-agent traceability pipeline** defined in plan-eng-review Section
 After fixing, **re-run the full 5-agent pipeline** (all fresh agents — do NOT reuse prior ones). Maximum 2 iterations. If gaps persist after 2 iterations, report remaining gaps when presenting in Step 8. Keep all intermediate files in `docs/.eng-planning/traceability/` — they are the audit trail for Steps 8 and 10.
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 7.5`, remove `7.5` from `remaining_steps`. Add `traceability_pass: true|false` and `traceability_gaps_remaining: N`.
+
+## Step 7.6: Quality Synthesis (Opus Subagent)
+
+**Purpose:** Before presenting artifacts to the user, get an independent Opus-level assessment of internal consistency, coherence, and overall quality. This catches issues that individual steps miss because they each see a slice — this agent sees everything together with fresh eyes.
+
+**Model:** opus (mandatory — this is a holistic reasoning task)
+
+Spawn **one Opus subagent** that reads all artifacts from disk. It does NOT receive any conversation history — completely fresh perspective.
+
+**Subagent prompt:**
+```
+You are a Senior Engineering Architect performing a quality synthesis review
+of engineering planning artifacts. You have NO prior context — you see ONLY
+the artifacts. Read everything from disk before starting your review.
+
+Read these files:
+- PRD: [PRD_PATH]
+- Feature design doc(s): [ARTIFACT_PATHS from progress.json]
+- API contract(s): [CONTRACT_PATHS]
+- Traceability matrix: docs/.eng-planning/traceability/traceability-matrix.md
+
+Perform these checks:
+
+1. INTERNAL CONSISTENCY
+   - Do the tasks in the design doc contradict the architecture section?
+   - Do task dependencies form a valid DAG? (no cycles, no missing deps)
+   - Do Build Guidance references point to patterns that actually exist in the
+     explorer report? (read docs/.eng-planning/explorer-report.md to verify)
+   - Are priority levels consistent? (P0 task depending on P2 task = problem)
+
+2. CROSS-ARTIFACT COHERENCE
+   - Do API contract field names match the data model in the design doc?
+   - Do contract endpoints match what the tasks say they'll implement?
+   - Do error codes/shapes in the contract align with error handling in the design?
+
+3. ACCEPTANCE CRITERIA QUALITY
+   - Are all ACs testable and falsifiable? (not "works correctly")
+   - Do ACs have concrete values (thresholds, field names, status codes)?
+   - Are edge cases covered in both ACs and test plans?
+
+4. COMPLETENESS
+   - Does every PRD requirement map to at least one task?
+   - Does every task have all required fields? (Priority, Depends On, Objective,
+     Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan)
+   - Are there orphan tasks that don't trace back to any PRD requirement?
+
+For each finding, classify:
+- SPECIFIABLE — can be fixed by editing an artifact (include proposed fix)
+- REQUIRES_DECISION — needs human input (state the question)
+
+Severity: P0 (blocking), P1 (should fix), P2 (deferrable)
+
+Write your complete findings to:
+docs/.eng-planning/quality-synthesis.md
+```
+
+**After subagent completes:** Read `docs/.eng-planning/quality-synthesis.md`. Fix all SPECIFIABLE findings autonomously by editing the artifacts. Present REQUIRES_DECISION findings to the user via AskUserQuestion before proceeding to Step 8.
+
+**→ Checkpoint:** Update `progress.json` — `last_completed_step: 7.6`, remove `7.6` from `remaining_steps`.
 
 ---
 
@@ -676,9 +762,13 @@ After approval and artifact creation, spawn a fresh review subagent.
    - `[ARTIFACT_PATHS]` — List of all artifact file paths produced in Step 5
    - `[PRD_PATH]` — Path to the approved PRD
    - `[PROJECT_PATH]` — Absolute path to the project root
-3. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`. The reviewer runs in isolated context (sees ONLY the artifacts, not the planning conversation). This ensures genuine independence.
-4. **Wait for review output** — The reviewer produces findings in severity/confidence format.
-5. **→ Write review findings to `docs/.eng-planning/review-findings.md`** so Step 10 can read them from disk.
+   - `[REVIEW_FINDINGS_PATH]` — `docs/.eng-planning/review-findings.md`
+3. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`. The reviewer runs in isolated context (sees ONLY the artifacts, not the planning conversation) and **writes findings directly to disk**. The main agent does NOT read the subagent return value.
+4. **Wait for completion.** Verify the file exists:
+   ```bash
+   ls -la docs/.eng-planning/review-findings.md
+   ```
+5. **Main agent reads `review-findings.md` from disk** for Step 10.
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 9`, remove `9` from `remaining_steps`.
 
@@ -711,9 +801,9 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
 
 ---
 
-### MANDATORY CHECKPOINT — STEP 12 IS NOT OPTIONAL
+### MANDATORY CHECKPOINT — STEPS 12-13 ARE NOT OPTIONAL
 
-**STOP.** You must proceed to Step 12 (Final PRD Traceability Gate) before declaring completion. The review loop (Steps 9-10) may have introduced fixes that broke traceability. Step 12 verifies the final state.
+**STOP.** You must proceed through Steps 12, 12.5, and 13 before declaring completion. The review loop (Steps 9-10) may have introduced fixes that broke traceability or coherence. Steps 12-12.5 verify the final state. Step 13 cleans up and reports.
 
 ---
 
@@ -736,7 +826,49 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
    - Maximum 1 fix iteration with full pipeline re-run
    - If gaps persist after 1 iteration: report status as `DONE_WITH_CONCERNS` and list remaining traceability gaps
 
-4. **Final cleanup** — Delete the entire `docs/.eng-planning/` directory:
+**→ Checkpoint:** Update `progress.json` — `last_completed_step: 12`, remove `12` from `remaining_steps`.
+
+## Step 12.5: Post-Review Coherence Spot-Check (Sonnet)
+
+**Purpose:** The review loop (Steps 9-10) and traceability gate (Step 12) may have introduced fixes that broke consistency. This is a lighter, targeted check — NOT a full re-synthesis. The question is specifically: "did the fixes break anything?"
+
+**Model:** sonnet (lighter check — the heavy lifting was done in Steps 7.6 and 9)
+
+Spawn **one Sonnet subagent** that reads the final artifacts + the review findings to check specifically for fix-introduced regressions.
+
+**Subagent prompt:**
+```
+You are doing a focused coherence spot-check on engineering artifacts AFTER
+a review-and-fix cycle. Your job is NOT a full review — only check whether
+fixes introduced during the review process broke anything.
+
+Read these files from disk:
+- Feature design doc(s): [ARTIFACT_PATHS]
+- API contract(s): [CONTRACT_PATHS]
+- Review findings (what was changed): docs/.eng-planning/review-findings.md
+
+For each fix applied during the review cycle (listed in review-findings.md):
+1. Did the fix resolve the original finding?
+2. Did the fix introduce a new contradiction with another section?
+3. Did the fix break any cross-references (task deps, contract field names, AC)?
+
+Only flag issues that are DIRECTLY caused by review fixes. Do not re-review
+the entire document — that was already done.
+
+Output format:
+- FIX-REGRESSION-N: [original fix] → [new problem introduced]
+- Or: "No regressions found — review fixes are clean."
+
+Write your findings to: docs/.eng-planning/post-review-spotcheck.md
+```
+
+**After subagent completes:** Read `post-review-spotcheck.md`. If regressions found, fix them directly. These should be small — if a regression requires a design decision, surface it via AskUserQuestion.
+
+**→ Checkpoint:** Update `progress.json` — `last_completed_step: 12.5`, remove `12.5` from `remaining_steps`.
+
+## Step 13: Final Cleanup & Output
+
+1. **Delete the entire `docs/.eng-planning/` directory:**
 
 ```bash
 rm -rf docs/.eng-planning/
@@ -744,9 +876,7 @@ rm -rf docs/.eng-planning/
 
 The final artifacts in `docs/plans/` and `docs/contracts/` are the permanent record.
 
-**→ Checkpoint:** Update `progress.json` — `last_completed_step: 12`, remove `12` from `remaining_steps`.
-
-Report completion status:
+2. **Report completion status:**
 
 - **DONE** — All artifacts produced, review passed, traceability verified, no outstanding concerns.
 - **DONE_WITH_CONCERNS** — All artifacts produced, but concerns remain. List each concern explicitly.
@@ -768,10 +898,15 @@ PRD TRACEABILITY:
 - Step 7.5 (pre-approval): [PASS | PASS after N fix iterations | N gaps reported]
 - Step 12 (post-review): [VERIFIED 100% | N gaps remaining — listed below]
 
+QUALITY SYNTHESIS: [Step 7.6 findings: N issues, all resolved | N concerns remaining]
+POST-REVIEW SPOT-CHECK: [Clean | N regressions found and fixed]
+
 NEXT STEPS:
 - Update .claude/phase.json to FEATURE_SPECS_APPROVED
 - Orchestrator can begin spawning coder subagents for T-XXX tasks
 ```
+
+**→ Checkpoint:** Update `progress.json` — `last_completed_step: 13`, `remaining_steps: []`.
 
 ## Spec-Registry Frontmatter
 
