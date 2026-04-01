@@ -13,12 +13,11 @@ during implementation. Spawns 5 fresh subagents — each sees ONLY the PRD, no
 conversation history — to probe from different expert perspectives.
 
 **Model discipline:** This skill is Opus-heavy by design. The synthesis subagent
-(Phase 3) and triage subagent (Phase 4.1) MUST run as `model: opus`. The main agent
-should also be Opus; if running on Sonnet, note the limitation to the user.
+(Phase 3), Triage (Phase 4.1) AND main agents MUST run as `model: opus`. Phase 2 subagents and others can run on Sonnet. 
 
 **Context discipline:** Phase 2 subagents write their findings to disk. Phases 3 and 4
 subagents read files from disk — they never receive raw Phase 2 outputs in context.
-The main agent reads only the final triage doc, keeping its context window thin.
+The main agent reads only the final triage doc, keeping its context window thin. 
 
 ## Core Principle
 
@@ -160,7 +159,7 @@ after all 5 complete. This keeps Phase 2 output out of main context.
 Read `references/persona-prompts.md` for the exact system prompts. Each subagent
 gets its persona prompt + the full PRD text + the output file path it must write to.
 
-**Spawn all 5 in a single message using the Agent tool:**
+**Spawn all 5 Sonnet subagents in a single message using the Agent tool:**
 
 #### Agent 1: Product Thinker (Sonnet)
 - **Focus:** Problem-solution fit, user value, competitive positioning
