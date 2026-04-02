@@ -60,9 +60,6 @@ always_allow() {
     */.claude/templates/*)       return 0 ;;
     */.claude/skills/*)          return 0 ;;
     # QA artifacts, logs, config
-    */qa/*-ready-for-review.md)  return 0 ;;
-    */qa/*-cycle-*.md)           return 0 ;;
-    */logs/*)                    return 0 ;;
     */templates/*)               return 0 ;;
     */docs/spec-registry.yaml)   return 0 ;;
     */docs/backlog.md)           return 0 ;;
