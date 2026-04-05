@@ -11,9 +11,9 @@ stats-cache.json
 mcp-needs-auth-cache.json
 history.jsonl
 
-# Plans and tasks are session artifacts
-plans/
-tasks/
+# Plans and tasks are session artifacts (top-level only, not docs/plans/)
+/plans/
+/tasks/
 
 # Plugin caches and cloned repos (reproducible from settings.json enabledPlugins)
 plugins/cache/

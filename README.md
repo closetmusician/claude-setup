@@ -414,7 +414,7 @@ Each `skills/<name>/SKILL.md` is a structured prompt that Claude invokes when re
 
 **Ephemeral** (in `.gitignore`, regenerated per session):
 - `debug/`, `todos/`, `session-env/`, `file-history/`, `paste-cache/`
-- `plans/`, `tasks/`, `history.jsonl`, `cache/`, `telemetry/`
+- `tasks/`, `history.jsonl`, `cache/`, `telemetry/`
 - `plugins/cache/`, `plugins/repos/`, `plugins/marketplaces/`
 - `projects/` (per-project transcripts), `logs/`, `downloads/`
 
