@@ -46,15 +46,58 @@ Apply all engineering standards from CLAUDE.md and code-style.md (loaded automat
 * Caching opportunities.
 * Slow or high-complexity code paths.
 
+### Confidence Calibration
+
+Rate every finding 1-10 before presenting:
+
+| Score | Meaning | Action |
+|-------|---------|--------|
+| 9-10 | Verified bug or violation | Show — lead with these |
+| 7-8 | High confidence | Show normally |
+| 5-6 | Moderate confidence | Show with caveat (“likely but verify”) |
+| 3-4 | Low confidence | Suppress — appendix only |
+| 1-2 | Speculation | Suppress unless P0 severity |
+
+**Rules:**
+- Never present findings scored <5 inline — collect them in a “Low-Confidence Appendix” at the end
+- If 2+ independent signals confirm the same finding, bump +2
+- Findings that contradict CLAUDE.md or code-style.md are auto 8+
+
+### Fix-First Heuristic
+
+Classify every finding as AUTO-FIX or ASK before presenting:
+
+**AUTO-FIX** (apply silently, report one-line summary):
+- Dead code / unused variables
+- Stale or false comments
+- Magic numbers → named constants
+- N+1 queries (when fix is obvious)
+- Version/path mismatches in config
+- Inline styles → CSS classes
+- O(n×m) lookups → O(n) with Set/Map
+
+**ASK** (present with options as usual):
+- Security (auth, XSS, injection, race conditions)
+- Design decisions / architectural changes
+- Large fixes (>20 lines changed)
+- Removing functionality or changing user-visible behavior
+- Enum completeness or API contract changes
+
+**Rule of thumb:** If a senior engineer would apply without discussion → AUTO-FIX. If reasonable engineers could disagree → ASK.
+
 ### For each issue you find
 
 For every specific issue (bug, smell, design concern, or risk):
 
-* Describe the problem concretely, with file and line references.
-* Present 2–3 options, including “do nothing” where that’s reasonable.
-* For each option, specify: implementation effort, risk, impact on other code, and maintenance burden.
-* Give me your recommended option and why, mapped to my preferences above.
-* Then explicitly ask whether I agree or want to choose a different direction before proceeding.
+1. **Rate confidence** (1-10) per Confidence Calibration above. Skip if <5.
+2. **Classify** as AUTO-FIX or ASK per Fix-First Heuristic above.
+3. If AUTO-FIX: apply the fix and log it as `[AUTO-FIXED] [file:line] Problem → what you did`.
+4. If ASK:
+   * Describe the problem concretely, with file and line references.
+   * Present 2–3 options, including “do nothing” where that’s reasonable.
+   * For each option, specify: implementation effort, risk, impact on other code, and maintenance burden.
+   * Give me your recommended option and why, mapped to my preferences above.
+   * Then explicitly ask whether I agree or want to choose a different direction before proceeding.
 
 ### Workflow and interaction
 
@@ -69,6 +112,10 @@ Ask if I want one of two options:
 1. **BIG CHANGE:** Work through this interactively, one section at a time (Architecture -> Code Quality -> Tests -> Performance) with at most 4 top issues in each section.
 2. **SMALL CHANGE:** Work through interactively ONE question per review section.
 
-**FINAL REVIEW:** Aggregate the most important questions/gaps from each stage and output their pros vs cons AND your opinionated recommendation and why. NUMBER issues and then give LETTERS for options then use `AskUserQuestion` to get guidance from the user. Make the recommended option always the 1st option. Based on what the user says from `AskUserQuestion`, then decide whether you will 1) write the aligned feedback/improvement, 2) log it for later, 3) discard, or something else. Ask the user before finishing. 
+**FINAL REVIEW:**
+1. List all `[AUTO-FIXED]` items applied during the review.
+2. Aggregate the most important ASK questions/gaps from each stage and output their pros vs cons AND your opinionated recommendation and why. NUMBER issues and then give LETTERS for options then use `AskUserQuestion` to get guidance from the user. Make the recommended option always the 1st option.
+3. If there's a Low-Confidence Appendix, mention its existence but don't expand unless asked.
+4. Based on what the user says from `AskUserQuestion`, then decide whether you will 1) write the aligned feedback/improvement, 2) log it for later, 3) discard, or something else. Ask the user before finishing.
 
 ---
