@@ -1,51 +1,58 @@
 # VIBE Protocol Core Rules
 
-> Full reference: `~/.claude/docs/vibe-manual.md` — read before building features and tasks, setting up worktrees, writing QA artifacts, or needing templates, etc.
+> Templates & checklists: `~/.claude/docs/vibe-manual.md`
 
 ---
 
 ## 0. Hard Gates (Non-Negotiable)
 
-1. **Zero Assumption Policy** — Never guess requirements. Use `AskUserQuestion` until explicit confirmation.
-2. **The Spec Wall** — No code without an approved spec in `docs/`.
-3. **TDD Mandate** — Implementation code is illegal unless a corresponding failing test exists.
-4. **Mock-First Parallelism** — Frontend agents MUST mock API responses. Never block on Backend. Mocks MUST conform to shared contract (see #8).
-5. **2 QA Cycles Minimum** — No merge without 2 documented review passes.
-6. **Phase Gate Enforcement** — Respect `.claude/phase.json`; no code until phase = `BUILD`.
-7. **Auto-Commit** — `git add -A && git commit && git push` after every task completion. Automatic, not user-triggered. No batching.
-8. **API Contract-First** — Before BUILD, Architect MUST produce `docs/contracts/<feature>.md` defining all FE↔BE data models, SSE event schemas, endpoint signatures, and exact field names. FE and BE subagents MUST reference this contract. QA MUST verify field names match. No inventing field names — the contract is the single source of truth.
-9. **Dependency Verification Gate** — Every external dependency in a spec MUST include: (a) exact installable package name, (b) URL to PyPI/npm/GitHub repo, (c) minimum version. Before BUILD, Architect/Orchestrator MUST verify every new dependency is installable. If a dependency cannot be installed, STOP and escalate. "Or equivalent" in a spec is a hard blocker. `try/except ImportError` with `None` fallback is NEVER a substitute for verifying the package exists.
-10. **Real Testing Mandate** — All tests MUST hit real DB (SavepointConnection from conftest.py) and real APIs where feasible. No mocks on internal modules. Only mock external HTTP services (Resend, external URLs). If a test mocks an entire core dependency, that is a P0 reject. Test output must be pristine — no warnings, no uncaptured expected errors. NEVER use `git stash` in parallel agents.
-11. **Spec-Diff Verification** — Before marking ANY task or backlog item complete, the orchestrator MUST perform a spec-diff: enumerate EACH requirement from the original spec and cite file:line evidence of implementation. "File exists" is not evidence. "Agent reported done" is not evidence. If any requirement lacks file:line evidence, the item is NOT complete. At `light` level, a brief inline check suffices; at `full` level, document the spec-diff in the QA artifact.
+1. **R0 Zero Assumption** -- Never guess requirements. `AskUserQuestion` until explicit confirmation.
+2. **R1 Spec Wall** -- No code without an approved spec in `docs/`.
+3. **R2 TDD** -- No implementation without a corresponding failing test.
+4. **R3 Mock-First Parallelism** -- FE agents MUST mock API responses (conforming to contract per R7). Never block on BE.
+5. **R4 2 QA Cycles** -- No merge without 2 documented review passes.
+6. **R5 Phase Gates** -- Respect `.claude/phase.json`; no code until phase = `BUILD`.
+7. **R6 Auto-Commit** -- `git add -A && git commit && git push` after every task completion.
+8. **R7 Contract-First** -- Before BUILD, Architect produces `docs/contracts/<feature>.md` (data models, SSE schemas, endpoints, field names). All agents reference this. No inventing field names.
+9. **R8 Per-Task Subagents** -- Dedicated subagent pairs per T-XXX (not per feature); prevents context exhaustion.
+10. **R9 Role Separation** -- Coder and QA MUST be separate subagents.
+11. **R10 QA No-Edit** -- QA NEVER edits implementation code; only writes QA artifacts.
+12. **R11 Review Snapshot** -- Coder commits `qa/FEAT-XXX/T-XXX-ready-for-review.md` with `ReviewCommit:<SHA>`; QA reviews that SHA.
+13. **R12 STOP Boundaries** -- Each subagent produces artifact(s) then STOPs. Orchestrator decides next spawn.
+14. **R13 N=1 Escalation** -- After 1 failed fix cycle, STOP and ask Yu-Kuan.
+15. **R14 Orchestrator Non-Implementation** -- Orchestrator coordinates + merges; never implements.
+16. **R15 History Rewrite Lock** -- Once any review artifact exists: no rebase, no force-push; only append commits.
+17. **R16 User Approval Gates** -- Confirm via `AskUserQuestion` before parallel execution, PR creation, final merge, or skipping a task.
+18. **R17 Dependency Verification** -- Every spec dependency needs: exact package name, URL, min version. Verify installable before BUILD. "Or equivalent" is a hard blocker.
+19. **R18 Real Testing** -- Real DB (SavepointConnection), real APIs. No mocks on internal modules. Mock only external HTTP. Mocking entire core dependency = P0. Pristine test output. No `git stash` in parallel agents.
+20. **R19 Spec-Diff** -- Before completing any item: enumerate each spec requirement, cite file:line evidence. "File exists" / "agent reported done" is not evidence.
 
 ---
 
 ## 0.1 VIBE Levels
 
-Set `"vibe_level"` in `.claude/phase.json`. Default: `"full"` if field absent.
+Set `"vibe_level"` in `.claude/phase.json`. Default: `"full"`.
 
 | Gate | `full` | `light` |
 |------|--------|---------|
-| R0 Zero Assumption Policy | Yes | Yes |
+| R0 Zero Assumption | Yes | Yes |
 | R1 Spec Wall | **Yes** | No |
-| R2 TDD Mandate | Yes | Yes |
-| R3 Mock-First Parallelism | Yes | N/A (no FE/BE split) |
-| R4 2 QA Cycles | **Yes (2)** | 1 code review pass |
-| R5 Phase Gate Enforcement | **Yes** | No |
+| R2 TDD | Yes | Yes |
+| R3 Mock-First | Yes | N/A |
+| R4 2 QA Cycles | **Yes** | 1 pass |
+| R5 Phase Gates | **Yes** | No |
 | R6 Auto-Commit | Yes | Yes |
-| R7 API Contract-First | **Yes** | No |
-| R8 Dependency Verification | Yes | Best-effort |
-| R9 Real Testing Mandate | Yes | Yes (where applicable) |
-| R10 Spec-Diff Verification | **Yes (documented)** | Yes (inline check) |
+| R7 Contract-First | **Yes** | No |
+| R8-R16 | Yes | Skip |
+| R17 Dep Verification | Yes | Best-effort |
+| R18 Real Testing | Yes | Yes |
+| R19 Spec-Diff | **Yes (documented)** | Yes (inline) |
 
-**`full`** — Production apps (boardroom-ai, deck_benchmarks). All gates enforced.
-**`light`** — Tooling, scripts, config repos (~/.claude). TDD + code review + git hygiene. No spec wall, no phase gates, no API contracts, no 2 QA cycles.
+**`full`** -- Production apps. **`light`** -- Tooling, scripts, config repos.
 
 ---
 
 ## 1. Context Detection
-
-Determine role from git state:
 
 | Branch | Role Mode |
 |--------|-----------|
@@ -56,118 +63,151 @@ Determine role from git state:
 
 ## 2. Phase Gates
 
-Check `.claude/phase.json`:
-
 | Phase | Allowed Actions |
 |-------|-----------------|
 | `DISCOVERY` | Interview, read-only analysis, docs/specs only |
-| `ARCHITECTURE_APPROVED` | Specs, decomposition, worktree setup |
-| `FEATURE_SPECS_APPROVED` | Specs finalized, ready to build |
+| `ARCHITECTURE_APPROVED` | eng-planning: arch docs, contracts, FEAT design docs |
+| `FEATURE_SPECS_APPROVED` | Specs finalized, ready for BUILD |
 | `BUILD` | Implementation allowed |
 
-**Rule:** If phase ≠ `BUILD`, do not write implementation code.
-
-**eng-planning** spans ARCHITECTURE_APPROVED → FEATURE_SPECS_APPROVED in one pass.
-Human approval of eng-planning output transitions phase to BUILD.
-At `light` level, eng-planning is available but not required.
+**eng-planning** spans ARCHITECTURE_APPROVED -> FEATURE_SPECS_APPROVED. Human approval transitions to BUILD. At `light` level, optional.
 
 ---
 
-## 3. Roles (Summary)
+## 3. Roles
 
-| Role | Trigger | Key Constraint |
-|------|---------|----------------|
-| **PM Interviewer** | Project/feature start | Use `AskUserQuestion` until scope clear |
-| **Architect (Feature)** | PRD approved | Invoke `eng-planning` skill. Produces arch docs, contracts, FEAT design docs with mini-specs |
-| **Architect (Task)** | In orchestration loop | `code-architect` for per-task file-level design within lead-orchestrator |
-| **Developer** | In `feat/*`, phase=BUILD, assigned T-XXX | TDD mandatory, output `T-XXX-ready-for-review.md` |
-| **QA Auditor** | Developer claims task complete | **NEVER edits implementation code**, only writes QA artifacts |
-| **Orchestrator** | On `main/master` | Spawns subagent pairs per T-XXX, never implements |
+### 3.1 PM Interviewer
+**Trigger:** Project/feature start. `AskUserQuestion` until scope, constraints, success metrics, edge cases all explicit. Output: PRD or FEAT design doc.
+
+### 3.2 Architect (Feature-Level)
+**Trigger:** PRD approved, phase = ARCHITECTURE_APPROVED. Invoke `eng-planning` (`/eng-planning [prd-path]`):
+1. Explore codebase, challenge scope, surface design decisions via AskUserQuestion
+2. Produce: arch docs, API contracts (R7), FEAT design docs with task mini-specs, failure modes
+3. Verify dependencies installable (R17)
+4. Spawn `/plan-eng-review` for independent tech review
+5. If UI feature: spawn `/plan-design-review` for design dimension scoring (0-10)
+6. Auto-fix specifiable issues (max 2 iterations); surface REQUIRES_DECISION to user
+
+**Two-tier:** eng-planning runs ONCE per FEAT. `code-architect` runs per-task within orchestration loop (SS4).
+
+### 3.3 Developer
+**Trigger:** `feat/*` worktree, phase = BUILD, assigned T-XXX.
+
+**Invoke IN ORDER:** `superpowers:test-driven-development` -> `superpowers:verification-before-completion`
+
+Steps: Context load -> Dependency check (R17) -> Follow Build Guidance -> TDD loop -> Real testing (R18) -> Output `T-XXX-ready-for-review.md` with `ReviewCommit:<SHA>` (R11).
+
+### 3.4 QA Auditor
+**Trigger:** Developer claims T-XXX complete. QA NEVER edits implementation code (R10).
+
+**Invoke IN ORDER:** `garry-review` -> `feature-dev:code-reviewer` -> `/qa`
+**Also read:** `~/.claude/docs/vibe-manual.md` SS5 (QA verification checklist + automated review gates).
+
+**Auto-Reject (P0):** mock on internal module | no SavepointConnection | test without real path | uncaptured warnings (P1) | entire core dependency mocked
+**Severity:** P0 = must fix. P1 = should fix, escalate if stuck. P2 = log to `docs/backlog.md`.
+
+**2 cycles, sequential** (C1 must PASS before C2):
+- **C1 (Security & Logic, P0 gate):** garry-review -> code-reviewer -> /qa. Verify contracts (R7), auto-reject criteria (R18). Output `T-XXX-cycle-1.md`.
+- **C2 (Quality & Resilience):** naming, duplication, edge cases, failure modes. Output `T-XXX-cycle-2.md`.
+
+Re-run failing cycle after fix. N=1 escalation (R13).
+
+### 3.5 Orchestrator
+**Trigger:** `main/master`. Invoke `lead-orchestrator` skill FIRST. Never implements (R14). Spawns subagent pairs per T-XXX. Verify dependencies before spawning coders (R17). Commit + push after QA pass (R6). Merge only with user approval (R16).
+
+### 3.6 Debugging
+**Invoke IN ORDER:** `/investigate` (5-phase root-cause, auto-freeze, 3-strike escalation) -> `superpowers:systematic-debugging` (fallback).
+Root cause only -- never fix symptoms. See manual SS12 for detailed debugging protocol and case study.
 
 ---
 
-## 4. Per-Task Orchestration Model
+## 4. Per-Task Orchestration
 
-**REQUIRED SKILL:** When acting as orchestrator, invoke `lead-orchestrator` skill FIRST.
+### 4.1 Deterministic Loop
 
-- Each T-XXX task gets dedicated subagent pairs (architect → coder → QA)
-- Subagents communicate ONLY via committed repo artifacts under `qa/FEAT-XXX/`
-- **STOP boundaries:** Each subagent produces artifact(s) then STOPs
-- **Escalation (N=1):** If task fails >1 fix cycle, STOP and ask Yu-Kuan
-- **Orchestrator NEVER codes:** Only spawns subagents via Task tool. If editing code, you've violated your role.
+Subagents share NO context -- communication via committed artifacts under `qa/FEAT-XXX/`.
+
+```
+For each T-XXX (respecting depends_on):
+  1. ARCHITECT (skip if trivial): spawn code-architect -> file-level design -> STOP
+  2. CODER: spawn feature-dev -> TDD -> T-XXX-ready-for-review.md -> STOP
+  3. QA C1 (P0 gate): spawn code-reviewer -> garry-review + code-reviewer + /qa
+     -> T-XXX-cycle-1.md -> STOP
+  4. IF C1 FAIL: fix -> re-run C1 -> if still fail ESCALATE (N=1)
+  5. QA C2: spawn code-reviewer -> quality checks -> T-XXX-cycle-2.md -> STOP
+  6. IF C2 FAIL: fix P1 (P2 -> backlog) -> re-run C2 -> if still fail ESCALATE
+  7. ON PASS: git add -A && git commit && git push; update progress log
+```
+
+**Skip Architect:** setup/config, bash commands, rote tasks, or Build Guidance already file-level specific.
+
+### 4.2 Spawning Model
+
+**Within-task (architect -> coder -> C1 -> C2): FOREGROUND (blocking).** Each step waits for prior artifact.
+**Cross-task independent pipelines: BACKGROUND (`run_in_background: true`).** Orchestrator monitors artifacts.
+**Rule:** C1 and C2 are always sequential -- C2 depends on C1's findings.
+
+### 4.3 Parallelism & Commits
+
+**Lane Model:** Main worktree = Orchestrator. Feature lanes = `../wt/FEAT-001`, `../wt/FEAT-002`, etc. Features must be independently testable, minimal coupling, mergeable in any order (or define dependency order).
+
+- Parse `depends_on` from mini-specs; independent tasks can run in parallel (ask user first, R16).
+- Parallel tasks run in SAME feature worktree, isolated subagent contexts.
+- **Pre-flight conflict check:** Architect identifies files each task modifies. If overlap -> warn user. If no overlap -> safe to parallel. If overlap approved -> orchestrator handles merge during serialization.
+- **Commit serialization:** Queue ordered by dependencies. First completed task commits immediately. Subsequent tasks pull latest first; auto-merge on conflict; ESCALATE if merge fails (N=1).
+- Feature complete: ask user to merge -> `git merge --squash` -> full suite -> log decisions -> cleanup.
 
 ---
 
-## 5. QA Bug Severity
+## 5. Escalation & User Gates
 
-| Severity | Action |
-|----------|--------|
-| **P0** (Blocking) | Must fix before task complete |
-| **P1** (High-priority) | Should fix, escalate if stuck |
-| **P2** (Deferrable) | Log to `docs/backlog.md`, proceed |
+**N=1 Rule:** QA fail -> fix -> re-run. If fix fails -> ESCALATE immediately. See manual SS11 for escalation message template.
+
+| Gate | When |
+|------|------|
+| Parallel execution | Before 2+ simultaneous tasks |
+| PR creation | Before `gh pr create` |
+| Final merge | All tasks passed QA |
+| Skip task | During escalation |
+| Any escalation | Always wait for user |
 
 ---
 
-## 6. User Approval Gates (No Auto-Proceed)
+## 6. Schema Design
 
-- **Parallel execution** — Before running 2+ tasks simultaneously
-- **PR creation** — Never run `gh pr create` without explicit approval
-- **Final merge** — All tasks complete
-- **Any escalation** — Always wait for user
+Validation constraints MUST mirror persistence constraints. No static enums/literals on dynamic or extensible fields. See manual SS8.2 for spec language examples.
 
 ---
 
 ## 7. Output Discipline
 
-When responding, state:
-1. **Phase:** Current phase from `.claude/phase.json`
-2. **Role:** Which role you're acting as
-3. **Next Actions:** Bulleted, minimal
-4. **Questions:** Via `AskUserQuestion` if needed
-5. **Artifacts to Update:** File paths
+State: (1) Phase, (2) Role, (3) Next Actions, (4) Questions, (5) Artifacts to Update.
 
 ---
 
-## 8. Subagent Mapping (Quick Reference)
+## 8. Subagent Mapping
 
-| Phase | Subagent Type | Mandatory Skills (hardcode in prompt) |
-|-------|---------------|--------------------------------------|
-| **Orchestrate** | `lead-orchestrator` (personal skill) | N/A — **USE THIS when coordinating, never feature-dev** |
-| Explore | `feature-dev:code-explorer` | N/A |
-| Architect (Feature) | `eng-planning` (skill) | N/A — arch docs, contracts, FEAT design docs |
-| Architect (Task) | `feature-dev:code-architect` | N/A — per-task file-level design in orchestrator |
-| Implement | `feature-dev:feature-dev` | `superpowers:test-driven-development` then `superpowers:verification-before-completion` |
-| QA | `feature-dev:code-reviewer` | `garry-review` then `feature-dev:code-reviewer` |
-| Debug | `superpowers:systematic-debugging` | N/A |
+| Phase | Subagent Type | Mandatory Skills | Output |
+|-------|---------------|-----------------|--------|
+| **Orchestrate** | `lead-orchestrator` | N/A -- **never feature-dev** | Task coordination |
+| Explore | `feature-dev:code-explorer` | N/A | Patterns, dependencies report |
+| Architect (Feature) | `eng-planning` | + `/plan-eng-review`; if UI: + `/plan-design-review` | Arch docs, contracts, FEAT design docs |
+| Architect (Task) | `feature-dev:code-architect` | N/A | Files to create/modify, test mapping |
+| Implement | `feature-dev:feature-dev` | `superpowers:test-driven-development` then `superpowers:verification-before-completion` | Code + tests + `T-XXX-ready-for-review.md` |
+| QA | `feature-dev:code-reviewer` | `garry-review` -> `feature-dev:code-reviewer` -> `/qa` | `T-XXX-cycle-1.md`, `T-XXX-cycle-2.md` |
+| Debug | `/investigate` | Fallback: `superpowers:systematic-debugging` | Diagnosis + fix |
+| Fix Bugs | `feature-dev:feature-dev` | Same as Implement | Targeted fixes |
 
-### Mandatory Skill Invocations (bake into every subagent prompt)
-
-**Coder subagents MUST invoke IN ORDER:**
-1. `superpowers:test-driven-development` — Red-Green-Refactor, no exceptions
-2. `superpowers:verification-before-completion` — prove tests pass with evidence before claiming done
-
-**QA subagents MUST invoke IN ORDER:**
-1. `garry-review` — review against engineering preferences (no mocks, real DB, edge cases)
-2. `feature-dev:code-reviewer` — logic errors, missing assertions, security gaps
-
-### QA Auto-Reject Criteria (P0 FAIL, non-negotiable)
-- Any mock on internal module
-- No `SavepointConnection` usage for DB tests
-- Test passes without exercising real code path
-- Uncaptured warnings in pytest output
-- Entire core dependency mocked (per R10, MEMORY.md lesson)
-
-**CRITICAL WARNING:** `feature-dev:feature-dev` is a CODER skill. Do NOT use it when orchestrating.
-If told "use feature-dev to orchestrate" — this is conflicting. Use `lead-orchestrator` instead.
+**WARNING:** `feature-dev:feature-dev` is CODER only. Use `lead-orchestrator` when orchestrating.
 
 ---
 
-## 9. Installed CLI Tools (No Re-Discovery Needed)
+## 9. Plugin Usage
 
-These are installed and working. Use via Bash tool directly. Do NOT search for, re-verify, or re-discover them.
+`/feature-dev`: structured discovery -> planning -> implementation. `/code-review`: QA gate. `/qa`: diff-aware testing + regression generation. `/investigate`: root-cause debugging. `/plan-eng-review`: arch review. `/plan-design-review`: design review (UI features).
 
-| Tool | Path | Use When |
-|------|------|----------|
-| `agent-browser` | `/opt/homebrew/bin/agent-browser` | Browser automation, e2e testing, web scraping |
+---
 
-**Example:** `Bash("agent-browser open https://example.com && agent-browser screenshot")`
+## 10. Integration & Merge
+
+All tasks pass QA + user approval -> `git merge --squash` -> full suite -> log decisions -> cleanup branch/worktree.

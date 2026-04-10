@@ -1,76 +1,12 @@
-# VIBE CODE PROTOCOL: Spec-Driven TDD with Per-Task Orchestration
+# VIBE Protocol -- Templates, Checklists & Reference Formats
 
-> Spec-driven TDD with per-task subagent pairs (coder+QA). Ship correct software with high confidence, minimal thrash, strict process discipline. Spawn dedicated pairs per T-XXX (not per feature), commit after each task passes QA.
-
----
-## 0. Rule Index (Hard Gates)
-1. **R0 Zero Assumption Policy** -- Never guess requirements. Use `AskUserQuestion` until explicit confirmation.
-2. **R1 The Spec Wall** -- No code without an approved spec in `docs/`.
-3. **R2 TDD Mandate** -- Implementation code is illegal unless a corresponding failing test exists.
-4. **R3 Mock-First Parallelism** -- Frontend agents MUST mock API responses. Never block on Backend. Mocks MUST conform to the shared contract artifact (R16) — never invent field names.
-5. **R4 2 QA Cycles Minimum** -- No merge without 2 documented review passes.
-6. **R5 Phase Gate Enforcement** -- Respect `.claude/phase.json`; no code until phase = `BUILD`.
-7. **R6 Auto-Commit** -- `git add -A && git commit && git push` after every task completion. Automatic, not user-triggered. No batching.
-8. **R7 Per-Task Subagent Lifecycle** -- Dedicated subagent pairs per T-XXX task (not per feature); prevents context exhaustion.
-9. **R8 Role Separation** -- Coder and QA MUST run as separate subagents/sessions; do not reuse a single agent for both roles.
-10. **R9 QA No-Edit** -- QA NEVER edits implementation code (source files, tests, configs); QA only writes QA artifacts.
-11. **R10 Review Snapshot** -- Coder MUST commit `qa/FEAT-XXX/T-XXX-ready-for-review.md` containing `ReviewCommit:<SHA>` + commands run; QA reviews that SHA, not "latest HEAD".
-12. **R11 STOP Boundaries** -- After producing required artifact(s), each subagent MUST STOP. Orchestrator decides next spawn.
-13. **R12 N=1 Escalation** -- After 1 failed fix cycle, Orchestrator STOPs and asks Yu-Kuan via `AskUserQuestion`.
-14. **R13 Orchestrator Non-Implementation** -- Orchestrator coordinates + merges; never implements feature code.
-15. **R14 History Rewrite Lock** -- Once any `qa/FEAT-XXX/T-XXX-ready-for-review.md` exists: no rebase, no force-push; only append commits.
-16. **R15 User Approval Gates** -- Always confirm with `AskUserQuestion` before parallel execution, final merge, or skipping a task.
-17. **R16 API Contract-First** -- Before BUILD, Architect MUST produce a shared contract artifact (`docs/contracts/<feature>.md`) defining all data models, SSE event schemas, and endpoint signatures exchanged between FE and BE. Both FE and BE subagents MUST reference this contract. QA MUST verify field names match the contract. No "invent your own field names" — the contract is the single source of truth.
-18. **R17 Dependency Verification Gate** -- Every external dependency in a spec MUST include: (a) exact installable package name, (b) URL to PyPI/npm/GitHub repo, (c) minimum version. Before BUILD, the Architect or Orchestrator MUST verify every new dependency is installable (`pip install`, `npm install`). If a dependency cannot be installed, STOP and escalate — do not code against it, do not mock it, do not proceed. "Or equivalent" in a spec is a **hard blocker** requiring clarification before any code is written. A `try/except ImportError` with a `None` fallback is a deployment workaround, NEVER a substitute for verifying the package exists.
-19. **R18 Real Testing Mandate** -- All tests MUST hit real DB (`SavepointConnection` from `conftest.py`) and real APIs where feasible (Anthropic haiku for agent integration). No mocks on internal modules — only mock external HTTP services (Resend, external URLs). If a test mocks an entire core dependency, that is a **P0 reject**. Test output must be pristine — no warnings, no uncaptured expected errors. NEVER use `git stash` in parallel agents (clobbers other agents' uncommitted work).
-20. **R19 Spec-Diff Verification** -- Before marking ANY task or backlog item complete, the orchestrator MUST perform a spec-diff: enumerate EACH requirement from the original spec and cite `file:line` evidence of implementation. "File exists" is not evidence. "Agent reported done" is not evidence. If any requirement lacks `file:line` evidence, the item is NOT complete. At `light` level, a brief inline check suffices; at `full` level, document the spec-diff in the QA artifact.
+> For rules and workflow logic, see `~/.claude/rules/vibe-protocol.md`.
+> This file contains templates, checklists, and reference formats that subagents read on demand.
 
 ---
-## 0.1 VIBE Levels — Tiered Enforcement
 
-Set `"vibe_level": "full"` or `"light"` in `.claude/phase.json`. Default: `"full"`.
+## 1. Repo Structure (Create If Missing)
 
-- **`full`** — Production apps (FE/BE split, database, user-facing). All R0-R19 enforced.
-- **`light`** — Tooling, scripts, config repos, <5 source files. TDD + code review + git hygiene.
-
-| Rule | `full` | `light` |
-|------|--------|---------|
-| R0 Zero Assumption | Yes | Yes |
-| R1 Spec Wall | Yes | Skip |
-| R2 TDD Mandate | Yes | Yes |
-| R3 Mock-First Parallelism | Yes | Skip (no FE/BE) |
-| R4 2 QA Cycles | Yes (2) | 1 review pass |
-| R5 Phase Gates | Yes | Skip |
-| R6 Auto-Commit | Yes | Yes |
-| R7 Per-Task Subagent | Yes | Skip (direct impl) |
-| R8 Role Separation | Yes | Skip (same agent) |
-| R9-R18 (remaining) | Yes | R18 Real Testing: Yes; R16 Contract, R17 Deps: best-effort; others: skip |
-| R19 Spec-Diff Verification | Yes (documented in QA artifact) | Yes (inline check) |
-| Git hygiene | Yes | Yes (no force-push, no skipping hooks) |
-
----
-## 1. Context Detection (Start Here)
-Determine your environment from git state:
-
-| Branch | Role Mode |
-|--------|-----------|
-| `main` / `master` | **Management** (PO / Architect / Orchestrator) |
-| `feat/*` or in `worktrees/` | **Production** (Developer / QA) |
-
----
-## 2. Phase Gate System
-Use `.claude/phase.json` (e.g., `{ "phase": "DISCOVERY" }`) to enforce workflow progression:
-
-| Phase | Allowed Actions |
-|-------|-----------------|
-| `DISCOVERY` | Interview, read-only analysis, docs/specs only |
-| `ARCHITECTURE_APPROVED` | eng-planning: exploration, design decisions, arch docs, contracts, FEAT design docs with mini-specs |
-| `FEATURE_SPECS_APPROVED` | eng-planning complete and approved. All FEAT design docs finalized. Ready for BUILD. |
-| `BUILD` | Implementation allowed |
-**Rule:** If phase != `BUILD`, do not write implementation code (R5).
-
----
-## 3. Repo Structure (Create If Missing)
 ```
 CLAUDE.md                    # Repo contract: commands, conventions
 Makefile                     # Standard commands (test, lint, format, etc.)
@@ -80,7 +16,7 @@ docs/
   prd/<project>-master-prd.md    # Master PRD
   arch/<project>-architecture.md  # System architecture + API contracts
   arch/adrs/ADR-0001.md      # Architecture Decision Records
-  contracts/                   # Shared FE↔BE data contracts (R16)
+  contracts/                   # Shared FE<->BE data contracts (R7)
     agent-sse.md               # SSE event schemas, field names, types
     <feature>.md               # One per feature with cross-boundary data models
   decisions.md               # Quick decisions log (lightweight ADR supplement)
@@ -94,6 +30,7 @@ qa/
 logs/
   build-YYYY-MM-DD-HHMMSS.md   # Progress log per build
 ```
+
 ### CLAUDE.md Must Include:
 - Project commands: `make test`, `make lint`, `make format`, `make typecheck`
 - DB commands: `make db-up`, `make db-reset`, `make migrate`
@@ -101,7 +38,9 @@ logs/
 - Worktree conventions
 
 ---
-## 4. Tech Stack (Default — override in project CLAUDE.md)
+
+## 2. Tech Stack (Default -- override in project CLAUDE.md)
+
 | Layer | Stack |
 |-------|-------|
 | Backend | Python, Postgres + pgvector, pytest |
@@ -109,196 +48,25 @@ logs/
 | Linting | pre-commit + ruff (+ optional mypy) |
 
 ---
-## 5. Roles
-### 5.1 PM Interviewer (Requirements Extraction)
-Trigger: Project start or new feature. Use `AskUserQuestion` until scope is clear, constraints explicit, success metrics exist, edge cases enumerated. Output: `docs/prd/<project>-master-prd.md` or `docs/plans/FEAT-XXX-*.md`.
 
-### 5.2 Principal Architect (Feature-Level)
-Trigger: PRD approved, phase = ARCHITECTURE_APPROVED. Invoke the `eng-planning` skill (`/eng-planning [prd-path]`). The skill:
-1. Spawns codebase exploration subagents
-2. Runs scope challenge (reuse, complexity, completeness checks)
-3. Identifies major design decisions → asks user upfront via AskUserQuestion
-4. Produces autonomously: architecture docs (`docs/arch/`), API contracts per R16 (`docs/contracts/<feature>.md`), FEAT design docs with task mini-specs (`docs/plans/FEAT-XXX-design.md`), codepath coverage diagrams, failure modes analysis
-5. Verifies all new dependencies are installable (R17)
-6. Spawns fresh `/plan-eng-review` subagent for independent review
-7. Auto-fixes SPECIFIABLE issues (max 2 iterations); surfaces REQUIRES_DECISION to user
+## 3. Worktree Setup
 
-All specs include frontmatter for spec-registry. Output approval transitions phase to BUILD.
-
-**Two-tier architecture:** eng-planning runs ONCE per FEAT-XXX. For per-task file-level design within the orchestration loop, lead-orchestrator spawns `code-architect` (see §6.0).
-
-### 5.3 Developer (Task Builder)
-Trigger: Inside `feat/*` worktree, phase = `BUILD`, assigned a specific T-XXX task. Requirements: use a subagent and invoke skills IN ORDER below; use `superpowers:systematic-debugging` when stuck; R8 applies.
-
-**Mandatory Skill Invocations (in order, non-negotiable):**
-1. `superpowers:test-driven-development` — Red-Green-Refactor for every test
-2. `superpowers:verification-before-completion` — prove tests pass with evidence before claiming done
-
-**Steps:** (1) Context Load: read PRD, Architecture, `decisions.md`, feature spec, task mini-spec. (2) **Dependency Check (R17):** If the task introduces or uses a new external dependency, verify it is installable NOW — `pip install <pkg>` or `npm install <pkg>`. If it fails, STOP immediately and escalate. Do NOT write code against a package you cannot import. Do NOT use `try/except ImportError` as a substitute for a real package. (3) Build Guidance: follow task `Build Guidance`. (4) TDD Loop: RED failing tests for acceptance criteria, GREEN minimal code, REFACTOR. (5) **Real Testing (R18):** All tests must use `SavepointConnection` for real DB. No mocks on internal modules. Real API calls where feasible. Output: `qa/FEAT-XXX/T-XXX-ready-for-review.md` with `ReviewCommit:<SHA>` (R10).
-
-### 5.4 QA Auditor
-Trigger: Developer claims "Task T-XXX Complete" (per-task, not per-feature). Hard constraint: QA NEVER edits implementation code (R9). QA ONLY writes: `qa/FEAT-XXX/T-XXX-ready-for-review.md` (review), `T-XXX-cycle-1.md`, `T-XXX-cycle-2.md`. On FAIL: QA documents blockers; Orchestrator spawns coder to fix.
-
-**Mandatory Skill Invocations (in order, non-negotiable):**
-1. `garry-review` — review against engineering preferences (no mocks, real DB, DRY, edge cases)
-2. `feature-dev:code-reviewer` — logic errors, missing assertions, security gaps
-
-**QA Auto-Reject Criteria (P0 FAIL, non-negotiable per R18):**
-- Any mock on internal module = P0 reject
-- No `SavepointConnection` usage for DB tests = P0 reject
-- Test passes without exercising real code path = P0 reject
-- Uncaptured warnings in pytest output = P1 reject
-- Entire core dependency mocked wholesale = P0 reject (per R17/MEMORY.md lesson)
-
-**Bug Severity (QA decides):** **P0** (blocking — functional errors, data corruption, typecheck failures): must fix before task complete. **P1** (high — lint errors, critical gaps): should fix, escalate if stuck. **P2** (deferrable — style nits, minor improvements): log to `docs/backlog.md`, proceed.
-
-Must perform exactly 2 cycles per task, parallelize a separate subagent for each:
-- **Cycle 1 -- Security & Logic (Hard Gate for P0):** Invoke `garry-review` then `feature-dev:code-reviewer`. Check SQL injection, PII leaks, auth issues; verify adherence to Architecture, `decisions.md`, and task Build Guidance; **verify all FE↔BE field names match `docs/contracts/*.md` (R16)**; **flag as P0 if tests mock an entire external dependency rather than exercising the real package — mocks that replace a core dependency wholesale prove orchestration logic only, not real integration (R17)**; **apply R18 auto-reject criteria: any mock on internal module = P0, no SavepointConnection = P0, test passes without exercising real path = P0, uncaptured warnings = P1**; run `make test`, `make lint`; output `qa/FEAT-XXX/T-XXX-cycle-1.md` with `STATUS: PASS|FAIL`.
-- **Cycle 2 -- Quality & Resilience (P1 fix, P2 defer):** check naming, duplication, error handling, edge cases; verify empty states, timeouts, failure modes; output `qa/FEAT-XXX/T-XXX-cycle-2.md` with `STATUS: PASS|FAIL`.
-
-Cycle Iteration Rule: exactly two named gates per task; a gate can be re-run until PASS; on FAIL spawn coder to fix blockers then re-run ONLY the failing cycle; after 1 failed fix cycle ESCALATE (N=1); don't redo already-passed cycles unless diff meaningfully impacts them. Task complete when both cycles pass, all tests green, `/code-review` issues resolved -> commit + push.
-
-### 5.5 Lead Orchestrator (Task Driver)
-Trigger: On `main/master` worktree (Management mode). Creates feature lanes + assigns FEAT IDs. **Before spawning any coder for a feature, verify ALL new external dependencies are installable (R17).** If any dependency cannot be installed, STOP the entire feature and escalate to Yu-Kuan — do not spawn coders to build against phantom packages. Per-task orchestration: spawn dedicated subagent pairs (architect + coder + QA) per T-XXX. Manage dependencies: run independent tasks in parallel (user confirmation), queue dependent tasks. Enforce artifact-only handoffs and STOP boundaries (R11). Commit + push after each task passes QA (R6). Merge to main only after user approval gate (R15).
-
-**Subagent Mapping:**
-| Phase | Subagent Type | Mandatory Skills (hardcode in prompt) | Output |
-|-------|---------------|--------------------------------------|--------|
-| Explore | `feature-dev:code-explorer` | N/A | Patterns, dependencies report |
-| Architect (Feature) | `eng-planning` skill | N/A | Arch docs, contracts, FEAT design docs with mini-specs |
-| Architect (Task) | `feature-dev:code-architect` | N/A | Per-task file-level design, files to create/modify |
-| Implement | `feature-dev:feature-dev` | `superpowers:test-driven-development` then `superpowers:verification-before-completion` | Code + tests + `T-XXX-ready-for-review.md` |
-| QA | `feature-dev:code-reviewer` | `garry-review` then `feature-dev:code-reviewer` | `T-XXX-cycle-1.md`, `T-XXX-cycle-2.md` |
-| Debug | `superpowers:systematic-debugging` | N/A | Diagnosis + fix |
-| Fix Bugs | `feature-dev:feature-dev` | `superpowers:test-driven-development` then `superpowers:verification-before-completion` | Targeted fixes |
-
-Skip Architect When: task is setup/config (e.g., "add env variable"); task is a bash command or script execution; task is extremely rote with no design decisions.
-
-### 5.6 Debugging Protocol: Root Cause First
-
-**Critical Rule:** When encountering bugs or errors, ALWAYS root cause thoroughly before implementing fixes.
-
-**Anti-Pattern (DON'T DO THIS):**
-1. See error message
-2. Make assumption about cause based on error message alone
-3. Immediately change code/schema/data
-4. Create cascading problems or fix wrong thing
-
-**Correct Pattern (DO THIS):**
-1. **See error** - Capture full error message, stack trace, context
-2. **Investigate thoroughly:**
-   - Check git history: When did it last work? What changed?
-   - Review test suite: How do existing tests handle this? Do they pass?
-   - Read design docs: What was the original intent? (PRD, architecture, ADRs)
-   - Sample data files: Is data inconsistent with schema/contract?
-   - Check schema vs API contract vs loader code: Which is correct?
-   - Look at usage patterns: How many instances fail vs succeed?
-3. **Form hypothesis with evidence** - Not guesses, use concrete file paths and line numbers
-4. **Present root cause analysis** - Show evidence for each finding
-5. **Propose fix that addresses root cause** - Not symptoms
-6. **Get approval before making changes** - Especially for schema/data/architectural changes
-
-**Example Case Study: Schema Mismatch Errors**
-
-When you see database type errors like "expected str, got list":
-- ❌ **DON'T** assume schema is wrong and immediately change it
-- ✅ **DO** investigate: Could be bad data generation, loader bug, or intentional design that data violates
-
-**Investigation checklist:**
-1. What do the persistence models say?
-2. What do the validation schemas say?
-3. What format is in the data files? Sample 5-10 files
-4. What percentage of data matches schema vs violates it?
-5. When was this code last working? Git log
-6. How do tests handle this field? Check test fixtures
-7. What was the original design intent? Check docs
-
-**Root cause determines fix:**
-- If schema is wrong (rare): fix schema + migrate data
-- If data generation is wrong (common): fix data generator + bad data files
-- If loader is wrong: fix loader validation/conversion
-- If it's intentional mismatch: need design discussion
-
-**Escalation:** If you're unsure after investigation, escalate to Yu-Kuan with your findings. Don't guess.
-
----
-## 6. Parallelization via Git Worktrees
-### 6.0 Lead Orchestrator (Per-Task Driver Loop)
-Orchestrator spawns dedicated subagent pairs per T-XXX (architect + coder + QA). Subagents share NO chat/context — communication is ONLY via committed artifacts under `qa/FEAT-XXX/`.
-
-**Per-Task Deterministic Loop**
-```
-For each T-XXX in feature spec (respecting depends_on order):
-  1. ARCHITECT (skip if trivial/rote — see Skip Criteria): spawn `feature-dev:code-architect`; read task mini-spec from `docs/plans/FEAT-XXX-design.md` (produced by eng-planning) + feature architecture from `docs/arch/` + existing code patterns; output per-task file-level design (files to create/modify, data flow, test mapping); STOP.
-  2. CODER: spawn `feature-dev:feature-dev`; MUST invoke `superpowers:test-driven-development` FIRST then `superpowers:verification-before-completion` before claiming done; TDD to acceptance criteria; all tests use real DB via SavepointConnection (R18); run `make test` + `make lint`; git commit `qa/FEAT-XXX/T-XXX-ready-for-review.md` with ReviewCommit:<SHA>; STOP.
-  3. QA CYCLE 1 (P0 Hard Gate): spawn `feature-dev:code-reviewer`; MUST invoke `garry-review` FIRST then `feature-dev:code-reviewer`; checkout ReviewCommit; apply auto-reject criteria (R18); classify bugs P0/P1/P2; git commit `qa/FEAT-XXX/T-XXX-cycle-1.md` with STATUS: PASS|FAIL; STOP.
-  4. IF CYCLE 1 FAIL: spawn coder to fix P0; re-run Cycle 1; if still fail -> ESCALATE (N=1).
-  5. QA CYCLE 2 (P1 fix, P2 defer): spawn `feature-dev:code-reviewer`; quality/resilience checks; git commit `qa/FEAT-XXX/T-XXX-cycle-2.md` with STATUS: PASS|FAIL; STOP.
-  6. IF CYCLE 2 FAIL: spawn coder to fix P1 (P2 -> `docs/backlog.md`); re-run Cycle 2; if still fail -> ESCALATE.
-  7. ON PASS -- MANDATORY before next task: `git add -A && git commit -m "T-XXX: [desc]" && git push`; update progress log; proceed.
-```
-
-**Two-Tier Architecture:**
-- **eng-planning (feature-level):** Runs once per FEAT-XXX before orchestration. Produces FEAT design doc with mini-specs.
-- **code-architect (task-level):** Runs per T-XXX within orchestration loop. Produces file-level design referencing the FEAT design doc.
-- **Skip Criteria:** setup/config, bash commands, rote tasks, or when Build Guidance is already file-level specific. If unsure, ask the user.
-
-**Dependency-Aware Parallelism**
-- Parse `depends_on` from each T-XXX mini-spec; tasks with no unmet dependencies can run in parallel.
-- User confirmation required: `AskUserQuestion` "T-102 and T-103 have no dependencies. Run in parallel? (same worktree, sequential commits)".
-- Commits are serialized by orchestrator to avoid conflicts.
-
-**Parallel Execution Model: Same Worktree, Isolated Contexts**
-- Parallel tasks run in the SAME feature worktree (e.g., `../wt/FEAT-001`)
-- Each task gets isolated subagent context (separate chat sessions/Task tool invocations)
-- Orchestrator serializes commits in dependency order to prevent conflicts
-- Example: T-102 and T-103 both depend on T-101 and can run in parallel
-  - Both spawn simultaneously after T-101 commits
-  - T-102 finishes first → orchestrator commits to `feat/FEAT-001`
-  - T-103 finishes second → orchestrator commits on top of T-102's commit
-  - Each subagent works from its spawn point; orchestrator handles integration
-
-**Pre-Flight Conflict Check**
-Before approving parallel execution:
-1. Architect phase identifies files each task will modify (from task design output)
-2. If file overlap detected → warn user: "⚠️ T-102 and T-103 both modify `src/api/filters.py`. Proceed in parallel? (may require manual merge)"
-3. If no overlap → proceed safely in parallel
-4. If overlap approved → orchestrator must handle merge conflicts during commit serialization
-
-**Orchestrator Commit Serialization Strategy**
-When multiple parallel tasks complete:
-1. Orchestrator maintains commit queue ordered by task dependencies
-2. First completed task commits immediately to feature branch
-3. Subsequent tasks:
-   - Pull latest from feature branch before final commit
-   - If changes conflict → orchestrator attempts auto-merge
-   - If auto-merge fails → ESCALATE with conflict details (N=1 rule applies)
-4. Each commit includes: `git add -A && git commit -m "T-XXX: [desc]" && git push`
-5. Update progress log after each successful commit
-
-**Feature Completion & Merge**
-- When ALL tasks pass both QA cycles: update progress log; ask user "FEAT-XXX complete. All N tasks passed QA. Merge to main?".
-- Merge (Orchestrator only): `git merge --squash feat/FEAT-XXX`, run full suite, log decisions, delete branch+worktree.
-
-### 6.1 Lane Model
-Main worktree = Orchestrator (PRD, Architecture, integration). Feature lanes = separate worktrees: `../wt/FEAT-001`, `../wt/FEAT-002`, etc.
-
-### 6.2 Worktree Setup
 ```bash
 mkdir -p ../wt && git fetch origin && git worktree add ../wt/FEAT-001 -b feat/FEAT-001 origin/main
 ```
 
-### 6.3 Session Naming
+### Session Naming
 ```
 /rename FEAT-001-coder
 /rename FEAT-001-qa
 ```
 
-### 6.4 Feature Decomposition Criteria
-Features must be independently testable, minimal coupling, and mergeable in any order (or define dependency order).
+---
 
-### 6.5 Artifact Templates and Conventions
-**Directory Structure (per-task, flat with prefix):**
+## 4. Artifact Templates and Conventions
+
+### 4.1 Directory Structure (per-task, flat with prefix)
+
 ```
 qa/FEAT-001/
   T-101-ready-for-review.md   # Coder's handoff for T-101
@@ -309,8 +77,11 @@ qa/FEAT-001/
   T-102-cycle-2.md
   ...
 ```
-**Required Baton File: `qa/FEAT-XXX/T-XXX-ready-for-review.md`**
+
+### 4.2 Required Baton File: `qa/FEAT-XXX/T-XXX-ready-for-review.md`
+
 The coder MUST create this file to signal "task complete" and provide QA with a deterministic review snapshot:
+
 ```markdown
 Task: T-XXX
 ReviewCommit: <SHA>
@@ -324,8 +95,11 @@ RiskAreas:
 Verify:
 - <manual steps or pointers>
 ```
-**Required QA Cycle Files**
+
+### 4.3 Required QA Cycle Files
+
 **`qa/FEAT-XXX/T-XXX-cycle-1.md` (Security & Logic -- P0 HARD GATE):**
+
 ```markdown
 Task: T-XXX
 STATUS: PASS|FAIL
@@ -339,7 +113,9 @@ P1 Issues Found (for Cycle 2):
 Verified (if PASS):
 - <bullets>
 ```
+
 **`qa/FEAT-XXX/T-XXX-cycle-2.md` (Quality & Resilience -- P1 fix, P2 defer):**
+
 ```markdown
 Task: T-XXX
 STATUS: PASS|FAIL
@@ -354,14 +130,16 @@ Verified (if PASS):
 - <bullets>
 ```
 
-#### 6.5.1 QA Verification Checklist
+---
 
-**Mandatory Verification Items (Cycle 1 - P0 Blocking):**
+## 5. QA Verification Checklist
+
+### 5.1 Mandatory Verification Items (Cycle 1 - P0 Blocking)
 
 1. **Schema-Persistence Alignment**
    - **Principle:** Validation constraints MUST match persistence constraints. If DB is unconstrained, schema MUST NOT add static constraints.
-   - *Example (Pydantic/SQLAlchemy):* DB `String(50)` unconstrained → schema must use `str = Field(max_length=50)`, NOT `Literal["a","b"]`
-   - Automated check: Flag static constraints on fields whose DB model is unconstrained (see §6.5.2).
+   - *Example (Pydantic/SQLAlchemy):* DB `String(50)` unconstrained -> schema must use `str = Field(max_length=50)`, NOT `Literal["a","b"]`
+   - Automated check: Flag static constraints on fields whose DB model is unconstrained (see SS5.2).
    - **Test:** POST with values returned by read endpoints (READ-WRITE consistency).
 
 2. **Security Vulnerabilities**
@@ -380,9 +158,30 @@ Verified (if PASS):
 
 5. **Production Build Verification**
    - **Principle:** The build command MUST pass during QA, not just the test runner. Build failure = P0 blocker (deployment will fail).
-   - *Example:* `npm run build` (runs `tsc -b`, strict type checking) vs `npm test` (Vitest, lenient types) — test passing does NOT guarantee build passing.
+   - *Example:* `npm run build` (runs `tsc -b`, strict type checking) vs `npm test` (Vitest, lenient types) -- test passing does NOT guarantee build passing.
 
-**Recommended Verification Items (Cycle 2 - P1/P2):**
+### 5.2 Automated Code Review Gates
+
+**Principle:** Automate schema-persistence alignment checks in CI/QA. Flag any static constraint (enum, literal) on a field whose persistence layer is unconstrained.
+
+*Recommended approach -- QA review script (run during Cycle 1):*
+```bash
+#!/bin/bash
+# scripts/qa-check-schema-alignment.sh
+# Adapt grep paths to your project's schema/model locations.
+SCHEMA_DIR="${1:-api/schemas}"
+LITERAL_FILES=$(grep -rl "Literal\[" "$SCHEMA_DIR"/*.py 2>/dev/null)
+if [ -n "$LITERAL_FILES" ]; then
+    echo "Static constraints found in schemas -- verify against DB models:"
+    echo "$LITERAL_FILES"
+    echo "If DB field is unconstrained -> schema MUST NOT use Literal. FAIL."
+    exit 1
+fi
+echo "No static-constraint mismatches found"
+```
+**When to bypass:** DB has CHECK constraints or enum column types (static constraint is warranted).
+
+### 5.3 Recommended Verification Items (Cycle 2 - P1/P2)
 
 1. **Code Quality**
    - Linting passes (make lint)
@@ -398,40 +197,19 @@ Verified (if PASS):
    - **Principle:** Values returned by read endpoints MUST be accepted by write endpoints.
    - Integration tests verify: "Can I POST what GET returns?" Dynamic list endpoints must have write-path validation tests.
 
-#### 6.5.2 Automated Code Review Gates
+---
 
-**Principle:** Automate schema-persistence alignment checks in CI/QA. Flag any static constraint (enum, literal) on a field whose persistence layer is unconstrained.
+## 6. E2E Testing
 
-*Recommended approach — QA review script (run during Cycle 1):*
-```bash
-#!/bin/bash
-# scripts/qa-check-schema-alignment.sh
-# Adapt grep paths to your project's schema/model locations.
-SCHEMA_DIR="${1:-api/schemas}"
-LITERAL_FILES=$(grep -rl "Literal\[" "$SCHEMA_DIR"/*.py 2>/dev/null)
-if [ -n "$LITERAL_FILES" ]; then
-    echo "⚠️  Static constraints found in schemas — verify against DB models:"
-    echo "$LITERAL_FILES"
-    echo "If DB field is unconstrained → schema MUST NOT use Literal. FAIL."
-    exit 1
-fi
-echo "✓ No static-constraint mismatches found"
-```
-**When to bypass:** DB has CHECK constraints or enum column types (static constraint is warranted).
-
-#### 6.5.3 E2E Testing
-
-**Purpose:** Full-stack browser-level verification using real backend, database, and frontend. Complements unit/integration tests and Playwright UI tests.
-
-**When to Run E2E Tests:**
+### 6.1 When to Run E2E Tests
 - After fixing router registration or endpoint wiring issues
 - After database migration changes
 - Before merging features that touch both FE and BE
 - As part of P0 visual verification during QA cycles
 
-**Infrastructure:**
+### 6.2 Infrastructure
 
-**Principle:** E2E needs config, setup, teardown, and a runner. All config (URLs, ports, credentials, route maps) lives in one file — never hardcode elsewhere.
+**Principle:** E2E needs config, setup, teardown, and a runner. All config (URLs, ports, credentials, route maps) lives in one file -- never hardcode elsewhere.
 
 *Example directory layout:*
 ```
@@ -439,15 +217,15 @@ e2e/
   config.py       # Single source of truth: URLs, ports, credentials, route maps
   setup.py        # Bootstrap: create user, login, create project, save session
   teardown.py     # Cleanup: delete test user, remove state
-  run_all.py      # Runner (setup → discover → execute → teardown)
+  run_all.py      # Runner (setup -> discover -> execute -> teardown)
   lib/api.py      # HTTP helpers (no curl, no shell escaping)
   tests/          # Scripted regression tests
   visual/         # Visual test definitions (YAML)
 ```
 
-**Setup/Teardown Flow:** setup (poll health → create user → login → save session) → run tests → teardown (delete user, remove state).
+**Setup/Teardown Flow:** setup (poll health -> create user -> login -> save session) -> run tests -> teardown (delete user, remove state).
 
-**Two Test Modes:**
+### 6.3 Two Test Modes
 
 **Principle:** Combine scripted regression (CI-safe, repeatable) with interactive visual verification (real-time inspection).
 
@@ -458,86 +236,51 @@ e2e/
 
 Visual test definitions (e.g., YAML step files) are instructions for QA agents, not automated tests.
 
-**Common Pitfalls:**
-1. Shell escaping — use native HTTP libraries for JSON payloads, never shell-escaped curl
-2. Missing DB migrations — verify container mounts include all migration files
-3. Stale DB — tear down volumes and recreate for fresh migrations on schema changes
-4. Token/session expiry — setup tokens have a TTL; re-run setup for long test sessions
-5. Wrong route patterns — verify FE routes and API prefixes match backend registration exactly
+### 6.4 Common Pitfalls
+1. Shell escaping -- use native HTTP libraries for JSON payloads, never shell-escaped curl
+2. Missing DB migrations -- verify container mounts include all migration files
+3. Stale DB -- tear down volumes and recreate for fresh migrations on schema changes
+4. Token/session expiry -- setup tokens have a TTL; re-run setup for long test sessions
+5. Wrong route patterns -- verify FE routes and API prefixes match backend registration exactly
 
-### 6.6 History Rewrite Rule (Artifact Stability)
-Once any `qa/FEAT-XXX/T-XXX-ready-for-review.md` exists on a feature branch: **no rebase**, **no force-push**, only append commits. Rationale: squash merge later, but QA artifacts must remain stable and traceable; rebasing can confuse which SHA was reviewed.
+---
 
-### 6.7 Progress Logging & Communication
-**Terminal Updates (brief, visible):**
+## 7. Progress Log Format
+
+### 7.1 Terminal Updates (brief, visible)
 ```
 [FEAT-001] Starting T-101: Create DB schema
 [FEAT-001] T-101: Architect complete, spawning coder
 [FEAT-001] T-101: Coder complete, spawning QA (Cycle 1)
 [FEAT-001] T-101: Cycle 1 PASS, proceeding to Cycle 2
-[FEAT-001] T-101: Cycle 2 PASS ✓ -- Committed & pushed
+[FEAT-001] T-101: Cycle 2 PASS -- Committed & pushed
 [FEAT-001] Starting T-102, T-103 in parallel (user approved)
 [FEAT-001] T-102: Cycle 1 FAIL (P0: 2 issues) -- Spawning fix
 [FEAT-001] T-102: Fix attempt failed -- ESCALATING
 ```
-**Progress Log File:** `logs/build-YYYY-MM-DD-HHMMSS.md`
+
+### 7.2 Progress Log File: `logs/build-YYYY-MM-DD-HHMMSS.md`
 ```markdown
-# Build Log: FEAT-XXX — Started: YYYY-MM-DD HH:MM:SS — Branch: feat/FEAT-XXX
+# Build Log: FEAT-XXX -- Started: YYYY-MM-DD HH:MM:SS -- Branch: feat/FEAT-XXX
 
 ## Task Status
 | Task | Status | Architect | Coder | QA-C1 | QA-C2 | Commit |
 |------|--------|-----------|-------|-------|-------|--------|
-| T-101 | ✓ Done | ✓ | ✓ | PASS | PASS | abc123 |
-| T-102 | 🔄 QA-C1 | ✓ | ✓ | FAIL(1) | - | - |
+| T-101 | Done | done | done | PASS | PASS | abc123 |
+| T-102 | QA-C1 | done | done | FAIL(1) | - | - |
 
 ## Event Log
-HH:MM — T-101 Started (code-architect, no deps)
-HH:MM — T-101 Architect Complete → files: schema.py, 001_initial.py → spawning coder
-HH:MM — T-102 Cycle 1 FAIL — P0: TypeError extraction.py:45 → spawning fix
-HH:MM — T-102 ESCALATED — fix cycle failed (N=1), user input required
+HH:MM -- T-101 Started (code-architect, no deps)
+HH:MM -- T-101 Architect Complete -> files: schema.py, 001_initial.py -> spawning coder
+HH:MM -- T-102 Cycle 1 FAIL -- P0: TypeError extraction.py:45 -> spawning fix
+HH:MM -- T-102 ESCALATED -- fix cycle failed (N=1), user input required
 ```
 **Debug info captured:** spawn times/durations, error messages, files touched, commit SHAs.
 
-### 6.8 Escalation Policy & User Gates
-**Escalation Policy (N=1):**
-```
-Task fails QA Cycle -> Spawn coder to fix -> Re-run same cycle
-  ↓
-If fix fails -> ESCALATE immediately (no second attempt)
-```
-**Escalation Message Format:**
-```markdown
-🚨 ESCALATION: T-XXX (FEAT-XXX)
-
-**Failed After:** 1 fix attempt
-**Cycle:** 1 (Hard Gate) | 2 (Soft Gate)
-**Blocker:**
-- P0: <file:line> -- <issue description>
-
-**Attempted Fix:**
-- <what was tried>
-- Error: <result>
-
-**Options:**
-1. Provide guidance and I'll retry
-2. You fix manually, I'll continue
-3. Skip this task, proceed with others
-4. Abort feature
-
-**Relevant Files:**
-- <file:line>
-```
-**User Approval Gates:**
-| Gate | When | Question |
-|------|------|----------|
-| **Parallel execution** | Before running 2+ tasks simultaneously | "T-XXX and T-YYY have no dependencies. Run in parallel? (same worktree)" |
-| **PR creation** | Before any `gh pr create` | "Ready to create PR. Title: '...'. Create it?" |
-| **Final merge** | All tasks complete | "FEAT-XXX complete. All N tasks passed QA. Merge to main?" |
-| **Skip task** | User chooses during escalation | "Skipping T-XXX. Continue with T-YYY?" |
-**No Auto-Proceed On:** any escalation; parallel execution; PR creation; merge to main.
-
 ---
-## 7. Feature Spec Template
+
+## 8. Feature Spec Template
+
 ```markdown
 # FEAT-XXX: [Title]
 ## Objective
@@ -554,8 +297,8 @@ If fix fails -> ESCALATE immediately (no second attempt)
 - Indexes: `...`
 ### FE Changes
 - Component: `...`
-### New Dependencies (R17 — MANDATORY for any new package)
-- `package-name>=X.Y.Z` — [PyPI](https://pypi.org/project/package-name/) or [GitHub](https://github.com/org/repo) — Purpose: [why needed]
+### New Dependencies (R17 -- MANDATORY for any new package)
+- `package-name>=X.Y.Z` -- [PyPI](https://pypi.org/project/package-name/) or [GitHub](https://github.com/org/repo) -- Purpose: [why needed]
 - **HARD RULE:** Every dependency MUST have an installable name + URL. "Or equivalent" = BLOCKER. Speculative packages = BLOCKER. Architect MUST `pip install`/`npm install` to verify before BUILD.
 ## Tasks mini-spec template
 ### T-101: [Task Title]
@@ -596,7 +339,10 @@ If fix fails -> ESCALATE immediately (no second attempt)
 - [...]
 ---
 [Continue for all tasks...]
+```
+
 **Generation:** Feature specs following this template are produced by the `eng-planning` skill (`/eng-planning [prd-path]`). Manual creation is also valid but must follow this template exactly. All specs MUST include YAML frontmatter for the spec-registry:
+
 ```yaml
 ---
 domain: <feature-domain>
@@ -605,59 +351,112 @@ schemas: [<relevant-schema-paths>]
 ---
 ```
 
-## Task Dependencies Graph
+### Task Dependencies Graph
 ```
 T-101 (no deps)
-    └── T-102 (depends on T-101)
-    └── T-103 (depends on T-101)
+    +-- T-102 (depends on T-101)
+    +-- T-103 (depends on T-101)
 T-104 (no deps, can run parallel with T-101)
 ```
-## Definition of Done
-- [ ] All T-XXX tasks pass 2 QA cycles each
-- [ ] All tests pass (`make test`)
-- [ ] Lint passes (`make lint`)
-- [ ] User approval gate for merge
-```
-**Task Mini-Spec Rules:** every T-XXX MUST have Priority, Depends On, Objective, Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan. `Build Guidance` must be SPECIFIC (patterns, classes, utilities to use) -- NOT generic principles. `Depends On` is authoritative -- architect validates but cannot override spec. Tasks are the unit of work: each gets its own architect->coder->QA cycle.
 
-**Schema Design Rules:**
+### Task Mini-Spec Rules
+Every T-XXX MUST have Priority, Depends On, Objective, Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan. `Build Guidance` must be SPECIFIC (patterns, classes, utilities to use) -- NOT generic principles. `Depends On` is authoritative -- architect validates but cannot override spec. Tasks are the unit of work: each gets its own architect->coder->QA cycle.
 
-**Principle:** Validation constraints MUST mirror persistence constraints. Never restrict at the validation layer what the persistence layer allows unconstrained.
-
-1. **No Static Constraints on Dynamic Fields** — If a field is "dynamic", "database-driven", or "extensible", validation MUST NOT use static enums/literals. Build Guidance MUST specify: "Verify schema constraints match DB model constraints."
-   - *Example (Pydantic/SQLAlchemy):* DB `String(50)` → schema `str = Field(..., max_length=50)`, NOT `Literal["early", "growth"]`
-2. **Validation Error Messages** — Example errors in specs must note "(Example values — actual validation is dynamic)" to avoid implying hardcoded lists.
-
-**Example Spec Language (GOOD):**
+### Schema Design Spec Language (Example)
 ```markdown
 **Requirements:**
 - [P0] Filter values (stage, sector, geography) are database-driven via `/api/filters` endpoint
-- [P0] Schemas MUST NOT use Literal types for these fields — use unconstrained str with Field constraints
+- [P0] Schemas MUST NOT use Literal types for these fields -- use unconstrained str with Field constraints
 - [P0] Frontend MUST fetch filter values from API, never hardcode them
 
 **Build Guidance:**
 - In `api/schemas/company.py`: Use `stage: str = Field(..., min_length=1, max_length=50)` NOT `Literal`
-- Verify schema matches DB model: `api/db/models.py` uses `String(50)` → schema uses `max_length=50`
+- Verify schema matches DB model: `api/db/models.py` uses `String(50)` -> schema uses `max_length=50`
 - Add integration test: POST with values from GET `/api/filters` (READ-WRITE consistency)
 ```
 
 ---
-## 8. Plugin Usage
-`/feature-dev`: use at feature start for structured discovery -> planning -> implementation. `/code-review`: run during QA cycles; treat as a gate -- resolve findings before merge.
+
+## 9. Definition of Done
+
+- [ ] All T-XXX tasks pass 2 QA cycles each
+- [ ] All tests pass (`make test`)
+- [ ] Lint passes (`make lint`)
+- [ ] User approval gate for merge
 
 ---
-## 9. Integration & Merge
-Trigger: all T-XXX tasks pass both QA cycles + user approval gate. Steps: (1) User approval question; (2) Merge `git merge --squash feat/FEAT-XXX`; (3) System check full suite (`pytest` + `npm test`); (4) Log decisions to `docs/decisions.md`; (5) Cleanup delete worktree and branch.
 
----
-## 10. Output Discipline
-When responding, use this format: (1) **Phase:** DISCOVERY / ARCHITECTURE_APPROVED / FEATURE_SPECS_APPROVED / BUILD (2) **Role:** PM Interviewer / Architect / Developer / QA / Orchestrator (3) **Next Actions:** (bulleted, minimal) (4) **Questions:** (via `AskUserQuestion` if needed) (5) **Artifacts to Update:** (file paths).
+## 10. Kickoff Checklist
 
----
-## 11. Kickoff Checklist
 1. Verify repo commands exist; update `CLAUDE.md`
 2. Create `.claude/phase.json` with `DISCOVERY` if missing
 3. Start Master PRD interview using `AskUserQuestion`
 4. Do not write code until phase = `BUILD`
 
-**END OF PROTOCOL**
+---
+
+## 11. Escalation Message Template
+
+```
+ESCALATION: T-XXX (FEAT-XXX)
+
+Failed After: 1 fix attempt
+Cycle: 1 (Hard Gate) | 2 (Soft Gate)
+Blocker:
+- P0: <file:line> -- <issue description>
+
+Attempted Fix:
+- <what was tried>
+- Error: <result>
+
+Options:
+1. Provide guidance and I'll retry
+2. You fix manually, I'll continue
+3. Skip this task, proceed with others
+4. Abort feature
+
+Relevant Files:
+- <file:line>
+```
+
+---
+
+## 12. Debugging Protocol (Case Study)
+
+For rules and skill invocation order, see protocol SS3.6.
+
+**Anti-Pattern (DON'T DO THIS):**
+1. See error message
+2. Make assumption about cause based on error message alone
+3. Immediately change code/schema/data
+4. Create cascading problems or fix wrong thing
+
+**Correct Pattern (DO THIS):**
+1. **See error** -- Capture full error message, stack trace, context
+2. **Investigate thoroughly:**
+   - Check git history: When did it last work? What changed?
+   - Review test suite: How do existing tests handle this? Do they pass?
+   - Read design docs: What was the original intent? (PRD, architecture, ADRs)
+   - Sample data files: Is data inconsistent with schema/contract?
+   - Check schema vs API contract vs loader code: Which is correct?
+   - Look at usage patterns: How many instances fail vs succeed?
+3. **Form hypothesis with evidence** -- Not guesses, use concrete file paths and line numbers
+4. **Present root cause analysis** -- Show evidence for each finding
+5. **Propose fix that addresses root cause** -- Not symptoms
+6. **Get approval before making changes** -- Especially for schema/data/architectural changes
+
+**Example: Schema Mismatch Errors** -- When you see database type errors like "expected str, got list": DON'T assume schema is wrong. DO investigate: could be bad data generation, loader bug, or intentional design that data violates. Investigation checklist: (1) What do persistence models say? (2) What do validation schemas say? (3) What format is in data files? Sample 5-10 files. (4) What percentage matches vs violates? (5) When was this last working? Git log. (6) How do tests handle this field? (7) What was original design intent? Root cause determines fix: schema wrong (rare) -> fix schema + migrate; data generation wrong (common) -> fix generator + bad files; loader wrong -> fix validation/conversion; intentional mismatch -> design discussion. Escalate if unsure.
+
+---
+
+## 13. Installed CLI Tools (No Re-Discovery Needed)
+
+These are installed and working. Use via Bash tool directly. Do NOT search for, re-verify, or re-discover them.
+
+| Tool | Path | Use When |
+|------|------|----------|
+| `agent-browser` | `/opt/homebrew/bin/agent-browser` | Browser automation, e2e testing, web scraping |
+
+**Example:** `Bash("agent-browser open https://example.com && agent-browser screenshot")`
+
+**END OF TEMPLATES**
