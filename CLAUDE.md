@@ -21,3 +21,5 @@ Execute immediately unless: (1) multiple valid approaches & choice matters, (2) 
 <!-- Each team member can add their own rules/personal.md (gitignored) -->
 <!-- to customize behavior, set their name, add safe phrases, etc.    -->
 @~/.claude/rules/personal.md
+
+@RTK.md
