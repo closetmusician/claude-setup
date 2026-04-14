@@ -217,6 +217,8 @@ Always include a Table of Contents after the TL;DR with auto-generated markdown 
 
 This is the core of the PRD. Each JTBD groups together all the requirements needed to satisfy that job. This co-location makes it easy for developers to understand WHY each requirement exists.
 
+**Anti-bloat principle:** Requirements should *fall naturally from* the JTBD — each one exists because the job can't be done without it. If a requirement doesn't clearly serve its parent JTBD, it's either misplaced or unnecessary. The JTBD provides the "why"; requirements provide the "what" — don't restate the problem or motivation inside each requirement. One sentence of scope, then straight to observable behaviors.
+
 **Per-JTBD structure:**
 1. **JTBD heading** with job statement (e.g., "JTBD-1: Prepare for board meetings without manual research")
 2. **Job statement** in persona format: "As a [persona], I need to [job] so that I can [outcome]."
@@ -273,8 +275,92 @@ After all JTBDs, include summary tables if they help comprehension:
 - **New Database Objects** — tables and columns with types, FKs, constraints
 - **Frontend Changes** — component list with brief descriptions
 
+#### UX Flows
+
+This section immediately follows JTBD & Requirements. It maps each user experience flow back to the JTBD it serves, making the connection between "what job the user is doing" and "what the user actually sees and does" explicit. The key principle: **JTBDs define requirements (the "what"), UX flows show how those requirements come to life (the "how")** — don't re-describe the requirements, reference them by ID.
+
+**Structure: organize by JTBD, not by component.** Each JTBD gets its own subsection of flows. This keeps the mapping clear without requiring a reader to mentally cross-reference disconnected sections.
+
+**Per-JTBD UX subsection:**
+
+**1. Interaction Flows**
+Write a numbered flow for each major user journey within the JTBD. Each flow:
+- Starts with the user trigger (what the user does)
+- References the requirement(s) it satisfies by ID (e.g., "Satisfies BRF-1, BRF-2")
+- Numbers each step sequentially
+- Describes what the system does at each step (not just what the user sees)
+- Includes real-time/streaming states where applicable
+- Ends with the final output format and any post-output actions
+- Uses concrete example inputs (e.g., "`@briefcase prep me for Thursday's board meeting`")
+
+```
+### JTBD-1: [Job statement — abbreviated]
+
+#### Interaction Flow: [Feature Name] → BRF-1, BRF-2
+1. User does [trigger action]
+2. System responds with [response] — [visual treatment note]
+3. [Real-time streaming/processing step if applicable]
+4. Final output renders as [format] with sections: [list sections]
+5. [Post-output action if any]
+```
+
+**2. ASCII Wireframes (for major interaction patterns)**
+For major interaction patterns (3-5 per feature PRD), include ASCII wireframe diagrams with the JTBD flow they illustrate. Use box-drawing characters (┌ ┐ └ ┘ ─ │ ├ ┤). Wireframes should show layout, key fields, and interaction affordances. Not every JTBD needs a wireframe — focus on complex multi-panel layouts, forms with many fields, state machines, and multi-step workflows.
+
+```
+┌─────────────────────────────────────────┐
+│ Meeting Prep Agent                   ×  │
+├─────────────────────────────────────────┤
+│ ┌─────────────────────────────────────┐ │
+│ │ ▶ Step 1: Fetching agenda items...  │ │
+│ │   Step 2: Analyzing documents...    │ │
+│ │   Step 3: Generating briefing...    │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ ┌─────────────────────────────────────┐ │
+│ │ Briefing Output                     │ │
+│ │ ─────────────────────               │ │
+│ │ Key Topics: ...                     │ │
+│ │ Action Items: ...                   │ │
+│ │                    [Copy] [Export]   │ │
+│ └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+```
+
+**Cross-cutting UX concerns** (apply once after all JTBD flows, not repeated per JTBD):
+
+**3. Information Architecture**
+- Where the feature lives relative to existing navigation
+- Containment hierarchy top→bottom
+- Navigation additions and what does NOT change
+
+**4. Component Specs**
+For each new UI component, define:
+- **States**: all visual states (default, loading, completed, error, empty)
+- **Visual treatment**: background, borders, colors, layout (reference design system tokens)
+- **Interaction behavior**: click, expand, filter, hover
+- **Constraints**: max lines, truncation, scroll behavior
+
+```
+**ComponentName:**
+- [State]: [visual treatment + content layout]
+- [State]: [visual treatment + content layout]
+- Click/expand: [behavior]
+- Constraints: [limits]
+```
+
+**5. Use Cases Table**
+Map concrete use cases to JTBDs, features, triggers, and expected outputs:
+```
+| Use Case | JTBD | Feature | Trigger | Expected Output |
+|---|---|---|---|---|
+| [Scenario name] | JTBD-1 | [Which feature] | [Exact user input] | [What system produces] |
+```
+
+If no Figma mockups exist, state this explicitly and reference design system primitives.
+
 #### Data Model (if applicable)
-When the feature introduces new data structures, document them after JTBD & Requirements:
+When the feature introduces new data structures:
 - Database tables/columns with types, foreign keys, constraints
 - API endpoint signatures and response shapes
 - State machines with valid transitions
@@ -298,83 +384,6 @@ Skip this section for simple features where all business logic fits within indiv
 
 #### Legacy Reference (optional)
 When replacing a legacy system, include a "Legacy Reference" section after Risks documenting current behavior. Never place it before requirements — the PRD leads with what to build, not what exists. Include: how the current system works, screenshots, field mappings, API contracts. This section is for context only and does NOT drive requirements.
-
-#### User Experience
-
-Structure UX to be sufficient for frontend implementation without Figma. Five subsections:
-
-**1. Information Architecture**
-- State where the new feature lives relative to existing navigation (e.g., "Agents live within the existing chat UI. No new top-level navigation.")
-- Define the containment hierarchy top→bottom (e.g., Project → Chat → Agent invocation → Action items)
-- List navigation additions explicitly (new tabs, sidebar items, etc.)
-- State what does NOT change ("No new top-level nav items")
-
-**2. ASCII Wireframes (for major interaction patterns)**
-For major interaction patterns (3-5 per feature PRD), include ASCII wireframe diagrams inline with the JTBD they illustrate. Use box-drawing characters (┌ ┐ └ ┘ ─ │ ├ ┤). Wireframes should show layout, key fields, and interaction affordances. Not every JTBD needs a wireframe — focus on complex multi-panel layouts, forms with many fields, state machines, and multi-step workflows.
-
-```
-┌─────────────────────────────────────────┐
-│ Meeting Prep Agent                   ×  │
-├─────────────────────────────────────────┤
-│ ┌─────────────────────────────────────┐ │
-│ │ ▶ Step 1: Fetching agenda items...  │ │
-│ │   Step 2: Analyzing documents...    │ │
-│ │   Step 3: Generating briefing...    │ │
-│ └─────────────────────────────────────┘ │
-│                                         │
-│ ┌─────────────────────────────────────┐ │
-│ │ Briefing Output                     │ │
-│ │ ─────────────────────               │ │
-│ │ Key Topics: ...                     │ │
-│ │ Action Items: ...                   │ │
-│ │                    [Copy] [Export]   │ │
-│ └─────────────────────────────────────┘ │
-└─────────────────────────────────────────┘
-```
-
-**3. Interaction Flows (per feature)**
-Write a separate numbered flow for each major feature or user journey. Each flow:
-- Starts with the user trigger (what the user does)
-- Numbers each step sequentially
-- Describes what the system does at each step (not just what the user sees)
-- Includes real-time/streaming states where applicable (e.g., "SSE events stream in: each step appears as a compact, collapsible row")
-- Ends with the final output format and any post-output actions
-- Uses concrete example inputs (e.g., "`@briefcase prep me for Thursday's board meeting`")
-
-```
-### Interaction Flow: [Feature Name]
-1. User does [trigger action]
-2. System responds with [response] — [visual treatment note]
-3. [Real-time streaming/processing step if applicable]
-4. Final output renders as [format] with sections: [list sections]
-5. [Post-output action if any]
-```
-
-**4. Component Specs**
-For each new UI component, define:
-- **States**: list all visual states (default, loading/live, completed, error, empty)
-- **Visual treatment**: background, borders, colors, layout (reference design system tokens if known, e.g., "`bg-muted/50`, rounded corners")
-- **Content layout**: what appears where within the component
-- **Interaction behavior**: what happens on click, expand, filter, hover
-- **Constraints**: max lines, truncation rules, scroll behavior
-
-```
-**ComponentName:**
-- [State]: [visual treatment + content layout]
-- [State]: [visual treatment + content layout]
-- Click/expand: [behavior]
-- Constraints: [limits]
-```
-
-**5. Use Cases Table**
-Map concrete use cases to features, triggers, and expected outputs:
-```
-| Use Case | Feature | Trigger | Expected Output |
-|---|---|---|---|
-| [Scenario name] | [Which feature] | [Exact user input example] | [What the system produces] |
-```
-
-If no Figma mockups exist, state this explicitly and note that component behavior specs above serve as the implementation reference. Reference design system primitives (e.g., "implements against shadcn/ui Collapsible, Badge, Card, Tabs").
 
 #### Engineering Estimates
 - Use ranges, not point estimates

@@ -108,7 +108,51 @@ how it works, and key technical details.]
 
 ---
 
-# 3. Data Model (if applicable)
+# 3. UX Flows
+
+[Organized by JTBD — each subsection maps flows to the job it serves.
+Flows reference requirement IDs (e.g., REQ-001) to connect "what to build"
+with "what the user experiences." Don't re-describe requirements — reference them.]
+
+## JTBD-1: [Job statement — abbreviated]
+
+### Interaction Flow: [Feature Name] → REQ-001, REQ-002
+1. User does [trigger action with concrete example]
+2. System responds with [response] — [visual treatment note]
+3. [Real-time streaming/processing step if applicable]
+4. Final output renders as [format] with sections: [list sections]
+5. [Post-output action if any]
+
+### ASCII Wireframe: [Component/Flow Name]
+[Use box-drawing characters: ┌ ┐ └ ┘ ─ │ ├ ┤
+Show layout, key fields, and interaction affordances.
+Focus on complex multi-panel layouts, forms with many fields,
+state machines, and multi-step workflows.]
+
+## JTBD-2: [Job statement — abbreviated]
+
+### Interaction Flow: [Feature Name] → REQ-005
+[...same structure...]
+
+## Cross-Cutting UX
+
+### Information Architecture
+[Where feature lives. Containment hierarchy. Navigation additions. What doesn't change.]
+
+### Component Specs (new components only)
+[States, visual treatment, constraints for genuinely new UI components.]
+
+### Use Cases Table
+| Use Case | JTBD | Feature | Trigger | Expected Output |
+|---|---|---|---|---|
+| [Scenario name] | JTBD-1 | [Which feature] | [Exact user input] | [What system produces] |
+
+## Designs
+[Link to Figma or embed design references. Note if designs are WIP.]
+
+---
+
+# 4. Data Model (if applicable)
 
 [When the feature introduces new data structures, document them here:]
 - New database tables/columns with types, FKs, constraints
@@ -122,7 +166,7 @@ how it works, and key technical details.]
 
 ---
 
-# 4. Business Rules (if applicable)
+# 5. Business Rules (if applicable)
 
 [Document domain logic that cuts across multiple requirements or JTBDs.
 This section captures rules that are too cross-cutting for a single requirement
@@ -145,7 +189,7 @@ when inputs change.]
 
 ---
 
-# 5. Risks & Out of Scope
+# 6. Risks & Out of Scope
 
 ## Cons/Risks with Mitigations
 [For each risk: state it, rate severity, list mitigations]
@@ -155,40 +199,12 @@ when inputs change.]
 
 ---
 
-# 6. Legacy Reference (if replacing existing system)
+# 7. Legacy Reference (if replacing existing system)
 
 [When replacing a legacy system, document current behavior here as reference
 material. Include: how the current system works, screenshots, field mappings,
 API contracts. This section is for context — it does NOT drive requirements.
 Never place legacy system details before the JTBD & Requirements section.]
-
----
-
-# 7. User Experience Flows
-
-[This should be the largest section. Break into distinct flows.
-Include ASCII wireframes for 3-5 major interaction patterns.]
-
-### Interaction Flow: [Feature Name]
-1. User does [trigger action with concrete example]
-2. System responds with [response] — [visual treatment note]
-3. [Real-time streaming/processing step if applicable]
-4. Final output renders as [format] with sections: [list sections]
-5. [Post-output action if any]
-
-### ASCII Wireframe: [Component/Flow Name]
-[Use box-drawing characters: ┌ ┐ └ ┘ ─ │ ├ ┤
-Show layout, key fields, and interaction affordances.
-Focus on complex multi-panel layouts, forms with many fields,
-state machines, and multi-step workflows.]
-
-### Use Cases Table
-| Use Case | Feature | Trigger | Expected Output |
-|---|---|---|---|
-| [Scenario name] | [Which feature] | [Exact user input example] | [What system produces] |
-
-## Designs
-[Link to Figma or embed design references. Note if designs are WIP.]
 
 ---
 
@@ -300,12 +316,12 @@ state machines, and multi-step workflows.]
 ## Template Notes
 
 - Not every section is required for every project. Small projects can skip Options Analysis, Business Rules, Data Model, Pricing Tiers, Legacy Reference, etc.
-- Core sections (§1-§6) define what to build and why — these come first in every PRD
-- The JTBD & Requirements section is the core of the PRD — each JTBD groups its requirements together so developers understand the "why"
+- Core sections: §1 Problem Definition, §2 JTBD & Requirements, §3 UX Flows — these three form the backbone of every PRD
+- §2 JTBD & Requirements is the core — each JTBD groups its requirements together so developers understand the "why." Requirements flow from the JTBD; don't restate the problem inside each requirement.
+- §3 UX Flows is organized by JTBD — each flow references the requirement IDs it satisfies, connecting "what to build" with "what the user sees." Don't re-describe requirements; reference by ID.
 - Requirements within each JTBD are ordered P0 first, then P1, then P2 (not separated into priority subsections)
-- The User Experience Flows section should be the most visually detailed part of the PRD, with ASCII wireframes for 3-5 major interaction patterns
 - Always include a Table of Contents after the TL;DR with auto-generated markdown links to all H2/H3 sections
 - Diligent-specific sections (RACI, Settings Toggles, Cross Team Support, Pricing Tiers) are positioned after core sections — omit if using a custom template
-- The Legacy Reference section (§6) is optional — only include when replacing an existing system
-- The Business Rules section (§4) is optional — only include when cross-cutting domain logic exists that doesn't fit within individual requirements
+- The Legacy Reference section (§7) is optional — only include when replacing an existing system
+- The Business Rules section (§5) is optional — only include when cross-cutting domain logic exists that doesn't fit within individual requirements
 - Always ask the user which Diligent product area they're working in (Boards, Entities, ESG, etc.) to contextualize appropriately

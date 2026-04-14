@@ -13,7 +13,8 @@ description: "Compact PRD writer — same rigor as prd-writer but 30-40% shorter
 Fork of prd-writer optimized for density. Same quality bar, ~30-40% fewer lines.
 
 **What changed from v1:**
-- Sections that repeated info (Problem + JTBD + Interaction Flows) are consolidated — describe once, reference by ID
+- Sections that repeated info (Problem + JTBD) are consolidated — describe once, reference by ID
+- UX Flows section is dedicated (§3) but organized by JTBD with explicit req ID references — no redundancy
 - Prose that restates tables is banned
 - Wireframes are conditional on complexity, not mandatory
 - Behavior minimums are guidance, not floors
@@ -124,6 +125,8 @@ Show projection math. Reference precedents. Be honest about assumptions.
 
 **This is the core. Each JTBD is self-contained — problem, evidence, hypothesis, KPIs, and requirements all in one place.**
 
+**Anti-bloat principle:** Requirements *fall from* the JTBD — each exists because the job can't be done without it. The JTBD provides the "why"; requirements provide the "what." Don't restate the problem inside each requirement. One sentence of scope, then straight to behaviors.
+
 **Per-JTBD structure:**
 1. JTBD heading with job statement
 2. Job statement in persona format
@@ -154,7 +157,38 @@ Show projection math. Reference precedents. Be honest about assumptions.
 
 **Priority tiers within each JTBD's build scope:** P0 = must ship, P1 = should ship, P2 = defer.
 
-**Interaction flows belong HERE, inline with the JTBD they serve.** Write a compact numbered flow immediately after the relevant requirement(s). Do NOT duplicate them in a separate UX section.
+#### UX Flows
+
+Dedicated section immediately after JTBD & Requirements. Organized by JTBD — each flow references requirement IDs it satisfies. **JTBDs define the "what"; UX flows show the "how."** Don't re-describe requirements, reference by ID (`-> See AC-2`).
+
+**Per-JTBD UX subsection:**
+
+**1. Interaction Flows** — Compact numbered flow per user journey. Each flow:
+- References requirement IDs it satisfies (e.g., `→ AC-1, AC-2`)
+- Numbered steps: user trigger → system response → final output
+- Concrete example inputs
+- Streaming/real-time states where applicable
+
+```
+### JTBD-1: [abbreviated]
+#### Flow: [Feature] → AC-1, AC-2
+1. User [trigger]
+2. System [response]
+3. Output: [format]
+```
+
+**2. ASCII Wireframes (conditional)** — Only for complex multi-panel layouts, forms with 5+ fields, or multi-step state machines. Place with the JTBD flow they illustrate.
+
+**Cross-cutting UX (once, after all JTBD flows):**
+
+**3. Information Architecture** — Where feature lives. Containment hierarchy. What doesn't change.
+
+**4. Component Specs (new components only):**
+```
+**ComponentName:** Default: [treatment]. Loading: [treatment]. Error: [treatment]. Click: [behavior]. Constraints: [limits].
+```
+
+**5. Use Cases Table** — Map scenarios to JTBDs, features, triggers, outputs.
 
 #### Data Model (if applicable)
 Tables/columns, API endpoints, state machines, tracking requirements.
@@ -167,23 +201,6 @@ Risks with mitigations + out of scope. Be explicit.
 
 #### Legacy Reference (optional)
 Only when replacing existing system. Context only — does NOT drive requirements.
-
-#### User Experience
-
-**v2 change: This is NOT the largest section.** Most interaction detail lives inline with JTBDs. This section covers only structural/cross-cutting UX concerns:
-
-**1. Information Architecture** — Where the feature lives in existing navigation. Containment hierarchy. What does NOT change.
-
-**2. ASCII Wireframes (conditional)** — Only for complex multi-panel layouts, forms with 5+ fields, or multi-step state machines. Simple features skip this. When included, place inline with the JTBD they illustrate (not here).
-
-**3. Component Specs** — For genuinely new UI components only. States, visual treatment, constraints. Use compact format:
-```
-**ComponentName:** Default: [treatment]. Loading: [treatment]. Error: [treatment]. Click: [behavior]. Constraints: [limits].
-```
-
-**4. Keyboard & Accessibility** — WCAG requirements, keyboard navigation, ARIA attributes.
-
-**5. Use Cases Table** — Map scenarios to features, triggers, outputs.
 
 #### Engineering Estimates
 Ranges, not points. Backend vs. client split. Staffing needs. Blockers/dependencies.

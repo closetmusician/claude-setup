@@ -2,7 +2,7 @@
 
 Default PRD template — Diligent Boards conventions. Apply quality patterns from `quality-patterns.md` throughout.
 
-**v2 changes:** User pain points live in JTBDs (not Problem Definition). Interaction flows live inline with JTBDs (not separate UX section). UX section covers only structural/cross-cutting concerns.
+**v2 changes:** User pain points live in JTBDs (not Problem Definition). UX Flows section (§3) is organized by JTBD with explicit req ID references — dedicated but mapped, no redundancy. Describe once, reference by ID.
 
 ## Template Structure
 
@@ -43,9 +43,8 @@ Do NOT restate the table in prose afterward.]
 
 # 2. Jobs to Be Done & Requirements
 
-[Each JTBD is self-contained: problem, evidence, hypothesis, KPIs, requirements,
-and interaction flows — all in one place. This eliminates redundancy between
-Problem Definition, Requirements, and UX sections.]
+[Each JTBD groups problem, evidence, hypothesis, KPIs, and requirements.
+UX flows live in §3 and reference back by req ID.]
 
 ## JTBD-1: [Job statement]
 
@@ -66,13 +65,6 @@ Problem Definition, Requirements, and UX sections.]
 2. [Happy path behavior]
 3. [Error/validation behavior]
 
-### Interaction Flow: [Feature Name]
-[Inline with the JTBD. Compact numbered steps.]
-1. User [trigger]
-2. System [response]
-3. [Processing/streaming step]
-4. Output: [format + sections]
-
 **REQ-002: [Name]** (P1)
 [Scope paragraph]
 1. [Observable behavior]
@@ -81,7 +73,7 @@ Problem Definition, Requirements, and UX sections.]
 [Description only]
 
 ## JTBD-2: [Job statement]
-[...same self-contained structure...]
+[...same structure...]
 
 ## Options Analysis (if applicable)
 | Dimension | Option A | Option B (Recommended) |
@@ -94,7 +86,44 @@ Problem Definition, Requirements, and UX sections.]
 
 ---
 
-# 3. Data Model (if applicable)
+# 3. UX Flows
+
+[Organized by JTBD. Each flow references req IDs it satisfies.
+Don't re-describe requirements — reference by ID.]
+
+## JTBD-1: [abbreviated]
+
+### Flow: [Feature] → REQ-001, REQ-002
+1. User [trigger with concrete example]
+2. System [response] — [visual treatment]
+3. [Processing/streaming step]
+4. Output: [format + sections]
+
+### Wireframe: [Component] (if complex layout)
+[Box-drawing chars. Only for multi-panel, 5+ field forms, or state machines.]
+
+## JTBD-2: [abbreviated]
+[...same structure...]
+
+## Cross-Cutting UX
+
+### Information Architecture
+[Where feature lives. Containment hierarchy. What doesn't change.]
+
+### Component Specs (new components only)
+**ComponentName:** Default: [treatment]. Loading: [treatment]. Error: [treatment]. Click: [behavior]. Constraints: [limits].
+
+### Use Cases Table
+| Use Case | JTBD | Feature | Trigger | Expected Output |
+|---|---|---|---|---|
+| ... | ... | ... | ... | ... |
+
+### Designs
+[Link to Figma or note WIP status.]
+
+---
+
+# 4. Data Model (if applicable)
 
 [DB tables/columns, API endpoints, state machines, tracking events.]
 
@@ -110,7 +139,7 @@ Problem Definition, Requirements, and UX sections.]
 
 ---
 
-# 4. Business Rules (if applicable)
+# 5. Business Rules (if applicable)
 
 [Cross-cutting domain logic only. Skip for simple features.
 Each rule references the Req IDs it applies to.]
@@ -126,7 +155,7 @@ Each rule references the Req IDs it applies to.]
 
 ---
 
-# 5. Risks & Out of Scope
+# 6. Risks & Out of Scope
 
 ## Risks with Mitigations
 | Risk | Severity | Mitigation |
@@ -138,37 +167,9 @@ Each rule references the Req IDs it applies to.]
 
 ---
 
-# 6. Legacy Reference (if replacing existing system)
+# 7. Legacy Reference (if replacing existing system)
 
 [Current behavior, field mappings, API contracts. Context only — does NOT drive requirements.]
-
----
-
-# 7. User Experience (Structural)
-
-[v2: This is NOT the largest section. Interaction flows live inline with JTBDs.
-This section covers only cross-cutting UX structure.]
-
-## Information Architecture
-[Where feature lives. Containment hierarchy. Navigation additions. What doesn't change.]
-
-## ASCII Wireframes (if complex layouts exist)
-[Only for multi-panel layouts, forms with 5+ fields, or multi-step state machines.
-Place inline with the JTBD they illustrate when possible.]
-
-## Component Specs (new components only)
-**ComponentName:** Default: [treatment]. Loading: [treatment]. Error: [treatment]. Click: [behavior]. Constraints: [limits].
-
-## Keyboard & Accessibility
-[WCAG requirements. Keyboard nav. ARIA attributes.]
-
-## Use Cases Table
-| Use Case | Feature | Trigger | Expected Output |
-|---|---|---|---|
-| ... | ... | ... | ... |
-
-## Designs
-[Link to Figma or note WIP status.]
 
 ---
 
@@ -214,8 +215,9 @@ Use tables. Include only sections that apply.]
 
 ## Template Notes
 
-- Core sections: 1-5. Everything else is optional based on project complexity.
-- JTBD section is the core — self-contained with evidence, requirements, AND interaction flows.
-- **Describe once:** If a behavior is fully specified in a requirement, interaction flows and business rules reference by ID, not re-describe.
+- Core sections: §1 Problem Definition, §2 JTBD & Requirements, §3 UX Flows. Everything else is optional based on project complexity.
+- §2 JTBD section is the core — evidence, requirements, and rationale. Requirements flow from the JTBD; don't restate the problem inside each requirement.
+- §3 UX Flows is organized by JTBD — each flow references req IDs it satisfies, connecting "what to build" with "what the user sees." No re-describing requirements.
+- **Describe once:** If a behavior is fully specified in a requirement, UX flows and business rules reference by ID, not re-describe.
 - **Tables speak for themselves:** Never follow a table with prose restating its contents.
 - Diligent-specific sections (RACI, Settings, Pricing) — omit if using custom template.
