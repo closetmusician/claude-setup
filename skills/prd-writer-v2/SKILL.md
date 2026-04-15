@@ -5,8 +5,9 @@ description: "Compact PRD writer — same rigor as prd-writer but 30-40% shorter
 
 ## Required Files
 - `references/quality-patterns.md` — Quality patterns with density rules
-- `references/discovery-brief-format.md` — Condensed 1-pager format for early-stage exploration
-- `templates/diligent-prd-template.md` — Compact PRD structure template
+- `references/discovery-brief-format.md` — Standalone stakeholder pitch format (Mode C only)
+- `templates/diligent-prd-template.md` — Full PRD structure template (Mode A)
+- `templates/prd-lite-template.md` — PRD-Lite 1-pager template (Mode B)
 
 # PRD Writer v2 (Compact)
 
@@ -16,7 +17,7 @@ Fork of prd-writer optimized for density. Same quality bar, ~30-40% fewer lines.
 - Sections that repeated info (Problem + JTBD) are consolidated — describe once, reference by ID
 - UX Flows section is dedicated (§3) but organized by JTBD with explicit req ID references — no redundancy
 - Prose that restates tables is banned
-- Wireframes are conditional on complexity, not mandatory
+- Wireframes: 3-5 per feature PRD for major interaction patterns
 - Behavior minimums are guidance, not floors
 - Compact formatting preferred (inline pipes, dense bullets) over multi-line prose
 
@@ -61,7 +62,27 @@ Same as v1 — intermediary checkpoint files prevent context loss.
 
 ### Step 0: Resume Detection
 
-Check for existing `*-context.md`, `*-interview.md`, `*-research.md` in `docs/` and project root. If found, offer to resume or start fresh. If not found, proceed to Step 1.
+Check for existing `*-context.md`, `*-interview.md`, `*-research.md` in `docs/` and project root. If found, offer to resume or start fresh. If not found, proceed to Step 0.5.
+
+### Step 0.5: Determine Document Mode
+
+Based on the user's request, determine which format to use:
+
+**Mode A: Full PRD** (default)
+Trigger: User asks for a "PRD", "spec", "product requirements", or provides enough context for a full document.
+Template: `templates/diligent-prd-template.md` (all 12 sections)
+
+**Mode B: PRD-Lite (1-pager / discovery brief)**
+Trigger: User asks for a "1-pager", "discovery brief", "early-stage doc", or explicitly says they don't have enough data for a full PRD.
+Template: `templates/prd-lite-template.md` (sections 1, 2, 9 at reduced depth with TBD placeholders for 3-8)
+
+**Mode C: Stakeholder Pitch**
+Trigger: User explicitly asks for a "pitch brief", "stakeholder alignment doc", or "conversation starter."
+Template: `references/discovery-brief-format.md` (standalone format, not expandable to full PRD)
+
+If ambiguous, ask the user: "Do you want (A) a full PRD, (B) a PRD-Lite covering Problem, JTBD, and Engineering Effort — expandable to a full PRD later, or (C) a standalone stakeholder pitch?"
+
+**Default to Mode B** when the user says "discovery brief" or "1-pager." Mode C requires explicit "pitch" or "conversation starter" language.
 
 ### Step 1: Gather Context
 
@@ -177,15 +198,25 @@ Dedicated section immediately after JTBD & Requirements. Organized by JTBD — e
 3. Output: [format]
 ```
 
-**2. ASCII Wireframes (conditional)** — Only for complex multi-panel layouts, forms with 5+ fields, or multi-step state machines. Place with the JTBD flow they illustrate.
+**2. ASCII Wireframes (for major interaction patterns)** — Include 3-5 per feature PRD. Use box-drawing characters (┌ ┐ └ ┘ ─ │ ├ ┤). Focus on complex multi-panel layouts, forms with many fields, state machines, and multi-step workflows. Place with the JTBD flow they illustrate.
 
 **Cross-cutting UX (once, after all JTBD flows):**
 
 **3. Information Architecture** — Where feature lives. Containment hierarchy. What doesn't change.
 
 **4. Component Specs (new components only):**
+For each new UI component, define:
+- **States**: all visual states (default, loading, completed, error, empty)
+- **Visual treatment**: background, borders, colors, layout (reference design system tokens)
+- **Interaction behavior**: click, expand, filter, hover
+- **Constraints**: max lines, truncation, scroll behavior
+
 ```
-**ComponentName:** Default: [treatment]. Loading: [treatment]. Error: [treatment]. Click: [behavior]. Constraints: [limits].
+**ComponentName:**
+- [State]: [visual treatment + content layout]
+- [State]: [visual treatment + content layout]
+- Click/expand: [behavior]
+- Constraints: [limits]
 ```
 
 **5. Use Cases Table** — Map scenarios to JTBDs, features, triggers, outputs.
@@ -236,6 +267,6 @@ Use user's template structure. Apply quality patterns regardless. Suggest missin
 ## Edge Cases
 
 - **No data:** Flag honestly as "[Data gap: recommend X research]"
-- **Very early stage:** Focus on Problem + Opportunity. Mark other sections TBD.
+- **Very early stage:** Use Mode B (PRD-Lite) per Step 0.5. Same section structure as full PRD, reduced depth, TBD markers for §3-8.
 - **User pushes back on rigor:** Help identify obtainable metrics. Frame gaps as action items.
 - **Multiple audiences:** Note where detail levels need adjustment.

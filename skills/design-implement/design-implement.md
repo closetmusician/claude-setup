@@ -545,4 +545,47 @@ Detection heuristics:
 - Generate e2e tests (only unit test stubs).
 - Modify the layout shell or global navigation.
 - Handle multi-page flows (one HTML mock = one route).
+
+---
+
+## Phase 7: Handoff Artifact
+
+After Phase 6, write `docs/design-implement-output.md` summarizing what was produced. This artifact serves two purposes: (1) human-readable review of what was scaffolded, (2) machine-readable input for `/eng-planning` when hardening to production.
+
+```markdown
+# Design-Implement Output — {Feature Name}
+
+**Source mock:** {path to HTML mock}
+**Date:** {YYYY-MM-DD}
+**Route:** {Angular route path}
+
+## Component Tree
+{Indented tree of generated components with file paths}
+- `src/features/{feature}/ui/` — page component (smart, NgModule)
+  - `src/libs/{feature}/ui/` — child components (presentational, standalone)
+
+## CSS-to-Atlas Mapping Decisions
+| Mock Token/Value | Atlas SCSS Token | Status |
+|-----------------|-----------------|--------|
+| {hex or CSS var} | {Atlas token} | Matched / TODO / Override |
+
+## Shell Boundary
+- **Skipped:** {list of shell elements identified and excluded}
+- **Content root:** {element used as the content boundary}
+
+## Unresolved Items
+- [ ] API stubs: {list of `// TODO: wire to service` locations with file:line}
+- [ ] Unmatched tokens: {count and list}
+- [ ] Dynamic data: {sections that need real data sources}
+- [ ] i18n: {any ID conflicts or missing translations}
+- [ ] Interactive behavior: {JS interactivity from prototype that needs Angular reimplementation}
+
+## For eng-planning
+When running `/eng-planning` for the production phase, read this file alongside the PRD.
+The component structure is already scaffolded — focus architecture decisions on:
+- API contract design for each `// TODO: wire to service` location
+- State management approach for interactive behaviors listed above
+- Permission model for route guards
+- Error states and loading skeletons
+```
 - Generate state management beyond simple component signals.

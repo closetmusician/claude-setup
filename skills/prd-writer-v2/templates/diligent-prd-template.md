@@ -76,13 +76,16 @@ UX flows live in §3 and reference back by req ID.]
 [...same structure...]
 
 ## Options Analysis (if applicable)
-| Dimension | Option A | Option B (Recommended) |
-|-----------|----------|----------------------|
-| User value | ... | ... |
-| Eng cost | ... | ... |
-| Risk | ... | ... |
+| Dimension | Option A | Option B | Option C (Recommended) |
+|-----------|----------|----------|----------------------|
+| User value | ... | ... | ... |
+| Business value | ... | ... | ... |
+| Eng cost | ... | ... | ... |
+| Risk | ... | ... | ... |
 
-[State the pick and deciding factor. Do NOT restate the table.]
+- **Recommendation:** Option C — [deciding factor]
+- [Key tradeoff bullet]
+- [Key tradeoff bullet]
 
 ---
 
@@ -99,8 +102,10 @@ Don't re-describe requirements — reference by ID.]
 3. [Processing/streaming step]
 4. Output: [format + sections]
 
-### Wireframe: [Component] (if complex layout)
-[Box-drawing chars. Only for multi-panel, 5+ field forms, or state machines.]
+### ASCII Wireframe: [Component/Flow Name]
+[Use box-drawing characters: ┌ ┐ └ ┘ ─ │ ├ ┤
+Show layout, key fields, and interaction affordances.
+Include 3-5 wireframes per feature PRD for major interaction patterns.]
 
 ## JTBD-2: [abbreviated]
 [...same structure...]
@@ -111,7 +116,14 @@ Don't re-describe requirements — reference by ID.]
 [Where feature lives. Containment hierarchy. What doesn't change.]
 
 ### Component Specs (new components only)
-**ComponentName:** Default: [treatment]. Loading: [treatment]. Error: [treatment]. Click: [behavior]. Constraints: [limits].
+**ComponentName:**
+- [Default state]: [visual treatment + content layout]
+- [Loading/Live state]: [expanded by default, animation, spinner location]
+- [Completed state]: [collapsed summary + expand affordance]
+- [Error state]: [visual treatment, error message placement]
+- [Empty state]: [placeholder text, call-to-action]
+- Click/expand: [what happens on interaction]
+- Constraints: [max lines, truncation, scroll behavior]
 
 ### Use Cases Table
 | Use Case | JTBD | Feature | Trigger | Expected Output |

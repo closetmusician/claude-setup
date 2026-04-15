@@ -104,18 +104,26 @@ Flows live inside the JTBD they serve, immediately after relevant requirements. 
 
 **Rules:** Concrete inputs. Include streaming states. Describe system behavior. End with output format.
 
-### ASCII Wireframes — Conditional
-**Only for:** complex multi-panel layouts, forms with 5+ fields, multi-step state machines.
-**Skip for:** simple forms, single-panel views, standard CRUD.
-When included, place inline with the JTBD they illustrate.
+### ASCII Wireframes
+Include 3-5 per feature PRD for major interaction patterns. Use box-drawing characters (┌ ┐ └ ┘ ─ │ ├ ┤). Wireframes should show layout, key fields, and interaction affordances. Focus on complex multi-panel layouts, forms with many fields, state machines, and multi-step workflows. Not every JTBD needs a wireframe. Place inline with the JTBD they illustrate.
 
-### Component Specs — Compact Format
-For new UI components only. One-line-per-component when possible:
+### Component Specs
+For each new UI component, define states and behavior — enough for a developer to implement without asking questions.
+
+**Pattern:**
 ```
-**ComponentName:** Default: [treatment]. Loading: [treatment]. Error: [treatment]. Click: [behavior]. Constraints: [limits].
+**ComponentName:**
+- [Default state]: [visual treatment + content layout]
+- [Loading/Live state]: [expanded by default, animation, spinner location]
+- [Completed state]: [collapsed summary + expand affordance]
+- [Error state]: [visual treatment, error message placement]
+- [Empty state]: [placeholder text, call-to-action]
+- Click/expand: [what happens on interaction]
+- Constraints: [max lines, truncation, scroll behavior]
 ```
 
-Expand to multi-line only for genuinely complex components with 4+ states.
+Reference design system primitives when known (e.g., "shadcn/ui Collapsible, Badge, Card, Tabs").
+Reference design tokens for visual treatment (e.g., "`bg-muted/50`, rounded corners, subtle border").
 
 ### Information Architecture
 Where the feature lives. Containment hierarchy. Navigation changes. What stays the same.
@@ -169,11 +177,20 @@ As shown above, we have 10K users and a CTR of 9.75%...
 ```
 **Good:** Just the table. If it needs explanation, restructure the table.
 
-### Rule: No Editorial Justification in Recommendations
-State the pick and the deciding factor. Cut the advocacy prose.
+### Rule: Options Analysis in Tables with Bullet Summary
+Always present options in a table. Summarize the recommendation with bullets below — no advocacy prose.
 
 **Bad:** "LLMs are the future of intelligent software; shipping rules-only means throwaway infrastructure..."
-**Good:** "Recommendation: Option B (LLM-powered). Only approach enabling draft generation; hallucination risk manageable via structured prompts + human review."
+**Good:**
+```
+| Dimension | Option A | Option B (Recommended) |
+|-----------|----------|----------------------|
+| User value | ... | ... |
+| Eng cost | ... | ... |
+
+- **Recommendation:** Option B — only approach enabling draft generation
+- Hallucination risk manageable via structured prompts + human review
+```
 
 ### Rule: Compact Conditional Notation
 Use inline separators for graduated/conditional logic.
