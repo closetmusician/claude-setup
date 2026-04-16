@@ -1,207 +1,111 @@
-# Quality Patterns for High-Impact PRDs
+# Quality Patterns for High-Impact PRDs (Compact)
 
-These patterns are reverse-engineered from exemplary PRDs and represent the difference between a "fill-in-the-blank" PRD and one that actually moves a team to action.
+Patterns from exemplary PRDs. Includes density rules that cut ~30% without losing rigor.
 
 ## Table of Contents
-1. [Executive Summary Patterns](#executive-summary)
-2. [Problem Definition Patterns](#problem-definition)
+1. [Executive Summary](#executive-summary)
+2. [Problem Definition](#problem-definition)
 3. [Data-Driven Rigor](#data-driven-rigor)
 4. [Differentiation & Prior Art](#differentiation)
 5. [User Experience Depth](#user-experience)
 6. [Engineering Estimation](#engineering)
-7. [Risk & Skepticism Honesty](#risk-and-skepticism)
+7. [Risk & Skepticism](#risk-and-skepticism)
 8. [Opportunity Sizing](#opportunity-sizing)
-9. [Writing Style & Tone](#writing-style)
+9. [Writing Density](#writing-density)
 
 ---
 
-## 1. Executive Summary Patterns <a name="executive-summary"></a>
+## 1. Executive Summary <a name="executive-summary"></a>
 
-A great exec summary does four things in ~100 words:
-- **Names the strategic gap** — what's broken or missing in the market/product
-- **Cites a concrete precedent** — a past signal that this direction has legs
-- **Quantifies the prize** — a specific number for potential impact
-- **States the mechanism** — HOW the product achieves the result, not just WHAT it does
+~100 words. Four jobs: name the gap, cite precedent, quantify the prize, state the mechanism.
 
-**Anti-pattern:** Vague "we will improve the experience" language with no numbers.
-
-**Example pattern:**
-> "[Platform] is becoming too [problem]. [Competitor] is pulling [segment] away. 
-> Learnings from [past experiment] show [mechanism] can work — [evidence: metric].
-> However, [past attempt] suffered from [barriers]. We solve these through [approach].
-> By combining [tactic A] + [tactic B], we can unlock [projected impact]. Let's [call to action]."
-
----
-
-## 2. Problem Definition Patterns <a name="problem-definition"></a>
-
-### User Problems as First-Person Statements
-Frame problems from the user's voice, not the company's. Each problem should be:
-- A real pain point backed by research or data (link to source)
-- Stated as "I [verb]..." not "Users need..."
-- Paired with evidence (research links, quotes, data)
+**Anti-pattern:** "We will improve the experience" with no numbers.
 
 **Pattern:**
+> "[Platform] is becoming too [problem]. [Competitor] pulls [segment] away.
+> [Past experiment] shows [mechanism] works — [metric]. Past [attempt] suffered [barriers].
+> We solve via [approach]. [Tactic A] + [Tactic B] unlocks [projected impact]."
+
+---
+
+## 2. Problem Definition <a name="problem-definition"></a>
+
+### User Problems as Evidence Inside JTBDs
+**Rule:** User pain points belong in the JTBD "Evidence" section, not in a standalone Problem Definition block. This eliminates the #1 source of cross-section redundancy.
+
+Each pain point: first-person voice + evidence.
 ```
-As a user:
-- I [problem statement] (link to supporting research)
-- I [problem statement] (link to data)
-- I [problem statement] (link to user quote/study)
+**Evidence:**
+- "I [pain point]" — [data/research link]
+- "I [pain point]" — [quote/study]
 ```
 
 ### Hypotheses Format
-Each core feature should be stated as a testable hypothesis paired with a KPI measurement table:
+Testable hypothesis + KPI table per JTBD:
 
-**Pattern:**
-> *[Feature name]:* If we [do X], THEN [expected outcome] by [mechanism/reason].
+> *If we [mechanism], THEN [outcome] because [reasoning].*
 
 | | KPI |
 |---|---|
-| **Primary (qual)** | ≥N/M beta users [specific observable behavior or statement] |
-| **Secondary (quant)** | [metric] [threshold] (e.g., ">50% of items receive status update before due date") |
+| **Primary** | [qual for early-stage: ">=3/5 beta users cite X"] |
+| **Secondary** | [quant: ">50% items receive status update before due"] |
 
-This forces clarity on causality AND makes success measurable with concrete thresholds. For early-stage products with few users, qualitative metrics (direct user feedback) are primary — quantitative metrics serve as secondary validation signals. For mature products with instrumentation, flip the priority.
+### Requirement IDs
+Short prefix + number: `AC-1`, `BRF-2`, `AUTH-3`. Enables reference in code, tests, commits.
 
-### Numbered Requirement IDs
-Every requirement gets a short prefix ID (2–3 letters from the feature name) + sequential number:
-- Enables direct reference in code comments, test names, and commit messages
-- Maps 1:1 to TDD test cases
-- Makes PRD reviews traceable ("Does INF-3 handle the edge case where...?")
-
-**Pattern:** `PREFIX-N: Descriptive name` — followed by numbered behavior descriptions.
-
-### Numbered Behavior Descriptions (replacing AC format)
-Each P0/P1 requirement gets a priority label and numbered behavior descriptions. Each numbered item is an observable system behavior that maps to one test case:
+### Behavior Descriptions
+Each P0/P1 requirement gets numbered behaviors mapping to test cases:
 ```
 **REQ-1: Name** (P0)
-[1-paragraph scope description explaining what this requirement does,
-how it works, and key technical details.]
-1. [Observable system behavior with concrete values — maps to one test case]
-2. [Another behavior — happy path]
-3. [Error/validation behavior]
-4. [Edge case or boundary condition]
+[Scope paragraph.]
+1. [Observable system behavior with concrete values]
+2. [Happy path]
+3. [Error/edge case]
 ```
 
-**Rules:**
-- Each numbered item describes what the system does (observable behavior), not what the user does
-- Use concrete values: field names, max lengths, valid states, sort orders ("≤200 words", "returns empty list", "status transitions: queued → running → succeeded")
-- Reference API shapes, DB columns, or UI states when known
-- Each numbered item is independently falsifiable — a developer can write a failing test for any single item without asking questions
-- State transitions should enumerate valid paths
-- Order: happy path first, then error/validation, then edge cases/boundary conditions
+**Rules:** Observable system behavior (not user action). Concrete values. Independently falsifiable. Happy path first, then errors, then edge cases.
+
+**Minimum count:** Every P0 requirement must have ≥2 numbered behaviors. If you can't identify at least 2 observable behaviors, the requirement is too vague — split or rewrite it.
 
 ---
 
 ## 3. Data-Driven Rigor <a name="data-driven-rigor"></a>
 
-Every claim in a strong PRD is backed by one of:
-- **Internal experiment data** — past A/B tests, pilot results, metrics
-- **Analogous product data** — similar features on the same or competing platforms
-- **User research** — qualitative studies, surveys, interviews
-- **Market data** — industry benchmarks, competitor metrics
+Every claim backed by: internal data, analogous product data, user research, or market data.
 
-### Quantification Rules
-- Never say "significant improvement" — say "+1.65% SS OESPD"
-- Never say "good engagement" — say "click through rate of 9.75%"
-- Never say "some users liked it" — say "380K stories created"
-- Always include confidence intervals or stat sig markers when available (e.g., "0.035±0.062")
-- When projecting, show the math: "[base metric] × [conversion rate] = [projected outcome]"
-
-### Comparison Tables with Metrics
-When referencing past experiments or competing approaches, use a structured comparison:
-
-| Approach | Result | Why it matters |
-|----------|--------|---------------|
-| [Past experiment A] | [Specific metric] | [Learning] |
-| [Past experiment B] | [Specific metric] | [Learning] |
+**Quantification rules:**
+- Never "significant improvement" — say "+1.65% OESPD"
+- Never "good engagement" — say "9.75% CTR"
+- Show projection math: `[base] x [rate] = [outcome]`
+- Include confidence intervals when available
 
 ---
 
 ## 4. Differentiation & Prior Art <a name="differentiation"></a>
 
-Strong PRDs are brutally honest about what's been tried before. The pattern:
+**Prior Attempts Table:** Rows = attempts. Columns = "How different?" + "Why worth trying."
 
-### Prior Attempts Table
-Create a comparison matrix showing:
-- **Rows**: Each past attempt or competing approach
-- **Columns**: "How is this different?" and "Why it's worth trying"
-
-This forces the author to articulate exactly what's novel — not just "we're doing it better" but specifically what mechanism is different.
-
-### "Reasons to Be Skeptical" Section
-An exceptional PRD includes an explicit section on why this might NOT work, with:
-- What went wrong in past attempts (with links/data)
-- Why each failure doesn't apply here (or does)
-- Honest assessment of remaining risks
-
-This builds credibility and shows the PM has done their homework.
+**"Reasons to Be Skeptical":** What went wrong before. Why each failure doesn't apply (or does). Honest remaining risks.
 
 ---
 
 ## 5. User Experience Depth <a name="user-experience"></a>
 
-A PRD's UX section should be sufficient for frontend implementation without Figma mockups. It has five layers:
+**Rule:** UX detail is distributed, not centralized.
+
+### Interaction Flows — Inline with JTBDs
+Flows live inside the JTBD they serve, immediately after relevant requirements. Compact numbered steps:
+```
+1. User [trigger with concrete example]
+2. System [response] — [visual note]
+3. [Streaming/processing]
+4. Output: [format], sections: [list]
+```
+
+**Rules:** Concrete inputs. Include streaming states. Describe system behavior. End with output format.
 
 ### ASCII Wireframes
-For major interaction patterns (3-5 per feature PRD), include ASCII wireframe diagrams inline with the JTBD they illustrate. Use box-drawing characters (┌ ┐ └ ┘ ─ │ ├ ┤). Wireframes should show layout, key fields, and interaction affordances. Not every JTBD needs a wireframe — focus on complex multi-panel layouts, forms with many fields, state machines, and multi-step workflows.
-
-**Pattern:**
-```
-┌─────────────────────────────────────────┐
-│ Component Title                      ×  │
-├─────────────────────────────────────────┤
-│ ┌─────────────┐  ┌─────────────────┐   │
-│ │ Left Panel  │  │ Right Panel     │   │
-│ │ - Item 1    │  │ [Detail view]   │   │
-│ │ - Item 2    │  │                 │   │
-│ │ - Item 3    │  │ [Field: _____ ] │   │
-│ └─────────────┘  │ [Field: _____ ] │   │
-│                  │                 │   │
-│                  │  [Save] [Cancel]│   │
-│                  └─────────────────┘   │
-└─────────────────────────────────────────┘
-```
-
-Wireframes complement interaction flows by showing spatial layout. Place them inline with the JTBD they illustrate, immediately after the relevant interaction flow.
-
-### Information Architecture
-Define where the feature lives and how it relates to existing navigation:
-- **Containment hierarchy** (top → bottom): what contains what
-- **Navigation additions**: new tabs, sidebar items, routes — and what does NOT change
-- **Cross-cutting concerns**: features accessible from multiple entry points
-
-**Pattern:**
-```
-**Hierarchy (top → bottom):**
-1. [Existing container] — [description]
-2. [Existing/new element] — [description, how it nests]
-3. [New element] — [description, what it contains]
-
-**Navigation additions:**
-- [New nav item] in [location] — [what it surfaces]
-- No new [things that don't change]
-```
-
-### Interaction Flows (Per Feature)
-Write a separate numbered flow for each major user journey. These replace vague "producer/consumer flow" descriptions with concrete step-by-step sequences.
-
-**Pattern:**
-```
-### Interaction Flow: [Feature Name]
-1. User [trigger action with concrete example: `@briefcase prep me for Thursday's meeting`]
-2. [System response] — [visual treatment: "Agent working..." indicator with subtle animation]
-3. [Real-time step: SSE events stream in, each step as a collapsible row...]
-4. [Processing/intermediate state]
-5. Final output renders as [format] with sections: [list each section]
-6. [Post-output action if applicable]
-```
-
-**Rules for good interaction flows:**
-- Use concrete example inputs, not placeholders
-- Include real-time/streaming states where applicable
-- Describe what the system does at each step, not just what the user sees
-- Note visual treatment briefly (animation, loading states, expansion behavior)
-- End with the final output format and any post-output actions
+Include 3-5 per feature PRD for major interaction patterns. Use box-drawing characters (┌ ┐ └ ┘ ─ │ ├ ┤). Wireframes should show layout, key fields, and interaction affordances. Focus on complex multi-panel layouts, forms with many fields, state machines, and multi-step workflows. Not every JTBD needs a wireframe. Place inline with the JTBD they illustrate.
 
 ### Component Specs
 For each new UI component, define states and behavior — enough for a developer to implement without asking questions.
@@ -221,85 +125,92 @@ For each new UI component, define states and behavior — enough for a developer
 Reference design system primitives when known (e.g., "shadcn/ui Collapsible, Badge, Card, Tabs").
 Reference design tokens for visual treatment (e.g., "`bg-muted/50`, rounded corners, subtle border").
 
-### Use Case Table
-Map concrete use cases to features, triggers, and expected outputs:
+### Information Architecture
+Where the feature lives. Containment hierarchy. Navigation changes. What stays the same.
 
+### Use Case Table
 | Use Case | Feature | Trigger | Expected Output |
 |---|---|---|---|
-| [Scenario name] | [Which feature] | [Exact user input example] | [What the system produces] |
-
-This replaces the older hypothesis-mapped table with a more actionable format that includes the trigger (what the user actually types/clicks) and the expected output (what the system produces).
-
-### Learnings-to-Solutions Mapping
-For products building on past attempts, create a funnel analysis showing:
-- Each step in the user journey
-- Current metric at that step
-- Identified barrier
-- How the new approach solves it
 
 ---
 
 ## 6. Engineering Estimation <a name="engineering"></a>
 
-### Prioritized Estimation Tables
-Break estimates into P0 (MVP) and P1+ (future), with:
-- Individual component breakdown
-- Backend vs. Client split
-- Total with ranges (not single numbers)
-- Staffing needs stated explicitly
-
-**Pattern:**
-| Component | Eng Weeks | Backend vs. Client |
-|-----------|-----------|-------------------|
-| [Specific component] | [Range] | [Split] |
-| **Total** | **[Range]** | **[Summary]** |
-
-*Eng Needed: [specific roles and count]*
-
-### Barriers Section
-After estimates, explicitly call out risks to the timeline:
-- Platform dependencies
-- Team dependencies
-- Known unknowns
+P0 (MVP) and P1+ tables. Component breakdown. Backend vs. client. Ranges, not points. Staffing + barriers.
 
 ---
 
-## 7. Risk & Skepticism Honesty <a name="risk-and-skepticism"></a>
+## 7. Risk & Skepticism <a name="risk-and-skepticism"></a>
 
-### Cons/Risk Section
-Every PRD should have an explicit section covering:
-- Operational risks (maintenance burden, content creation overhead)
-- Technical risks (scaling, dependencies)
-- Strategic risks (cannibalizing other features, user fatigue)
-- Proposed mitigations for each
-
-### Out of Scope
-Explicitly state what you are NOT doing. This prevents scope creep and sets expectations.
+**Risks:** Operational, technical, strategic — each with mitigation. Table format.
+**Out of Scope:** What you're NOT doing. One line per item with rationale.
 
 ---
 
 ## 8. Opportunity Sizing <a name="opportunity-sizing"></a>
 
-### Evidence Pyramid
-Build the case with multiple layers:
-1. **Direct signals** — metrics from the exact product/feature being proposed
-2. **Adjacent signals** — metrics from similar features on the same platform
-3. **Cross-platform signals** — metrics from competitors doing something similar
-4. **Research signals** — qualitative research supporting the direction
-
-### Projection Math
-Show the derivation:
-> "We can unlock [X] from [channel A] and at [conversion rate] (as seen with [precedent]), 
-> an additional [Y] from [channel B]."
+**Evidence Pyramid:** Direct signals -> Adjacent signals -> Cross-platform -> Research.
+**Projection math:** Show derivation. `[base] from [channel] at [rate] (per [precedent]) = [outcome]`.
 
 ---
 
-## 9. Writing Style & Tone <a name="writing-style"></a>
+## 9. Writing Density <a name="writing-density"></a>
 
-- **Confident but honest** — State convictions clearly, acknowledge uncertainties explicitly
-- **Link-dense** — Every claim should link to its source (research, data, past experiments)
-- **Specific over general** — "380K stories created" not "strong engagement"
-- **Action-oriented** — End sections with what happens next, not just what is
-- **Narrative thread** — The PRD should tell a story: problem → evidence → solution → projected impact
-- **Use the user's voice** — Quote user research directly when available
-- **Future vision teaser** — End with where this could go if successful, creating excitement without over-promising
+These rules target the specific verbosity patterns found in PRD output.
+
+### Rule: Describe Once, Reference by ID
+Every behavior, flow, or rule has ONE canonical location. All other mentions reference by ID.
+
+**Bad:** Describing the same copy-review workflow in AC-2B, then again in "Interaction Flow: Enhanced Copy," then again in Business Rules.
+**Good:** Full spec in AC-2B. Interaction flow says `-> See AC-2B for full behavior.` Business rule says `(per AC-2B)`.
+
+### Rule: Tables Speak for Themselves
+Never follow a table with prose restating its contents.
+
+**Bad:**
+```
+| Metric | Value |
+| Users | 10K |
+| CTR | 9.75% |
+
+As shown above, we have 10K users and a CTR of 9.75%...
+```
+**Good:** Just the table. If it needs explanation, restructure the table.
+
+### Rule: Options Analysis in Tables with Bullet Summary
+Always present options in a table. Summarize the recommendation with bullets below — no advocacy prose.
+
+**Bad:** "LLMs are the future of intelligent software; shipping rules-only means throwaway infrastructure..."
+**Good:**
+```
+| Dimension | Option A | Option B (Recommended) |
+|-----------|----------|----------------------|
+| User value | ... | ... |
+| Eng cost | ... | ... |
+
+- **Recommendation:** Option B — only approach enabling draft generation
+- Hallucination risk manageable via structured prompts + human review
+```
+
+### Rule: Compact Conditional Notation
+Use inline separators for graduated/conditional logic.
+
+**Bad (4 lines):**
+```
+- First 3 agendas: full wizard with onboarding tooltips
+- Agendas 4-10: streamlined quick start, no tooltips
+- After 10: wizard offered via button only, not auto-triggered
+- Idle nudge disabled after 3 consecutive dismissals
+```
+**Good (1-2 lines):**
+```
+Agendas 1-3: full wizard + tooltips | 4-10: quick start | >10: button-only.
+Idle nudge disabled after 3 dismissals. User override in settings.
+```
+
+### Rule: Scope Paragraphs Are Tight
+Requirement scope paragraphs explain what + how in 2-3 sentences max. Implementation minutiae (LLM temperature, JSON schema shapes, UI micro-interactions) belong in Business Rules or Data Model, not scope paragraphs.
+
+### Rule: Out of Scope Is One Line Each
+**Bad:** "Cross-org intelligence — V1 uses org-specific history only. Anonymized cross-org patterns (leveraging Diligent's dataset) is a future exploration pending legal/privacy review."
+**Good:** "Cross-org intelligence — future; pending legal/privacy review."

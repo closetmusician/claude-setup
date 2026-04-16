@@ -42,8 +42,8 @@ one sentence on what's different this time.
 - **Effort:** [T-shirt size: S/M/L/XL with brief justification]
 
 ## Key Risks (2-3 max)
-- Risk 1 → Mitigation
-- Risk 2 → Mitigation
+- Risk 1 -> Mitigation
+- Risk 2 -> Mitigation
 
 ## Open Questions
 - [ ] Question that needs answering before committing to a full PRD
