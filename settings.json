@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/git-safety-hook.sh"
+            "command": "~/.claude/scripts/git-safety-hook.sh"
           }
         ]
       }
@@ -41,11 +41,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "terminal-notifier -title 'Claude Code' -message 'Task finished' -sound default"
+            "command": "~/.claude/scripts/notify.sh 'Task finished' default"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/auto-journal.sh"
+            "command": "~/.claude/scripts/auto-journal.sh"
           }
         ]
       }
@@ -56,7 +56,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/pm-send-synthesize-hook.sh"
+            "command": "~/.claude/scripts/pm-send-synthesize-hook.sh"
           }
         ]
       }
@@ -67,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "terminal-notifier -title 'Claude Code' -message 'Needs your input' -sound Basso"
+            "command": "~/.claude/scripts/notify.sh 'Needs your input' Basso"
           }
         ]
       }
@@ -75,7 +75,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/Users/yklin/.claude/scripts/statusline.sh"
+    "command": "~/.claude/scripts/statusline.sh"
   },
   "enabledPlugins": {
     "superpowers@superpowers-marketplace": true,
