@@ -19,7 +19,7 @@
 11. **R10 QA No-Edit** -- QA NEVER edits implementation code; only writes QA artifacts.
 12. **R11 Review Snapshot** -- Coder commits `qa/FEAT-XXX/T-XXX-ready-for-review.md` with `ReviewCommit:<SHA>`; QA reviews that SHA.
 13. **R12 STOP Boundaries** -- Each subagent produces artifact(s) then STOPs. Orchestrator decides next spawn.
-14. **R13 N=1 Escalation** -- After 1 failed fix cycle, STOP and ask Yu-Kuan.
+14. **R13 N=1 Escalation** -- After 1 failed fix cycle, STOP and ask the user.
 15. **R14 Orchestrator Non-Implementation** -- Orchestrator coordinates + merges; never implements.
 16. **R15 History Rewrite Lock** -- Once any review artifact exists: no rebase, no force-push; only append commits.
 17. **R16 User Approval Gates** -- Confirm via `AskUserQuestion` before parallel execution, PR creation, final merge, or skipping a task.

@@ -45,5 +45,5 @@ Root cause only — no symptom fixes/workarounds.
 ## Memory & Tools
 - Issue tracking: use TodoWrite. Never discard tasks without approval.
 - Journal frequently: insights, failed approaches, decisions, unrelated bugs.
-- Search journal before complex tasks. Document architectural decisions. Track patterns in Yu-Kuan's feedback.
+- Search journal before complex tasks. Document architectural decisions. Track patterns in user feedback.
 - Log unrelated bugs in journal instead of fixing immediately.
