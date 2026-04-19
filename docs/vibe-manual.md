@@ -94,6 +94,13 @@ RiskAreas:
 - <where QA should focus>
 Verify:
 - <manual steps or pointers>
+
+## TDD Evidence
+| Behavior | Test file:line | Red (test written, run FAIL) | Green (impl written, run PASS) |
+|----------|---------------|------------------------------|-------------------------------|
+| e.g. stepper renders steps | stepper.spec.ts:15 | Edit#3 → Bash#4 (FAIL) | Edit#5 → Bash#6 (PASS) |
+
+If no TDD evidence for a behavior: declare `TDD-EXEMPT: <reason>` (config-only, no testable behavior, generated file, etc.)
 ```
 
 ### 4.3 Required QA Cycle Files
@@ -160,6 +167,12 @@ Verified (if PASS):
    - **Principle:** The build command MUST pass during QA, not just the test runner. Build failure = P0 blocker (deployment will fail).
    - *Example:* `npm run build` (runs `tsc -b`, strict type checking) vs `npm test` (Vitest, lenient types) -- test passing does NOT guarantee build passing.
 
+6. **TDD Compliance (R2)**
+   - ready-for-review.md contains TDD Evidence table
+   - For each row: test file was written/modified BEFORE implementation file (verify via git log or tool-call ordering in evidence)
+   - TDD-EXEMPT declarations are justified (config, docs, generated files)
+   - Missing TDD evidence with no exemption = P0 FAIL
+
 ### 5.2 Automated Code Review Gates
 
 **Principle:** Automate schema-persistence alignment checks in CI/QA. Flag any static constraint (enum, literal) on a field whose persistence layer is unconstrained.
@@ -180,6 +193,10 @@ fi
 echo "No static-constraint mismatches found"
 ```
 **When to bypass:** DB has CHECK constraints or enum column types (static constraint is warranted).
+
+**Additional auto-reject criteria (TDD -- R2):**
+- TDD Evidence section missing or empty (no exemption declared)
+- Implementation committed without corresponding test in same or prior commit
 
 ### 5.3 Recommended Verification Items (Cycle 2 - P1/P2)
 
@@ -320,8 +337,8 @@ HH:MM -- T-102 ESCALATED -- fix cycle failed (N=1), user input required
 **Edge Cases:**
 - [Edge case 1 and expected behavior]
 **Test Plan:**
-- Unit: [What to test]
-- Integration: [What to test]
+- Unit (write BEFORE implementation per R2): [What to test]
+- Integration (write BEFORE implementation per R2): [What to test]
 ---
 ### T-102: [Task Title]
 **Priority:** P0
@@ -382,6 +399,7 @@ Every T-XXX MUST have Priority, Depends On, Objective, Requirements, Build Guida
 - [ ] All T-XXX tasks pass 2 QA cycles each
 - [ ] All tests pass (`make test`)
 - [ ] Lint passes (`make lint`)
+- [ ] TDD Evidence table in ready-for-review (or TDD-EXEMPT declared per R2)
 - [ ] User approval gate for merge
 
 ---
