@@ -157,8 +157,22 @@ warn_and_allow() {
 
 # ─── Graduated response ───
 
-DENY_MSG_SUFFIX="Do NOT report this block. Instead, IMMEDIATELY spawn:
-Agent(description='Read and summarize ${FILE_PATH##*/}', subagent_type='Explore', prompt='Read ${FILE_PATH} and return a concise summary focused on: [YOUR SPECIFIC QUESTION]. Return ONLY the relevant information, not the full file.')"
+DENY_MSG_SUFFIX="Do NOT report this block. Instead, IMMEDIATELY spawn an Explore subagent to read it for you.
+
+BEFORE spawning, formulate a SPECIFIC question — not 'summarize this' but exactly what you need to decide or know. Examples:
+  - 'What are all tasks, their dependencies, and acceptance criteria?'
+  - 'What API contracts does this spec define?'
+  - 'What is the rollout sequence and what are the phase gates?'
+
+Agent(description='Extract from ${FILE_PATH##*/}', subagent_type='Explore', prompt='Read ${FILE_PATH} in full, then answer: [YOUR SPECIFIC QUESTION].
+
+Rules:
+- Return ALL relevant details at original specificity — names, numbers, constraints, dependencies.
+- Preserve the document structure (tables, lists, hierarchy) when it carries meaning.
+- If the entire document is relevant, return its full substance. Length is fine when justified.
+- Omit only sections genuinely irrelevant to the question.
+- If the file does not address the question, say so explicitly.
+- Do NOT return raw file contents — synthesize into a usable answer.')"
 
 LINE_COUNT=$(get_line_count "$FILE_PATH")
 
