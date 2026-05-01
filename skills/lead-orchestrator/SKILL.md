@@ -44,6 +44,16 @@ Read `.claude/phase.json` for `"vibe_level"` (default `"full"` if absent):
 
 ---
 
+## Governance Activation
+
+Before spawning any subagent, activate governance enforcement:
+
+```bash
+touch ~/.claude/scripts/governance/state/.active
+```
+
+This enables the pre-agent-gate (validates prompt structure), post-agent-audit (checks evidence coverage), and role-enforcement (blocks orchestrator writes) hooks. Without this file, all governance hooks are no-op.
+
 ## Pre-Spawn Gates (Before ANY Subagent)
 
 ### Gate 1: Spec Context Injection
@@ -57,7 +67,8 @@ Read `.claude/phase.json` for `"vibe_level"` (default `"full"` if absent):
    - **Skills:** [skill1, skill2] (from registry)
    - **Schemas:** [schema/path.yaml] (from registry)
    ```
-4. If no matching spec found: add `NO_SPEC_REQUIRED` with explanation, or escalate
+4. If no matching spec found: create a lightweight doc in `docs/` or use an existing `docs/*.md` file. `NO_SPEC_REQUIRED` alone will fail the pre-agent-gate — always include a `docs/*.md` reference.
+5. Fill governance sections from template: each template in `templates/` includes `## Requirement Map` and `## Constraints` placeholders. Fill `{REQUIREMENT_MAP_JSON}` with a valid requirement map (task_id + requirements array with req_id/what/done_when/escalate_if/source per item). Fill `{ESCALATION_CONDITIONS}` with task-specific escalation triggers. Do NOT omit these sections — the pre-agent-gate hook will block the spawn.
 
 ### Gate 2: Per-Task Architect
 
@@ -139,9 +150,64 @@ At `light` level: brief inline check. At `full` level: document in QA artifact.
 
 ---
 
-## Subagent Prompts
+## Subagent Prompts — MANDATORY Template Protocol
 
-Read the template file, fill all `{PLACEHOLDERS}`, spawn via Task tool.
+HARD STOP: You MUST use the Read tool to load each template from `templates/`
+and use its full content as the subagent prompt. HAND-CRAFTING PROMPTS IS
+FORBIDDEN. The pre-agent-gate hook WILL reject prompts missing required sections.
+
+### What the governance hooks validate
+
+The `pre-agent-gate.sh` hook checks THREE things in every subagent prompt. ALL must pass or the spawn is blocked:
+
+| Check | What it looks for | Regex/pattern |
+|-------|-------------------|---------------|
+| CHECK 1: Mandatory Context | `## Mandatory Context` header with at least one spec ref | `docs/.*\.md` or `REQ-[0-9]+` |
+| CHECK 2: Requirement Map | Fenced ` ```json ` code block with valid structure | `task_id` (string) + `requirements[]` array, each with `req_id`, `what`, `done_when`, `escalate_if`, `source` (all non-empty strings) |
+| CHECK 3: Constraints | `## Constraints` header with non-empty body | Any non-whitespace text under the header |
+
+The `post-agent-audit.sh` hook then checks the subagent OUTPUT for evidence matching each `req_id`. Subagents must include `REQ-XX: <evidence>` lines.
+
+### Template loading protocol
+
+1. **Read the template:** Use the Read tool on `templates/{role}-prompt.md`
+2. **Fill ALL `{PLACEHOLDERS}`** with actual values (see placeholder reference below)
+3. **Verify before spawning:** (a) `docs/*.md` path present in Mandatory Context, (b) valid JSON in requirement map fenced block, (c) non-empty Constraints section
+4. **Spawn via Agent tool** with the filled prompt
+
+### Placeholder reference
+
+| Placeholder | What to fill | Example |
+|-------------|-------------|---------|
+| `{SPEC_PATH}` | Path to relevant spec — MUST be `docs/*.md` format | `docs/pm-reporting.md` |
+| `{REQUIREMENT_MAP_JSON}` | Valid JSON object (see example below) | See below |
+| `{ESCALATION_CONDITIONS}` | Task-specific escalation triggers | `Auth fails after retry` |
+| `T-XXX` | Task identifier | `T-001` |
+| `FEAT-XXX` | Feature identifier | `FEAT-001` |
+
+### Valid requirement map example
+
+```json
+{
+  "task_id": "T-001",
+  "requirements": [
+    {
+      "req_id": "REQ-001",
+      "what": "Add input validation to login endpoint",
+      "done_when": "Login rejects empty email with 400 status and descriptive error",
+      "escalate_if": "Auth module structure unclear or conflicts with SSO flow",
+      "source": "docs/auth-spec.md — section 2.1 input validation"
+    }
+  ]
+}
+```
+
+### When no spec exists for the task
+
+If the task has no formal spec, you MUST still provide a `docs/*.md` reference — the hook enforces this. Options:
+- Use an existing doc: `docs/pm-reporting.md`, `docs/backlog.md`, or similar context doc
+- Create a lightweight task doc in `docs/` first, then reference it
+- NEVER rely on `NO_SPEC_REQUIRED` alone — it will not pass CHECK 1
 
 | Subagent | Template | Type |
 |----------|----------|------|

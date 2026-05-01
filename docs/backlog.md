@@ -181,3 +181,31 @@ Reference data from the audit (not actionable items, but context for prioritizat
 - **Tool mix**: Bash 54%, Read 14%, Edit 9%. 8% error rate (72% are Command Failed).
 - **Streaming stalls**: 14 of 30 recent sessions had stalls, worst = 440 seconds. Server-side.
 - **Total disk**: 3.7 GB. projects/ = 2.8 GB, plugins/ = 593 MB, debug/ = 302 MB.
+
+---
+
+## PRD-Writer Skill Improvements (from A/B test, 2026-04-16)
+
+Context: A/B tested prd-writer v1 (verbose) vs v2 (compact) on Agenda Coach PRD using identical input. v2 promoted to canonical `/prd-writer`. These are gaps the compact variant should address.
+
+### P1 — Skill instruction changes
+
+- [ ] **PW-01: Require finer-grained requirement decomposition.** v1 split AC-2B into 3 sub-ACs (AC-2B-1, AC-2B-2, AC-2B-3) with 34 total behaviors. v2 merged into 1 AC-2B block with 9 behaviors. Add instruction: "Split requirements touching multiple system boundaries into sub-ACs. Each sub-AC should map to one handler/component."
+- [ ] **PW-02: Add guardrail metrics to hypothesis template.** v1 hypotheses included guardrails (abandonment must NOT increase, load time must NOT regress >200ms, LLM cost <=\$5/org/month). v2 only had target + secondary. Update hypothesis template to require `| Guardrail | [must NOT regress metric] |`.
+- [ ] **PW-03: Require "Reasons to Be Skeptical" section.** v1 had a dedicated self-critical section challenging its own premises. v2 folded skepticism into the risk table (weaker). Add to template: after Differentiation, include "Reasons to Be Skeptical" — what could make this fail, why prior attempts didn't work, and honest remaining risks.
+- [ ] **PW-04: Require cost quantification for API/infra features.** v1 estimated $30K-60K/yr LLM cost with per-org cap math. v2 mentioned rate limiting but never sized the cost. Add instruction: "For features with per-request external API costs, include cost projection in Opportunity Size or Risk: [volume] × [cost/request] = [annual estimate]."
+- [ ] **PW-05: Require data boundary appendix for LLM/AI features.** v1 included Appendix B enumerating every field sent/not-sent to the LLM. v2 had one line in business rules. Add instruction: "For features sending data to external AI services, include a Data Boundary table: field name, sent (yes/no), rationale."
+
+### P2 — Output quality nudges
+
+- [ ] **PW-06: Strengthen user voice.** v1 used direct user quotes ("I draft the agenda in Word because..."). v2 defaulted to corporate JTBD phrasing ("As a busy board secretary, I need..."). Add to quality-patterns.md: "Evidence section must include at least 1 direct user quote per JTBD. Never paraphrase into corporate voice."
+- [ ] **PW-07: Reference design artifacts.** v1 included paths to approved mockup files. v2 omitted design references entirely. Add to template §3 UX Flows: "Link to Figma, mockup files, or note WIP status. If approved mockups exist, include file paths."
+- [ ] **PW-08: Inline response schemas for API features.** v1 defined CopyReviewOutput fields inline (4 named arrays, rationale max length, analysisId). v2 said "4 color-coded sections" without field names. Add instruction: "P0 requirements with API responses must name the response fields and types inline — don't defer to a separate contract doc that may not exist yet."
+- [ ] **PW-09: Specify lookback windows and query parameters.** v1 specified "24-month lookback, max 10 agendas, 2 preceding for trend." v2 said "source agenda" without specifying bounds. Add to quality-patterns.md behavior rules: "Data queries must specify time window, result limit, and sort order."
+
+### Resolved (kept in v2, no action needed)
+
+- [x] **stop_reason handling** — v2 was the only one that specified LLM stop_reason rejection. Already in v2.
+- [x] **Progressive dampening concept (AC-5)** — v2 described the graduated wizard frequency. Already in v2.
+- [x] **Step 2 wireframe** — v2 included ASCII wireframe for wizard Step 2 that v1 lacked. Already in v2.
+- [x] **Density rules (describe once, tables speak)** — v2's core differentiator. Already in v2.

@@ -42,6 +42,18 @@ Root cause only — no symptom fixes/workarounds.
 3. Hypothesize: single hypothesis → minimal test → verify.
 4. Fix: simplest failing test first. ONE fix at a time. Re-analyze on failure.
 
+## Registry-First File Operations
+Before writing ANY code that touches files, Office documents, or external services:
+1. Check `tool-registry.md` for the operation.
+2. Produce a visible audit block in your output:
+   ```
+   REGISTRY CHECK: [operation] → [matched tool or NO MATCH]
+   ```
+3. If a match exists, that tool is the implementation. Period.
+4. If no match, state "NO MATCH" and ask before writing custom code.
+
+Skipping this check is a protocol violation on the same level as skipping TDD.
+
 ## Memory & Tools
 - Issue tracking: use TodoWrite. Never discard tasks without approval.
 - Journal frequently: insights, failed approaches, decisions, unrelated bugs.

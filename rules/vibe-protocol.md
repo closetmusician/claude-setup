@@ -8,11 +8,11 @@
 
 1. **R0 Zero Assumption** -- Never guess requirements. `AskUserQuestion` until explicit confirmation.
 2. **R1 Spec Wall** -- No code without an approved spec in `docs/`.
-3. **R2 TDD** -- No implementation without a corresponding failing test.
+3. **R2 TDD** -- Red-Green-Refactor mandatory. Write failing test FIRST, then minimal implementation to pass. Document evidence in ready-for-review TDD Evidence table (see manual SS4.2). No evidence + no TDD-EXEMPT declaration = P0 auto-reject.
 4. **R3 Mock-First Parallelism** -- FE agents MUST mock API responses (conforming to contract per R7). Never block on BE.
 5. **R4 2 QA Cycles** -- No merge without 2 documented review passes.
 6. **R5 Phase Gates** -- Respect `.claude/phase.json`; no code until phase = `BUILD`.
-7. **R6 Auto-Commit** -- `git add -A && git commit && git push` after every task completion.
+7. **R6 Auto-Commit** -- `git add -A && git commit && git push` after every task completion. RED/GREEN micro-commits within a task are encouraged (R2 evidence); ReviewCommit SHA (R11) is the final commit.
 8. **R7 Contract-First** -- Before BUILD, Architect produces `docs/contracts/<feature>.md` (data models, SSE schemas, endpoints, field names). All agents reference this. No inventing field names.
 9. **R8 Per-Task Subagents** -- Dedicated subagent pairs per T-XXX (not per feature); prevents context exhaustion.
 10. **R9 Role Separation** -- Coder and QA MUST be separate subagents.
@@ -95,7 +95,7 @@ Set `"vibe_level"` in `.claude/phase.json`. Default: `"full"`.
 
 **Invoke IN ORDER:** `superpowers:test-driven-development` -> `superpowers:verification-before-completion`
 
-Steps: Context load -> Dependency check (R17) -> Follow Build Guidance -> TDD loop -> Real testing (R18) -> Output `T-XXX-ready-for-review.md` with `ReviewCommit:<SHA>` (R11).
+Steps: Context load -> Dependency check (R17) -> Follow Build Guidance -> For each behavior: write failing test (RED) -> run test (confirm FAIL) -> write minimal implementation (GREEN) -> run test (confirm PASS) -> refactor -> Real testing (R18) -> Output `T-XXX-ready-for-review.md` with TDD Evidence table and `ReviewCommit:<SHA>` (R11).
 
 ### 3.4 QA Auditor
 **Trigger:** Developer claims T-XXX complete. QA NEVER edits implementation code (R10).
@@ -103,7 +103,7 @@ Steps: Context load -> Dependency check (R17) -> Follow Build Guidance -> TDD lo
 **Invoke IN ORDER:** `garry-review` -> `feature-dev:code-reviewer` -> `/qa`
 **Also read:** `~/.claude/docs/vibe-manual.md` SS5 (QA verification checklist + automated review gates).
 
-**Auto-Reject (P0):** mock on internal module | no SavepointConnection | test without real path | uncaptured warnings (P1) | entire core dependency mocked
+**Auto-Reject (P0):** mock on internal module | no SavepointConnection | test without real path | uncaptured warnings (P1) | entire core dependency mocked | missing TDD Evidence (no exemption)
 **Severity:** P0 = must fix. P1 = should fix, escalate if stuck. P2 = log to `docs/backlog.md`.
 
 **2 cycles, sequential** (C1 must PASS before C2):
@@ -130,7 +130,7 @@ Subagents share NO context -- communication via committed artifacts under `qa/FE
 ```
 For each T-XXX (respecting depends_on):
   1. ARCHITECT (skip if trivial): spawn code-architect -> file-level design -> STOP
-  2. CODER: spawn feature-dev -> TDD -> T-XXX-ready-for-review.md -> STOP
+  2. CODER: spawn subagent using superpowers:test-driven-development to write failing test -> then do R/G TDD -> T-XXX-ready-for-review.md -> then superpowers:verification-before-completion -> STOP.
   3. QA C1 (P0 gate): spawn code-reviewer -> garry-review + code-reviewer + /qa
      -> T-XXX-cycle-1.md -> STOP
   4. IF C1 FAIL: fix -> re-run C1 -> if still fail ESCALATE (N=1)

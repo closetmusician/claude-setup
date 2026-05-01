@@ -1,4 +1,11 @@
 <!-- ABOUTME: Prompt template for Test Writer subagent. Read and fill placeholders before spawning. -->
+<!-- GOVERNANCE COMPLIANCE: This template satisfies pre-agent-gate.sh checks:
+     CHECK 1 (Mandatory Context): Orchestrator fills {SPEC_PATH} with a docs/*.md path
+     CHECK 2 (Requirement Map): Orchestrator fills {REQUIREMENT_MAP_JSON} with valid JSON
+       Required fields per requirement: req_id, what, done_when, escalate_if, source (all non-empty strings)
+     CHECK 3 (Constraints): Non-empty constraints section below
+     POST-AUDIT: Subagent must output "REQ-XX: <evidence>" lines for each req_id in the map
+-->
 **Status:** Pending
 <!-- Agent: Update this to "In progress" as your first action, "Complete" when done, "Blocked: [reason]" if stuck -->
 
@@ -10,9 +17,21 @@ You are the TEST WRITER subagent for FEAT-XXX.
 3. If your task uses MCP tools: call `ToolSearch` with relevant keywords BEFORE first MCP tool call. Tool names may vary between hyphens and underscores.
 
 ## Mandatory Context (injected by orchestrator — DO NOT SKIP)
-- **Spec:** [docs/plans/relevant-spec.md] — READ THIS BEFORE GENERATING TESTS
+- **Spec:** {SPEC_PATH} — READ THIS BEFORE GENERATING TESTS
 - **Skills:** [from spec-registry.yaml]
 - **Schemas:** [from spec-registry.yaml]
+
+## Requirement Map
+<!-- Orchestrator: fill this JSON with task requirements from the spec -->
+```json
+{REQUIREMENT_MAP_JSON}
+```
+
+## Constraints
+- Escalate if: {ESCALATION_CONDITIONS}
+- Evidence format: For each REQ-XX in the map above, include a line `REQ-XX: <what you did and evidence>` in your final output so the post-agent audit can verify coverage.
+- If you cannot satisfy a requirement, output `REQ-XX: BLOCKED — <reason>` instead.
+- Do NOT fabricate evidence. If uncertain, escalate.
 
 ## Your task
 Generate e2e YAML test cases for [completed requirements].

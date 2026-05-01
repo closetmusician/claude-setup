@@ -21,7 +21,9 @@ plugins/repos/
 plugins/marketplaces/
 plugins/install-counts-cache.json
 plugins/installed_plugins.json
+plugins/installed_plugins.json.bak
 plugins/known_marketplaces.json
+plugins/data/
 
 # macOS junk
 .DS_Store
