@@ -34,6 +34,15 @@ Do NOT list user pain points here — those belong as evidence within each JTBD 
 | **Secondary** | [Should improve or stay neutral] |
 | **Guardrail** | [Must NOT regress] |
 
+## Todo Table (optional — include for demos/sprints with <3 week runway)
+
+| # | Task | Description / Status | Owner | ETA |
+|---|------|---------------------|-------|-----|
+| 1 | [Task name] | [What needs to happen] | [Name] | [Date] |
+| 2 | [Task name] | [What needs to happen] | [Name] | [Date] |
+
+[Use when the delivery context is a demo or short sprint. Replaces the Engineering Effort section (§9) as the operational tracker. Each row = one assignable work item with a clear owner. Keep it flat — no phase narratives.]
+
 ---
 
 # 2. Jobs to Be Done & Requirements

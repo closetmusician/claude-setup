@@ -100,6 +100,15 @@ Ask targeted questions to fill gaps. Group questions efficiently.
 - Success metrics — north star + guardrails?
 - Scope boundaries — what's explicitly out?
 - KPI measurement approach — mature (quant primary) or early-stage (qual primary)?
+- **Delivery context — product launch, demo, or internal tool?** This shifts priority calibration:
+
+| Context | P0 emphasis | P1 emphasis | Deprioritize |
+|---------|------------|------------|-------------|
+| Product launch | Data governance, error handling, edge cases | Performance, polish | — |
+| Demo/sprint (<3 weeks) | Core happy path, perceived quality, progress feedback | Broad format support, visual polish | Governance, persistence, data retention |
+| Internal tool | Core functionality, correctness | Error handling | Polish, onboarding |
+
+  Use this context when assigning P0/P1/P2 to requirements. For demos: promote UX feedback (progress bars, loading states) and demote data governance (retention controls, residency). For product launches: the reverse.
 
 **Ask if relevant:**
 - Personas and RACI
