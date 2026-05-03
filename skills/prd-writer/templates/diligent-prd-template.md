@@ -2,7 +2,7 @@
 
 Default PRD template — Diligent Boards conventions. Apply quality patterns from `quality-patterns.md` throughout.
 
-**Structural rules:** User pain points live in JTBDs (not Problem Definition). UX Flows section (§3) is organized by JTBD with explicit req ID references — dedicated but mapped, no redundancy. Describe once, reference by ID.
+**Structural rules:** User pain points live in JTBDs (not Problem Definition). UX Flows section (§3) is organized by JTBD with explicit req ID references — dedicated but mapped, no redundancy. Business rules are specified inline within §2 requirements (simple rules as numbered behaviors, complex cross-cutting rules as dedicated REQ-IDs). Describe once, reference by ID.
 
 ## Template Structure
 
@@ -26,7 +26,9 @@ Default PRD template — Diligent Boards conventions. Apply quality patterns fro
 ## Context & Strategic Drivers
 [Why this matters. Why now. Strategic alignment. Competitive landscape.
 Reference past attempts and outcomes. Do NOT list user pain points here — those
-belong as evidence within each JTBD in section 2.]
+belong as evidence within each JTBD in section 2.
+ALL language must be user/business-facing. No architecture, protocols, or eng
+investigation notes. Frame technical debt as user impact. See quality-patterns §9.]
 
 ## Opportunity Size
 [Show math: [base] x [rate] = [outcome]. Include conservative/optimistic.
@@ -44,6 +46,9 @@ Do NOT restate the table in prose afterward.]
 # 2. Jobs to Be Done & Requirements
 
 [Each JTBD groups problem, evidence, hypothesis, KPIs, and requirements.
+Business rules are specified here — simple constraints inline as numbered
+behaviors under the REQ they govern; complex cross-cutting rules (permissions,
+state machines, lifecycle) as their own dedicated REQ-IDs.
 UX flows live in §3 and reference back by req ID.]
 
 ## JTBD-1: [Job statement]
@@ -64,13 +69,30 @@ UX flows live in §3 and reference back by req ID.]
 1. [Observable system behavior with concrete values]
 2. [Happy path behavior]
 3. [Error/validation behavior]
+4. [Permission/access constraint, if applicable — e.g. "Only users with Editor role can invoke"]
+5. [Validation rule, if applicable — e.g. "Input rejects values exceeding 500 chars; shows inline error"]
 
 **REQ-002: [Name]** (P1)
 [Scope paragraph]
 1. [Observable behavior]
+2. [Constraint/rule that governs this behavior, if applicable]
 
 **REQ-003: [Name]** (P2)
 [Description only]
+
+### Cross-Cutting Rules (when complexity warrants dedicated REQ-IDs)
+
+[Use dedicated REQ-IDs for rules that span multiple requirements or JTBDs.
+Only use this pattern for genuinely cross-cutting logic — permissions models,
+state machines, complex validation chains. Simple per-requirement constraints
+stay inline above.]
+
+**REQ-010: [Permission Model / State Machine / Lifecycle Name]** (P0)
+[What this rule governs and why it's cross-cutting.]
+1. [State/role definition with concrete values]
+2. [Transition rule or access matrix entry]
+3. [Cascading effect or side-effect]
+4. [Error state when rule is violated]
 
 ## JTBD-2: [Job statement]
 [...same structure...]
@@ -92,7 +114,10 @@ UX flows live in §3 and reference back by req ID.]
 # 3. UX Flows
 
 [Organized by JTBD. Each flow references req IDs it satisfies.
-Don't re-describe requirements — reference by ID.]
+Don't re-describe requirements — reference by ID.
+Include illustrative edge-case flows showing business rules in action.
+These are representative, not exhaustive — eng planning will expand
+edge cases and error handling into full acceptance criteria.]
 
 ## JTBD-1: [abbreviated]
 
@@ -101,6 +126,15 @@ Don't re-describe requirements — reference by ID.]
 2. System [response] — [visual treatment]
 3. [Processing/streaming step]
 4. Output: [format + sections]
+
+### Edge Flow: [Rule Enforcement] → REQ-010, REQ-001.4
+[Illustrative scenario showing a business rule in action.
+Purpose: make the rule concrete for stakeholders and designers.
+Eng planning will enumerate full edge-case matrix.]
+1. User [attempts action that triggers rule]
+2. System [checks constraint — reference REQ-ID.behavior#]
+3. System [enforces rule — shows error/blocks/redirects]
+4. User [recovery path or escalation]
 
 ### ASCII Wireframe: [Component/Flow Name]
 [Use box-drawing characters: ┌ ┐ └ ┘ ─ │ ├ ┤
@@ -135,39 +169,7 @@ Include 3-5 wireframes per feature PRD for major interaction patterns.]
 
 ---
 
-# 4. Data Model (if applicable)
-
-[DB tables/columns, API endpoints, state machines, tracking events.]
-
-## API Endpoints
-| Method + Path | Purpose | Req ID |
-|---------------|---------|--------|
-| ... | ... | ... |
-
-## Tracking Requirements
-| Event | Payload |
-|-------|---------|
-| ... | ... |
-
----
-
-# 5. Business Rules (if applicable)
-
-[Cross-cutting domain logic only. Skip for simple features.
-Each rule references the Req IDs it applies to.]
-
-## Permissions & Access Control
-[Role-based rules, org restrictions.]
-
-## Validation Rules
-[Cross-field, conditional, format rules.]
-
-## Lifecycle & State Transitions
-[Valid transitions, triggers, cascading effects.]
-
----
-
-# 6. Risks & Out of Scope
+# 4. Risks & Out of Scope
 
 ## Risks with Mitigations
 | Risk | Severity | Mitigation |
@@ -179,13 +181,13 @@ Each rule references the Req IDs it applies to.]
 
 ---
 
-# 7. Legacy Reference (if replacing existing system)
+# 5. Legacy Reference (if replacing existing system)
 
 [Current behavior, field mappings, API contracts. Context only — does NOT drive requirements.]
 
 ---
 
-# 8. RACI (if applicable)
+# 6. RACI (if applicable)
 
 | R | A | C | I |
 |---|---|---|---|
@@ -194,33 +196,49 @@ Each rule references the Req IDs it applies to.]
 
 ---
 
-# 9. Engineering Effort
+# 7. Engineering
 
-## P0: MVP
+## 7.1 Effort Estimates
+
+### P0: MVP
 | Component | Scope | Hours (Human) | Hours (Agentic) | BE/FE | Deps |
 |-----------|-------|---------------|-----------------|-------|------|
 | ... | ... | ... | ... | ... | ... |
 | **Total** | | **X** | **Y** | | |
 
-## P1: Fast-Follow (if applicable)
+### P1: Fast-Follow (if applicable)
 [Same table format. Barriers listed after.]
+
+## 7.2 Data Model (if applicable)
+
+[DB tables/columns, API endpoints, state machines, tracking events.]
+
+### API Endpoints
+| Method + Path | Purpose | Req ID |
+|---------------|---------|--------|
+| ... | ... | ... |
+
+### Tracking Requirements
+| Event | Payload |
+|-------|---------|
+| ... | ... |
 
 ---
 
-# 10. Other Dependencies (if applicable)
+# 8. Other Dependencies (if applicable)
 
 [Cross-product deps, settings toggles, cross-team support, pricing tiers.
 Use tables. Include only sections that apply.]
 
 ---
 
-# 11. Release Plan (if applicable)
+# 9. Release Plan (if applicable)
 
 [Service releases, standard process, additional steps.]
 
 ---
 
-# 12. Appendix (if applicable)
+# 10. Appendix (if applicable)
 
 [Post-launch analysis questions. V2 roadmap. Detailed data.]
 ```
@@ -228,8 +246,9 @@ Use tables. Include only sections that apply.]
 ## Template Notes
 
 - Core sections: §1 Problem Definition, §2 JTBD & Requirements, §3 UX Flows. Everything else is optional based on project complexity.
-- §2 JTBD section is the core — evidence, requirements, and rationale. Requirements flow from the JTBD; don't restate the problem inside each requirement.
-- §3 UX Flows is organized by JTBD — each flow references req IDs it satisfies, connecting "what to build" with "what the user sees." No re-describing requirements.
-- **Describe once:** If a behavior is fully specified in a requirement, UX flows and business rules reference by ID, not re-describe.
+- §2 JTBD section is the core — evidence, requirements, rationale, AND business rules. Simple constraints (permissions, validation) are numbered behaviors under the REQ they govern. Complex cross-cutting rules (state machines, permission models spanning multiple REQs) get their own REQ-IDs within the JTBD or in a "Cross-Cutting Rules" subsection.
+- §3 UX Flows is organized by JTBD — each flow references req IDs it satisfies. Include illustrative edge-case flows showing rules in action (representative, not exhaustive — eng planning expands these).
+- **Describe once:** If a behavior is fully specified in a requirement, UX flows reference by ID, not re-describe. Edge flows illustrate rules for stakeholder comprehension.
 - **Tables speak for themselves:** Never follow a table with prose restating its contents.
+- §7 Engineering groups effort estimates and data model together — effort first (the "how big"), data model second (the "what shape").
 - Diligent-specific sections (RACI, Settings, Pricing) — omit if using custom template.

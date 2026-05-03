@@ -41,14 +41,15 @@ Do NOT list user pain points here — those belong as evidence within each JTBD 
 | 1 | [Task name] | [What needs to happen] | [Name] | [Date] |
 | 2 | [Task name] | [What needs to happen] | [Name] | [Date] |
 
-[Use when the delivery context is a demo or short sprint. Replaces the Engineering Effort section (§9) as the operational tracker. Each row = one assignable work item with a clear owner. Keep it flat — no phase narratives.]
+[Use when the delivery context is a demo or short sprint. Replaces the Engineering Effort section (§7) as the operational tracker. Each row = one assignable work item with a clear owner. Keep it flat — no phase narratives.]
 
 ---
 
 # 2. Jobs to Be Done & Requirements
 
 [Each JTBD uses the same persona format as the full PRD.
-Requirements are listed with IDs and priorities but without numbered behaviors.]
+Requirements are listed with IDs and priorities — one-line descriptions
+with key constraints noted parenthetically where known.]
 
 ## JTBD-1: [Job statement]
 
@@ -63,9 +64,9 @@ Requirements are listed with IDs and priorities but without numbered behaviors.]
 | **Primary** | [qual for early-stage, quant for mature] |
 | **Secondary** | [measurable backstop] |
 
-1. **REQ-001: [Name]** (P0) — [One-line description of what it does]
+1. **REQ-001: [Name]** (P0) — [One-line description]. [Key constraint if known, e.g. "Requires Editor role" or "Max 500 chars"]
 
-2. **REQ-002: [Name]** (P1) — [One-line description]
+2. **REQ-002: [Name]** (P1) — [One-line description]. [Constraint hint if applicable]
 
 3. **REQ-003: [Name]** (P2) — [One-line description]
 
@@ -90,7 +91,8 @@ Requirements are listed with IDs and priorities but without numbered behaviors.]
 # 3. UX Flows
 
 [Reduced depth: high-level interaction flows and 1-2 key wireframes.
-No full component specs or accessibility details — those come in the full PRD.]
+No full component specs or accessibility details — those come in the full PRD.
+Include one illustrative edge flow if key business rules are known.]
 
 ## JTBD-1: [abbreviated]
 
@@ -98,6 +100,13 @@ No full component specs or accessibility details — those come in the full PRD.
 1. User [trigger with concrete example]
 2. System [response]
 3. Output: [format]
+
+### Edge Flow (illustrative): [Rule Name] → REQ-001 constraint
+[Optional — include if a key business rule is already known and stakeholders
+need to see it in action. Keep to 2-3 steps.]
+1. User [attempts constrained action]
+2. System [enforces rule]
+3. [Recovery/outcome]
 
 ### ASCII Wireframe: [Main Layout]
 [Box-drawing wireframe of the primary interaction pattern.
@@ -110,18 +119,16 @@ No full component specs or accessibility details — those come in the full PRD.
 
 ---
 
-# 4-8. [TBD pending full PRD]
+# 4-6. [TBD pending full PRD]
 
 Sections deferred until full PRD:
-- §4 Data Model (tables, APIs, tracking)
-- §5 Business Rules (permissions, validation, lifecycle)
-- §6 Risks & Out of Scope (detailed mitigations)
-- §7 Legacy Reference
-- §8 RACI
+- §4 Risks & Out of Scope (detailed mitigations)
+- §5 Legacy Reference
+- §6 RACI
 
 ---
 
-# 9. Engineering Effort
+# 7. Engineering
 
 ## Rough Sizing
 | Workstream | Scope | T-Shirt | Justification |
@@ -129,6 +136,10 @@ Sections deferred until full PRD:
 | [Backend] | ... | M/L/XL | ... |
 | [Frontend] | ... | M/L/XL | ... |
 | [AI/ML] | ... | M/L/XL | ... |
+
+## Data Model (if known)
+[Defer to full PRD unless key schema decisions are already clear.
+Note any known API contracts or data shape constraints here.]
 
 ---
 
@@ -142,18 +153,21 @@ Sections deferred until full PRD:
 
 ## Key Differences from Full PRD
 
-- **Requirements:** ID + priority + one-line description only (no numbered behaviors)
+- **Requirements:** ID + priority + one-line description with constraint hints (no numbered behaviors)
+- **Business rules:** Noted parenthetically on affected REQ-IDs where known (not a separate section)
 - **Hypotheses:** Include KPI tables (mandatory even at this stage)
-- **UX Flows (§3):** High-level interaction flows + 1-2 key wireframes (not 3-5, no component specs or accessibility)
-- **Data Model / Business Rules / Risks / Legacy / RACI:** Deferred (§4-8 placeholders)
-- **Engineering Effort:** T-shirt sizing, not hour estimates
+- **UX Flows (§3):** High-level interaction flows + 1-2 key wireframes + optional illustrative edge flow (not 3-5 wireframes, no component specs or accessibility)
+- **Risks / Legacy / RACI:** Deferred (§4-6 placeholders)
+- **Engineering (§7):** T-shirt sizing + data model notes if known, not hour estimates
+- **No separate Business Rules section:** Rules are inline with requirements
 
 ## Expansion Path
 
 To upgrade this to a full PRD:
-1. Add numbered behaviors to each requirement (2+ per P0)
-2. Expand §3 UX Flows (3-5 wireframes, full component specs, accessibility, use cases table)
-3. Expand §4 Data Model (full schema, tracking events, field constraints)
-4. Fill in §5-8 as needed
-5. Replace T-shirt sizing with hour-range estimates
-6. Run `/prd-review` for adversarial review
+1. Add numbered behaviors to each requirement (2+ per P0), including inline permission/validation constraints
+2. Add cross-cutting REQ-IDs for complex business rules (state machines, permission models)
+3. Expand §3 UX Flows (3-5 wireframes, edge flows showing rules in action, full component specs, use cases table)
+4. Fill in §4-6 as needed
+5. Expand §7 Engineering (hour-range estimates + full data model with API endpoints and tracking)
+6. Add §8-10 (Dependencies, Release Plan, Appendix) if applicable
+7. Run `/prd-review` for adversarial review

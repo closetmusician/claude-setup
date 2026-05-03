@@ -14,8 +14,10 @@ description: "Helps product managers write high-quality, data-driven PRDs (Produ
 Optimized for density. Same rigor as verbose PRDs, ~30-40% fewer lines.
 
 **Density design choices:**
-- Sections that repeated info (Problem + JTBD) are consolidated — describe once, reference by ID
-- UX Flows section is dedicated (§3) but organized by JTBD with explicit req ID references — no redundancy
+- Sections that repeated info (Problem + JTBD + Business Rules) are consolidated — describe once, reference by ID
+- Business rules live inline in §2 requirements (simple as behaviors, complex as dedicated REQ-IDs) — no separate section
+- UX Flows section is dedicated (§3) but organized by JTBD with explicit req ID references + illustrative edge flows — no redundancy
+- Data Model lives under §7 Engineering (after effort estimates) — keeps all eng-facing content together
 - Prose that restates tables is banned
 - Wireframes: 3-5 per feature PRD for major interaction patterns
 - Behavior minimums are guidance, not floors
@@ -33,9 +35,27 @@ Same as v1, plus three density rules:
 6. **Implementation-ready requirements.** Each P0/P1 gets numbered observable behaviors mapping to test cases.
 7. **Hypotheses tied to measurable KPIs.** Each feature gets a KPI table (qual primary for early-stage, quant for mature).
 
+### End-User POV Rule
+
+**§1-3 must be written entirely from the end-user's perspective, stressing user benefits and observable impact.** Technical/engineering details belong in §7 Engineering only. §2 requirements may reference technical constraints sparingly — ONLY when they directly affect observable user behavior.
+
+**The test:** If a sentence names a library, protocol, architecture pattern, or internal system and a product stakeholder couldn't explain why it matters to the user — it fails. Translate to user impact or move to §7.
+
+**Bad (eng word salad in §1 Context):**
+> "BoardDocs MCP computes outcomes client-side — server never validates majority. Vote state lives in DOM radio buttons until serialized. v1 (Redux + SignalR) introduced: vote reducer scoping bug (predicted P1), radios don't trigger save (MAP-17236, P2), premature dirty-state reset."
+
+**Good (user-impact translation in §1 Context):**
+> "Board members lose votes during long meetings — if a session runs 4+ hours, unsaved votes silently disappear. 3 customer-reported incidents in Q4 where official vote records didn't match what members selected on screen."
+
+**Where the eng detail goes:** §7.2 Data Model or a "Technical Context" note within §7 Engineering. The raw investigation context (architecture, protocols, bug IDs) lives there for the dev team.
+
+**§2 exception:** Numbered behaviors in requirements may include technical constraints when they produce observable user effects:
+- OK: "Session expires after 4 hours; user sees 'Please refresh to continue voting' banner"
+- NOT OK: "SignalR 2.4.1 lacks token refresh; requires WebSocket reconnection handler"
+
 ### Density Rules
 
-8. **Describe once, reference everywhere.** Every behavior, flow, or rule has ONE canonical location. All other mentions use `-> See AC-2B` or `(per BR-3)`. If you're writing the same logic in two sections, one of them is wrong.
+8. **Describe once, reference everywhere.** Every behavior, flow, or rule has ONE canonical location. All other mentions use `-> See AC-2B` or `(per REQ-010.2)`. If you're writing the same logic in two sections, one of them is wrong.
 
 9. **Tables speak for themselves.** Never follow a table with prose restating its contents. If the table needs explanation, the table is poorly structured — fix the table.
 
@@ -53,12 +73,12 @@ Same as v1 — intermediary checkpoint files prevent context loss.
 
 **Output directory:** Project's `docs/` if it exists, otherwise cwd.
 
-**Intermediary files:**
+**Intermediary files:** stored under `docs/temp` if it exists, otherwise cwd
 - `<working-name>-context.md` — Step 1 checkpoint
 - `<working-name>-interview.md` — Step 2 checkpoint
 - `<working-name>-research.md` — Step 3 checkpoint
 
-**Cleanup:** Delete all three after final PRD is saved.
+**Cleanup:** Delete all three after final PRD is generated & saved. AND ask user for permission
 
 ### Step 0: Resume Detection
 
@@ -74,7 +94,7 @@ Template: `templates/diligent-prd-template.md` (all 12 sections)
 
 **Mode B: PRD-Lite (1-pager / discovery brief)**
 Trigger: User asks for a "1-pager", "discovery brief", "early-stage doc", or explicitly says they don't have enough data for a full PRD.
-Template: `templates/prd-lite-template.md` (sections 1, 2, 9 at reduced depth with TBD placeholders for 3-8)
+Template: `templates/prd-lite-template.md` (sections 1, 2, 3, 7 at reduced depth with TBD placeholders for 4-6)
 
 **Mode C: Stakeholder Pitch**
 Trigger: User explicitly asks for a "pitch brief", "stakeholder alignment doc", or "conversation starter."
@@ -146,14 +166,14 @@ One sentence: gap + mechanism + projected impact. Not a description — a pitch.
 Always include. Auto-generated links to all H2/H3.
 
 #### Problem Definition
-Objective, context, strategic drivers, success measures. Include "why now." Back with evidence. **Do NOT include user pain points here** — those belong in JTBDs as evidence.
+Objective, context, strategic drivers, success measures. Include "why now." Back with evidence. **Do NOT include user pain points here** — those belong in JTBDs as evidence. **All language must be user/business-facing.** No architecture, protocols, libraries, or eng investigation notes. If the "why now" is technical debt or system fragility, frame it as user impact ("users lose data during long sessions") not eng cause ("SignalR lacks token refresh").
 
 #### Opportunity Size
 Show projection math. Reference precedents. Be honest about assumptions.
 
 #### Jobs to Be Done & Requirements
 
-**This is the core. Each JTBD is self-contained — problem, evidence, hypothesis, KPIs, and requirements all in one place.**
+**This is the core. Each JTBD is self-contained — problem, evidence, hypothesis, KPIs, requirements, AND business rules all in one place.**
 
 **Anti-bloat principle:** Requirements *fall from* the JTBD — each exists because the job can't be done without it. The JTBD provides the "why"; requirements provide the "what." Don't restate the problem inside each requirement. One sentence of scope, then straight to behaviors.
 
@@ -164,6 +184,7 @@ Show projection math. Reference precedents. Be honest about assumptions.
 4. Hypothesis: *If we [X], THEN [Y] because [Z].*
 5. KPI table (qual primary for early-stage, quant for mature)
 6. Requirements ordered P0 -> P1 -> P2
+7. Cross-Cutting Rules subsection (only when complexity warrants dedicated REQ-IDs)
 
 **Requirement ID format:** 2-3 letter prefix + number (e.g., AC-1, BRF-2).
 
@@ -174,15 +195,20 @@ Show projection math. Reference precedents. Be honest about assumptions.
 1. [Observable system behavior — maps to one test case]
 2. [Another behavior]
 3. [Error/edge case]
+4. [Permission/validation constraint if applicable]
 ```
 
 **P2:** Description only, no numbered behaviors.
+
+**Business rules placement (mix approach):**
+- **Simple constraints** (field validation, role checks, format rules): inline as numbered behaviors under the REQ they govern (e.g., "4. Only users with Editor role can invoke")
+- **Complex cross-cutting rules** (permission models spanning multiple REQs, state machines, lifecycle transitions): dedicated REQ-IDs in a "Cross-Cutting Rules" subsection within the JTBD or at end of §2
 
 **Behavior description rules:**
 - Observable system behavior, not user action
 - Concrete values: field names, max lengths, valid states
 - Each independently falsifiable (one test case per item)
-- Order: happy path -> error/validation -> edge cases
+- Order: happy path -> error/validation -> edge cases -> constraints/permissions
 - **Minimum count:** Every P0 requirement must have ≥2 numbered behaviors. If you can't identify at least 2 observable behaviors, the requirement is too vague — split or rewrite it.
 
 **Priority tiers within each JTBD's build scope:** P0 = must ship, P1 = should ship, P2 = defer.
@@ -207,13 +233,25 @@ Dedicated section immediately after JTBD & Requirements. Organized by JTBD — e
 3. Output: [format]
 ```
 
-**2. ASCII Wireframes (for major interaction patterns)** — Include 3-5 per feature PRD. Use box-drawing characters (┌ ┐ └ ┘ ─ │ ├ ┤). Focus on complex multi-panel layouts, forms with many fields, state machines, and multi-step workflows. Place with the JTBD flow they illustrate.
+**2. Edge Flows (illustrative)** — Show business rules in action via representative scenarios. Purpose: make constraints concrete for stakeholders and designers. These are NOT exhaustive — eng planning will expand into full acceptance criteria. Include 1-2 per JTBD when meaningful rules exist.
+
+```
+### Edge Flow: [Rule Name] → REQ-010, REQ-001.4
+1. User [attempts action that triggers rule]
+2. System [checks constraint]
+3. System [enforces — error/block/redirect]
+4. User [recovery path]
+```
+
+**Guidance note in template:** "Eng planning will enumerate the full edge-case matrix from these illustrative flows."
+
+**3. ASCII Wireframes (for major interaction patterns)** — Include 3-5 per feature PRD. Use box-drawing characters (┌ ┐ └ ┘ ─ │ ├ ┤). Focus on complex multi-panel layouts, forms with many fields, state machines, and multi-step workflows. Place with the JTBD flow they illustrate.
 
 **Cross-cutting UX (once, after all JTBD flows):**
 
-**3. Information Architecture** — Where feature lives. Containment hierarchy. What doesn't change.
+**4. Information Architecture** — Where feature lives. Containment hierarchy. What doesn't change.
 
-**4. Component Specs (new components only):**
+**5. Component Specs (new components only):**
 For each new UI component, define:
 - **States**: all visual states (default, loading, completed, error, empty)
 - **Visual treatment**: background, borders, colors, layout (reference design system tokens)
@@ -228,22 +266,16 @@ For each new UI component, define:
 - Constraints: [limits]
 ```
 
-**5. Use Cases Table** — Map scenarios to JTBDs, features, triggers, outputs.
+**6. Use Cases Table** — Map scenarios to JTBDs, features, triggers, outputs.
 
-#### Data Model (if applicable)
-Tables/columns, API endpoints, state machines, tracking requirements.
-
-#### Business Rules (if applicable)
-Cross-cutting domain logic: permissions, validation, lifecycle rules, calculations. Skip for simple features.
-
-#### Risk
+#### Risks & Out of Scope
 Risks with mitigations + out of scope. Be explicit.
 
 #### Legacy Reference (optional)
 Only when replacing existing system. Context only — does NOT drive requirements.
 
-#### Engineering Estimates
-Ranges, not points. Backend vs. client split. Staffing needs. Blockers/dependencies.
+#### Engineering (§7)
+Two subsections: (1) Effort Estimates — ranges, not points; backend vs. client split; staffing needs; blockers/dependencies. (2) Data Model (if applicable) — tables/columns, API endpoints, state machines, tracking requirements. Effort first, data model second.
 
 ### Step 5: Output and Present
 

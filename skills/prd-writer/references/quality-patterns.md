@@ -11,7 +11,8 @@ Patterns from exemplary PRDs. Includes density rules that cut ~30% without losin
 6. [Engineering Estimation](#engineering)
 7. [Risk & Skepticism](#risk-and-skepticism)
 8. [Opportunity Sizing](#opportunity-sizing)
-9. [Writing Density](#writing-density)
+9. [End-User POV (§1-3)](#end-user-pov)
+10. [Writing Density](#writing-density)
 
 ---
 
@@ -154,7 +155,43 @@ P0 (MVP) and P1+ tables. Component breakdown. Backend vs. client. Ranges, not po
 
 ---
 
-## 9. Writing Density <a name="writing-density"></a>
+## 9. End-User POV (§1-3) <a name="end-user-pov"></a>
+
+**Rule:** Sections 1-3 (Problem Definition, JTBD & Requirements, UX Flows) must be written from the end-user's perspective, stressing user benefits and observable impact. Technical/engineering context belongs in §7 Engineering.
+
+**The litmus test:** Can a product stakeholder read this sentence and understand why it matters to the user? If no — translate or relocate.
+
+### Anti-Pattern: Eng Investigation Notes in Strategic Sections
+
+**Bad (§1 Context & Strategic Drivers):**
+> "BoardDocs MCP computes outcomes client-side — server never validates majority. Vote state lives in DOM radio buttons until serialized. v1 (Redux + SignalR) introduced: vote reducer scoping bug (predicted P1), radios don't trigger save (MAP-17236, P2), premature dirty-state reset. SignalR 2.4.1 lacks token refresh during 4+ hour sessions."
+
+**Good (§1 Context & Strategic Drivers):**
+> "Board members lose votes during long meetings — if a session runs 4+ hours without refresh, unsaved votes silently disappear. 3 customer-reported incidents in Q4 where official vote records didn't match what members selected on screen. Under open-meeting laws, inaccurate vote records create legal liability."
+
+**Where the eng detail goes (§7 Engineering > Technical Context):**
+> "Root cause: client-side vote computation without server validation. Vote state in DOM until serialized; session token expires after 4h (SignalR 2.4.1 limitation). Known bugs: reducer scoping (P1), radio save trigger (MAP-17236, P2), dirty-state reset."
+
+### Pattern: Translate Technical Constraints to User Impact
+
+| Technical reality | User-facing translation (for §1-3) |
+|---|---|
+| "SignalR lacks token refresh" | "Sessions expire after 4 hours; users lose unsaved work" |
+| "Client-side computation without server validation" | "Vote results may display incorrectly; no server-side guarantee of accuracy" |
+| "DOM state not serialized on tab close" | "Closing the browser tab loses any in-progress changes" |
+| "Rate limiter at 100 req/min" | "Rapid actions (bulk approvals) may be throttled; user sees 'please wait' after ~100 items" |
+| "Webhook delivery is at-most-once" | "Notifications may occasionally not arrive; user should check dashboard as backup" |
+
+### §2 Exception: Technical Constraints as Observable Behaviors
+
+Within §2 requirement behaviors, technical constraints are acceptable ONLY when framed as user-observable effects:
+
+**OK:** "5. Session expires after 4 hours; user sees 'Please refresh to continue voting' banner with one-click refresh"
+**NOT OK:** "5. SignalR 2.4.1 WebSocket connection drops after token expiry; requires reconnection handler with exponential backoff"
+
+---
+
+## 10. Writing Density <a name="writing-density"></a>
 
 These rules target the specific verbosity patterns found in PRD output.
 
