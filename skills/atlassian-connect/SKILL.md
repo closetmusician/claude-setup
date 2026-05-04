@@ -28,7 +28,7 @@ Connects the current session to Atlassian (JIRA + Confluence). Two modes:
 ### Step 1: Check Existing Connectivity
 
 Check both modes:
-- **Direct API:** Run `bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/2/myself" | head -c 200'`. If this returns user JSON, direct API is already working.
+- **Direct API:** Run `bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/myself" | head -c 200'`. If this returns user JSON, direct API is already working.
 - **MCP:** Run `claude mcp list 2>&1 | grep -i atlassian`. If healthy, MCP is already configured.
 
 If either is already working, inform the user which mode is active and stop.
@@ -54,7 +54,7 @@ Run: `bash -c 'source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null; echo
 
 **If token exists**, test it:
 ```bash
-bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -o /dev/null -w "%{http_code}" -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/2/myself"'
+bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -o /dev/null -w "%{http_code}" -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/myself"'
 ```
 - `200` — token is valid, proceed.
 - `401` or `403` — token is expired/revoked. Tell the user and go to **Step 4a**.
@@ -74,7 +74,7 @@ bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -o /dev/null -w "%{http_code}" -u
    ```
 5. Verify the new token works:
    ```bash
-   curl -sf -o /dev/null -w "%{http_code}" -u yklin@diligent.com:<NEW_TOKEN> "https://diligentbrands.atlassian.net/rest/api/2/myself"
+   curl -sf -o /dev/null -w "%{http_code}" -u yklin@diligent.com:<NEW_TOKEN> "https://diligentbrands.atlassian.net/rest/api/3/myself"
    ```
    If still failing, inform the user and stop.
 
@@ -84,20 +84,20 @@ Do NOT proceed to Step 5 until a valid token is confirmed.
 
 1. **Verify connectivity:** Run a test call:
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/2/myself"'
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/myself"'
    ```
    If this fails, suggest the user check their token, or offer to fall back to MCP mode.
 
 2. **Inform the user:** Atlassian is connected via direct API. Provide quick-reference examples:
 
-   **JIRA — search issues:**
+   **JIRA — search issues (v3, POST with JSON body):**
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/2/search?jql=assignee=currentUser()&maxResults=10"'
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN -H "Content-Type: application/json" -X POST "https://diligentbrands.atlassian.net/rest/api/3/search/jql" -d "{\"jql\":\"assignee=currentUser()\",\"maxResults\":10,\"fields\":[\"key\",\"summary\",\"status\"]}"'
    ```
 
    **JIRA — get issue:**
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/2/issue/PROJ-123"'
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/issue/PROJ-123"'
    ```
 
    **Confluence — search:**
@@ -183,14 +183,16 @@ Run: `claude mcp remove atlassian -s project`
 
 Base URL: `https://diligentbrands.atlassian.net`
 Auth: Basic auth — `yklin@diligent.com:$ATLASSIAN_API_TOKEN`
+API version: **v3** (v2 search endpoint was retired 2025 — returns 410)
 
-| Operation | Endpoint |
-|-----------|----------|
-| JIRA: My issues | `GET /rest/api/2/search?jql=assignee=currentUser()` |
-| JIRA: Get issue | `GET /rest/api/2/issue/{key}` |
-| JIRA: Search JQL | `GET /rest/api/2/search?jql={jql}` |
-| JIRA: Add comment | `POST /rest/api/2/issue/{key}/comment` (body: `{"body": "..."}`) |
-| JIRA: Transition | `POST /rest/api/2/issue/{key}/transitions` |
-| Confluence: Search | `GET /wiki/rest/api/content/search?cql={cql}` |
-| Confluence: Get page | `GET /wiki/rest/api/content/{id}?expand=body.storage` |
-| Confluence: Get children | `GET /wiki/rest/api/content/{id}/child/page` |
+| Operation | Endpoint | Notes |
+|-----------|----------|-------|
+| JIRA: Search JQL | `POST /rest/api/3/search/jql` | JSON body: `{"jql":"...","maxResults":N,"fields":["key","summary",...]}` |
+| JIRA: Get issue | `GET /rest/api/3/issue/{key}` | |
+| JIRA: My issues | `POST /rest/api/3/search/jql` | JQL: `assignee=currentUser()` |
+| JIRA: Add comment | `POST /rest/api/3/issue/{key}/comment` | v3 uses ADF: `{"body":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"..."}]}]}}` |
+| JIRA: Transition | `POST /rest/api/3/issue/{key}/transitions` | |
+| JIRA: Get myself | `GET /rest/api/3/myself` | Connectivity check |
+| Confluence: Search | `GET /wiki/rest/api/content/search?cql={cql}` | |
+| Confluence: Get page | `GET /wiki/rest/api/content/{id}?expand=body.storage` | |
+| Confluence: Get children | `GET /wiki/rest/api/content/{id}/child/page` | |
