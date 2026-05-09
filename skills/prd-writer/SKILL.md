@@ -11,7 +11,7 @@ description: "Helps product managers write high-quality, data-driven PRDs (Produ
 
 # PRD Writer (Compact)
 
-Optimized for density. Same rigor as verbose PRDs, ~30-40% fewer lines.
+Optimized for density. Same rigor as verbose PRDs but you must not lose specificity. Execute according to `references/quality-patterns.md`
 
 **Density design choices:**
 - Sections that repeated info (Problem + JTBD + Business Rules) are consolidated — describe once, reference by ID
@@ -110,17 +110,20 @@ Assess what the user brought (raw notes, brief, verbal description, custom templ
 
 **Checkpoint:** Write `<working-name>-context.md` with extracted context and identified gaps.
 
-### Step 2: Interview for Gaps
+### Step 2: Interview for Gaps (MANDATORY — NEVER SKIP)
 
-Ask targeted questions to fill gaps. Group questions efficiently.
+**HARD GATE:** Execute this step even if the user's input appears complete. "Already covered" is not a reason to skip — user confirmation IS the point. If a mandatory question was answered in Step 1, state your understanding and ask the user to confirm or correct. Do NOT silently assume. Skipping = protocol violation equivalent to skipping TDD.
 
-**Always ask (if not already provided):**
-- Why now? What's the urgency driver?
-- Prior art — tried before (internally/competitors)? What happened?
-- Success metrics — north star + guardrails?
-- Scope boundaries — what's explicitly out?
-- KPI measurement approach — mature (quant primary) or early-stage (qual primary)?
-- **Delivery context — product launch, demo, or internal tool?** This shifts priority calibration:
+**Procedure:** Present all mandatory questions grouped efficiently. Wait for answers. Follow up on anything too vague to write a requirement against. Do NOT proceed to Step 3 without answers.
+
+#### Mandatory Questions (ask ALL)
+
+- **M1. Why now?** Urgency driver — deadline, escalation, competitive window? What happens if this ships 6 months late?
+- **M2. Prior art.** Tried before (internally, competitors, user workarounds)? What happened?
+- **M3. Success metrics.** North star metric + guardrails (must NOT degrade). Reject "improve engagement" — push for a number or directional threshold.
+- **M4. Scope boundaries.** What's explicitly out? Most likely scope creep risk? If nothing is out of scope, probe adjacent features that shouldn't ship in v1.
+- **M5. KPI approach.** Mature (quant: analytics, A/B) or early-stage (qual: interviews, beta feedback)?
+- **M6. Delivery context.** Product launch | demo/sprint (<3 weeks) | internal tool? Calibrates P0/P1/P2:
 
 | Context | P0 emphasis | P1 emphasis | Deprioritize |
 |---------|------------|------------|-------------|
@@ -128,17 +131,24 @@ Ask targeted questions to fill gaps. Group questions efficiently.
 | Demo/sprint (<3 weeks) | Core happy path, perceived quality, progress feedback | Broad format support, visual polish | Governance, persistence, data retention |
 | Internal tool | Core functionality, correctness | Error handling | Polish, onboarding |
 
-  Use this context when assigning P0/P1/P2 to requirements. For demos: promote UX feedback (progress bars, loading states) and demote data governance (retention controls, residency). For product launches: the reverse.
+- **M7. Target user(s).** Who exactly — role, context, frequency? Primary persona if multiple? What do they know/not know when encountering this feature?
+- **M8. Current workflow.** How is this job done today? Specific moment of friction or failure?
+- **M9. Error & edge cases.** What happens on bad input, partial failure, timeout, concurrent access? Recovery path? Probe the 2-3 most likely failure modes if the user hasn't considered them.
+- **M10. Dependencies.** Other teams, systems, data sources, API contracts, or shared databases that constrain the design?
 
-**Ask if relevant:**
-- Personas and RACI
-- UX detail level (flows only / flows + IA / wireframes)
-- Tech stack
-- Engineering effort estimates
-- Cross-team dependencies
-- Pricing/release constraints
+#### Ambiguity Probe
 
-**Checkpoint:** Write `<working-name>-interview.md` with decisions and Q&A.
+After mandatory questions, review all collected context (Step 1 + M1-M10 answers) and ask: **"What in this spec could two engineers reasonably interpret differently?"** Surface any terms, behaviors, or scope edges where misreading is plausible — propose your interpretation and ask the user to confirm or correct.
+
+#### Conditional Questions (ask when relevant)
+
+Personas/RACI | UX detail level (flows / IA / wireframes) | tech stack constraints | effort expectations / deadlines | cross-team coordination | pricing/release constraints | data sensitivity / compliance | accessibility requirements
+
+#### Completion Criteria
+
+Complete when: all M1-M10 answered or confirmed, ambiguity probe resolved, and each answer is concrete enough that two engineers would make the same implementation decision.
+
+**Checkpoint:** Write `<working-name>-interview.md` with all M1-M10 answers, ambiguity resolutions, and conditional Q&A.
 
 ### Step 3: Research & Validate
 
