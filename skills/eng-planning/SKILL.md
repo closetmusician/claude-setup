@@ -23,9 +23,27 @@ The engineering planner reads an approved PRD, explores the codebase, surfaces m
 
 **Every task ticket (T-XXX) must be a vertical slice through the full stack.** This is non-negotiable and shapes every step of the planning process.
 
-**BANNED:** Horizontal layer decomposition (e.g., "Phase 1: all schemas, Phase 2: all APIs"). Creates integration risk and blocks parallel agents.
+### What This Means
 
-**Correct:** Decompose as vertical slices. e.g., T-101: "User can set email notification preference" → migration + endpoint + toggle component + integration test. Each ticket independently deployable and testable.
+A vertical slice is the thinnest possible end-to-end implementation that touches ALL architectural layers required for a behavior. If a feature requires DB + API + FE, the ticket encompasses all three — not "build schema first, then API, then UI."
+
+### What This Forbids
+
+**BANNED: Horizontal layer planning.** You MUST NOT decompose work as:
+- Phase 1: All DB schemas/migrations
+- Phase 2: All API endpoints
+- Phase 3: All UI components
+
+This pattern creates integration risk, blocks parallel agents from producing testable increments, and delays feedback loops.
+
+### Correct Decomposition
+
+Instead of "build the user preferences system" → 3 horizontal layers, decompose as:
+- T-101: "User can set email notification preference" → migration + API endpoint + toggle component + integration test
+- T-102: "User can set timezone preference" → migration + API endpoint + dropdown component + integration test
+- T-103: "User can bulk-reset to defaults" → API endpoint + confirmation dialog + test
+
+Each ticket is independently deployable and immediately testable end-to-end.
 
 ### Escape Hatch: HORIZONTAL-JUSTIFIED
 
@@ -43,7 +61,10 @@ The final task decomposition must form a **DAG** maximizing concurrent agent exe
 
 ### TDD Integration Per Slice
 
-Every slice has a **Slice Done Gate**: the integration assertion proving layers wire together. The slice is DONE only when that gate passes.
+Every vertical slice defines its own **test boundary**:
+- Unit tests for the new logic in each layer
+- Integration test proving the layers connect (e.g., "POST /api/prefs → DB write → GET /api/prefs returns updated value")
+- The slice is DONE only when its integration test passes — not when individual layer code compiles
 
 ## VIBE Level Detection
 
@@ -244,7 +265,9 @@ Planning runs are long. Subagent reports vanish when the agent returns. Conversa
 2. **Re-read from disk at phase boundaries.** At the start of Phase C, read `explorer-summary.md` + `websearch-findings.md` + `backlog-crossref.md` from disk — do not rely on conversation memory of the subagent output.
 3. **Append, don't overwrite** for `design-decisions.md` — each user answer adds to the file.
 4. **No intermediate cleanup until Step 13.** Intermediate files persist throughout the entire pipeline because subagents in later phases read from them. Only Step 13 (Final Cleanup) deletes the `docs/.eng-planning/` directory.
-5. **Corollary of rules 1-2:** Never summarize the PRD into a lossy intermediate — re-read it in full when needed. Never hold the full PRD AND full explorer report simultaneously. The main agent works from `explorer-summary.md`; the full report stays on disk for subagents.
+5. **The PRD is the source of truth — always read it in full when needed.** Never summarize the PRD into a lossy intermediate. It contains critical details (field constraints, business rules, edge cases in AC specs) that a summary would lose. Re-read the PRD from disk whenever a step needs it.
+6. **The explorer report is a codebase summary — NEVER hold the full report in main agent context.** The explorer subagent writes both `explorer-report.md` (full) and `explorer-summary.md` (~50 lines) to disk. The main agent reads ONLY the summary. The full report stays on disk for subagents (Steps 5a, 5b, 9) to reference.
+7. **Context budget:** The main agent should never hold the full PRD AND the full explorer report simultaneously. Read the PRD when needed, work from the explorer summary, and re-read targeted sections of intermediates from disk rather than holding everything in conversation memory.
 
 ---
 
@@ -719,7 +742,9 @@ Spawn **one Opus subagent** that reads all artifacts from disk with no conversat
 
 ---
 
-**MANDATORY:** Proceed to Step 8. Artifacts are not yet independently reviewed.
+### MANDATORY CHECKPOINT — YOU ARE NOT DONE
+
+**STOP HERE and read this.** Steps 8-12 (Phase F: Review Gate) are MANDATORY. You have produced artifacts in Steps 5-7.5 — you have NOT had them independently reviewed. The review chain (present artifacts → engineering review → auto-fix → final output → final traceability gate) is non-negotiable. Do not declare victory. Do not report completion. Do not summarize what you did and stop. You MUST proceed to Step 8 now.
 
 ---
 
@@ -822,7 +847,9 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
 
 ---
 
-**MANDATORY:** Proceed through Steps 12-13. Review fixes may have broken traceability.
+### MANDATORY CHECKPOINT — STEPS 12-13 ARE NOT OPTIONAL
+
+**STOP.** You must proceed through Steps 12, 12.5, and 13 before declaring completion. The review loop (Steps 9-10) may have introduced fixes that broke traceability or coherence. Steps 12-12.5 verify the final state. Step 13 cleans up and reports.
 
 ---
 
@@ -935,8 +962,14 @@ At `light` VIBE level: frontmatter is recommended but not required.
 ## Red Flags — STOP Immediately
 
 If you catch yourself:
+- Opening Edit/Write on .py/.ts/.js files → STOP, you are the planner
+- Writing implementation code in any language → STOP
 - Producing a mini-spec without Build Guidance → STOP, add specific guidance
 - Writing generic Build Guidance ("follow SOLID", "keep it DRY") → STOP, name specific files/classes/patterns
+- Skipping dependency verification at `full` level → STOP, verify first
+- Proceeding after dependency verification failure → STOP, escalate
+- Making design decisions without presenting options → STOP, ask user
+- Writing artifacts outside docs/ → STOP, wrong location
 - Producing a FEAT design doc without all required sections → STOP, complete it
 - Running implementation tests or modifying test files → STOP, that is coder work
 - **Decomposing by horizontal layer** (all schemas → all APIs → all UI) → STOP, re-slice vertically
@@ -948,4 +981,10 @@ If you catch yourself:
 
 ## Escalation
 
-When blocked or ambiguous at any point, use AskUserQuestion. Do not guess. Do not assume.
+If at any point:
+- A PRD requirement is ambiguous and cannot be resolved by re-reading → AskUserQuestion
+- Dependency verification fails and no alternative exists → STOP and report BLOCKED
+- The complexity check suggests fundamental redesign → present findings, wait for user
+- Explorer report reveals the codebase cannot support the PRD requirements → escalate immediately
+
+Do not guess. Do not assume. Ask.
