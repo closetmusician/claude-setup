@@ -23,3 +23,18 @@ Execute immediately unless: (1) multiple valid approaches & choice matters, (2) 
 @~/.claude/rules/personal.md
 
 @RTK.md
+
+## GBrain (Personal Knowledge Brain)
+
+790+ pages of imported work docs (board materials, customers, org, roadmap, etc.).
+CLI: `~/.bun/bin/gbrain`
+
+```
+gbrain query "<question>"   # hybrid search (vector + keyword + expansion)
+gbrain search "<keyword>"   # keyword search (tsvector)
+gbrain get <slug>            # read a page by slug
+gbrain put <slug> < file.md  # write/update a page
+gbrain list [--type T]       # list pages
+gbrain stats                 # brain statistics
+gbrain doctor                # health check
+```
