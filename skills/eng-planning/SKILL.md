@@ -23,27 +23,9 @@ The engineering planner reads an approved PRD, explores the codebase, surfaces m
 
 **Every task ticket (T-XXX) must be a vertical slice through the full stack.** This is non-negotiable and shapes every step of the planning process.
 
-### What This Means
+**BANNED:** Horizontal layer decomposition (e.g., "Phase 1: all schemas, Phase 2: all APIs"). Creates integration risk and blocks parallel agents.
 
-A vertical slice is the thinnest possible end-to-end implementation that touches ALL architectural layers required for a behavior. If a feature requires DB + API + FE, the ticket encompasses all three — not "build schema first, then API, then UI."
-
-### What This Forbids
-
-**BANNED: Horizontal layer planning.** You MUST NOT decompose work as:
-- Phase 1: All DB schemas/migrations
-- Phase 2: All API endpoints
-- Phase 3: All UI components
-
-This pattern creates integration risk, blocks parallel agents from producing testable increments, and delays feedback loops.
-
-### Correct Decomposition
-
-Instead of "build the user preferences system" → 3 horizontal layers, decompose as:
-- T-101: "User can set email notification preference" → migration + API endpoint + toggle component + integration test
-- T-102: "User can set timezone preference" → migration + API endpoint + dropdown component + integration test
-- T-103: "User can bulk-reset to defaults" → API endpoint + confirmation dialog + test
-
-Each ticket is independently deployable and immediately testable end-to-end.
+**Correct:** Decompose as vertical slices. e.g., T-101: "User can set email notification preference" → migration + endpoint + toggle component + integration test. Each ticket independently deployable and testable.
 
 ### Escape Hatch: HORIZONTAL-JUSTIFIED
 
@@ -57,17 +39,11 @@ The reason must explain WHY vertical slicing is impossible, not just describe wh
 
 ### Optimizing for Parallel Agents (DAG)
 
-The final task decomposition MUST structure tickets as a **Directed Acyclic Graph (DAG)** that maximizes concurrent execution by independent coding agents. The planner must:
-1. Identify the maximum set of tickets with NO shared file modifications that can execute simultaneously
-2. Define strict `blocked_by` edges only where true data/API dependencies exist
-3. Never create artificial sequencing (e.g., "T-102 after T-101" just because they're in the same feature area)
+The final task decomposition must form a **DAG** maximizing concurrent agent execution. Minimize `blocked_by` edges — only true data/API dependencies, never artificial sequencing.
 
 ### TDD Integration Per Slice
 
-Every vertical slice defines its own **test boundary**. The coding agent knows exactly what cross-stack tests must pass to prove the slice wires together:
-- Unit tests for the new logic in each layer
-- Integration test proving the layers connect (e.g., "POST /api/prefs → DB write → GET /api/prefs returns updated value")
-- The slice is DONE only when its integration test passes — not when individual layer code compiles
+Every slice has a **Slice Done Gate**: the integration assertion proving layers wire together. The slice is DONE only when that gate passes.
 
 ## VIBE Level Detection
 
@@ -226,11 +202,7 @@ Merge their reports before Phase C. This cuts exploration wall-clock time roughl
 
 ### Phase B: What Can Run Early
 
-These tasks need ONLY the PRD (not the explorer report) and MUST launch immediately after Step 0:
-
-1. **Dependency Verification (Step 4)** — All new dependencies are listed in the PRD data model and tech choices. Run `npm info` / `pip install --dry-run` checks in parallel with exploration.
-2. **WebSearch checks (Step 2.4)** — Pattern/framework best-practice searches need only the PRD's architectural approach, not file:line references.
-3. **Backlog cross-reference (Step 2.7)** — Reading `docs/backlog.md` is independent of everything.
+Steps 4, 2.4, and 2.7 need only the PRD (not the explorer report) — launch them immediately after Step 0 in parallel with exploration.
 
 ### Parallelism Rules
 
@@ -272,10 +244,7 @@ Planning runs are long. Subagent reports vanish when the agent returns. Conversa
 2. **Re-read from disk at phase boundaries.** At the start of Phase C, read `explorer-summary.md` + `websearch-findings.md` + `backlog-crossref.md` from disk — do not rely on conversation memory of the subagent output.
 3. **Append, don't overwrite** for `design-decisions.md` — each user answer adds to the file.
 4. **No intermediate cleanup until Step 13.** Intermediate files persist throughout the entire pipeline because subagents in later phases read from them. Only Step 13 (Final Cleanup) deletes the `docs/.eng-planning/` directory.
-5. **If a step needs data from a prior phase:** Read it from the intermediate file, not from conversation context. This is the whole point — conversation context may have been compressed.
-6. **The PRD is the source of truth — always read it in full when needed.** Never summarize the PRD into a lossy intermediate. It contains critical details (field constraints, business rules, edge cases in AC specs) that a summary would lose. Re-read the PRD from disk whenever a step needs it.
-7. **The explorer report is a codebase summary — NEVER hold the full report in main agent context.** The explorer subagent writes both `explorer-report.md` (full) and `explorer-summary.md` (~50 lines) to disk. The main agent reads ONLY the summary. The full report stays on disk for subagents (Steps 5a, 5b, 9) to reference.
-8. **Context budget:** The main agent should never hold the full PRD AND the full explorer report simultaneously. Read the PRD when needed, work from the explorer summary, and re-read targeted sections of intermediates from disk rather than holding everything in conversation memory.
+5. **Corollary of rules 1-2:** Never summarize the PRD into a lossy intermediate — re-read it in full when needed. Never hold the full PRD AND full explorer report simultaneously. The main agent works from `explorer-summary.md`; the full report stays on disk for subagents.
 
 ---
 
@@ -284,24 +253,10 @@ Planning runs are long. Subagent reports vanish when the agent returns. Conversa
 Before starting any work, check if a prior planning session left state on disk.
 
 1. **Check for progress file** — `Glob: docs/.eng-planning/progress.json`
-2. **If found:** Read the file. It contains:
-   ```json
-   {
-     "prd_path": "docs/prd/features/FEAT-XXX.md",
-     "last_completed_step": 3,
-     "tier": 2,
-     "remaining_steps": [5, 6, 7, 8, 9, 10, 11],
-     "artifacts_produced": [
-       "docs/plans/FEAT-XXX-design.md",
-       "docs/contracts/feature.md"
-     ],
-     "step_8_approved": false,
-     "review_iteration": 0
-   }
-   ```
+2. **If found:** Read the file. It contains the fields defined in the Checkpoint Protocol below (`prd_path`, `last_completed_step`, `tier`, `remaining_steps`, `artifacts_produced`, `step_8_approved`, `review_iteration`).
    - Report to the user: "Resuming eng-planning from Step [N] at **Tier [T]**. Steps completed: [list]. Next step: [N]."
    - **Use the stored tier** — do not re-detect. The tier was confirmed by the user in Step 0.5.
-   - Re-read the full PRD from the `prd_path` stored in `progress.json`. The PRD is the source of truth — always read it in full.
+   - Re-read the full PRD from the `prd_path` stored in `progress.json`.
    - Re-read any intermediate files that still exist in `docs/.eng-planning/` (they survive until Step 5c cleanup).
    - **After determining resume point, proceed to that step. Do NOT skip remaining steps.**
 
@@ -334,7 +289,7 @@ After each major step completion, write/update `docs/.eng-planning/progress.json
 3. **Ambiguous?** — If multiple candidates or none found, use AskUserQuestion:
    > "I found [N] potential PRD files: [list]. Which one should I plan against? Or provide a path."
 4. **Read the PRD** — Parse it completely. Extract: objectives, requirements (P0/P1/P2), constraints, user stories, success metrics, non-goals.
-5. **Store PRD path** — Record the PRD path in `progress.json` for subagent use. The PRD is the source of truth and should be re-read in full whenever needed — never summarize it into a lossy intermediate.
+5. **Store PRD path** — Record the PRD path in `progress.json` for subagent use.
 
 **→ Checkpoint:** Write `docs/.eng-planning/progress.json` with `last_completed_step: 0`, `prd_path` set, `remaining_steps: [0.5, 1, 2, 3, 5, 6, 7, 7.5, 7.6, 8, 9, 10, 11, 12, 12.5, 13]`, empty `artifacts_produced`, `step_8_approved: false`, `review_iteration: 0`, `traceability_pass: false`, `tier: null`.
 
@@ -357,18 +312,7 @@ If the user passed `--tier 1|2|3` (e.g., `/eng-planning --tier 1 docs/prd/FEAT-0
    - Number of new services or infrastructure components
    - Architectural risk indicators (new patterns, breaking changes, security-sensitive, multi-tenant)
 
-2. **Score against thresholds:**
-
-   | Signal | Tier 1 | Tier 2 | Tier 3 |
-   |--------|--------|--------|--------|
-   | P0 requirements | <3 | 3-8 | >8 |
-   | Repos touched | 1 | 1-2 | 3+ |
-   | New external deps | 0 | 1-3 | 4+ |
-   | New DB migrations | 0-1 | 2-4 | 5+ |
-   | New services/infra | 0 | 0-1 | 2+ |
-   | Architectural risk | Low | Medium | High |
-
-   Count how many signals fall into each tier column. The tier with the most signals wins. **Ties break upward** (prefer higher tier).
+2. **Score against thresholds** from the Tier Detection Heuristics table above (Planning Tiers section).
 
 3. **Ambiguous signals?** If signals are split across all three tiers (no clear majority):
    - Check if a code-review-graph exists for the project: `ls .code-review-graph/graph.db 2>/dev/null`
@@ -378,17 +322,7 @@ If the user passed `--tier 1|2|3` (e.g., `/eng-planning --tier 1 docs/prd/FEAT-0
      - If the feature touches hub nodes or bridge nodes → bump tier upward
    - **If no graph:** Proceed with the majority-signal tier and ask the user to confirm
 
-4. **Present tier recommendation via AskUserQuestion:**
-   > "Based on the PRD analysis, I recommend **Tier [N] ([Lightweight|Standard|Comprehensive])** planning for this feature."
-   >
-   > **Signals:** [list the signal counts]
-   >
-   > **What this means:**
-   > - [Tier-specific summary of what steps will run/skip — reference the Tier Overview table]
-   >
-   > "Is this the right planning depth, or would you prefer a different tier?"
-
-   Present as 3 options: Tier 1, Tier 2, Tier 3 with descriptions.
+4. Present tier recommendation with signal counts via AskUserQuestion. Offer all 3 tiers as options with descriptions. Wait for confirmation.
 
 5. **Record the tier.** After user confirms, the tier governs all subsequent steps.
 
@@ -453,7 +387,7 @@ For each architectural pattern, infrastructure component, or concurrency approac
 ### Phase C (after explorer report):
 
 Before starting, re-read these intermediate files from Phase B:
-- The **full PRD** (re-read from disk — it is the source of truth, never summarized)
+- The **full PRD** (re-read from disk)
 - `docs/.eng-planning/explorer-summary.md` (NOT the full explorer report — use the summary)
 - `docs/.eng-planning/websearch-findings.md`
 - `docs/.eng-planning/backlog-crossref.md`
@@ -466,7 +400,7 @@ Then answer the remaining questions:
 
 3. **Complexity check:** If the plan will touch more than 8 files or introduce more than 2 new services/classes, treat that as a smell. Challenge whether the same goal can be achieved with fewer moving parts. If triggered: use AskUserQuestion to propose scope reduction before proceeding.
 
-5. **Completeness check (lake vs ocean):** Is the plan doing the complete version or a shortcut? With AI-assisted coding, the cost of completeness (100% test coverage, full edge case handling, complete error paths) is 10-100x cheaper than with a human team. If a shortcut saves human-hours but only saves minutes with CC, recommend the complete version. Boil the lake, flag the ocean.
+5. **Completeness check:** Default to completeness (full test coverage, all edge cases, all error paths) — with AI-assisted coding the cost is minimal. Flag only if scope is genuinely oceanic.
 
 6. **Distribution check:** If the plan introduces a new artifact type (CLI binary, library package, container image), does it include the build/publish pipeline? Code without distribution is code nobody can use. Check: CI/CD workflow, target platforms, installation method. If deferred, flag explicitly.
 
@@ -562,14 +496,9 @@ Read the following files from disk before producing your artifact:
 
 Write your complete artifact to [OUTPUT_PATH] using the Write tool.
 
-CRITICAL CONSTRAINT — VERTICAL SLICE MANDATE:
-Every T-XXX task you produce MUST be a vertical slice (tracer bullet) through
-ALL architectural layers the behavior touches. NEVER decompose horizontally
-(all DB first, then all APIs, then all UI). Each task must be independently
-testable end-to-end. Include the mandatory Layers field, Slice Done Gate in
-Test Plan, cross-layer Acceptance Criteria, and Spec Reference path. Produce
-the Execution DAG with Concurrency Batches, DAG Visualization, and File
-Conflict Matrix sections. Maximize parallel agent execution.
+CRITICAL: Follow the Vertical Slice Mandate (defined in SKILL.md).
+Every T-XXX must be a vertical slice with Layers, Slice Done Gate,
+cross-layer ACs, Execution DAG, and File Conflict Matrix.
 Do NOT return the artifact content — write to disk only.
 ```
 
@@ -577,154 +506,11 @@ Do NOT return the artifact content — write to disk only.
 
 **Model:** opus (mandatory — this is the primary artifact requiring strongest reasoning)
 
-**This is the primary artifact.** One file per feature containing architecture, design decisions, and task mini-specs. Must include spec-registry frontmatter and ALL of the following sections:
+**This is the primary artifact.** One file per feature containing architecture, design decisions, and task mini-specs.
 
-```markdown
----
-domain: <feature-domain>
-skills: [<relevant-skills>]
-schemas: [<relevant-schema-paths>]
----
-
-# FEAT-XXX: [Feature Title]
-
-## Objective
-[Single paragraph — what this feature accomplishes and why]
-
-## Requirements
-### P0 (Must Have)
-- [requirement]
-
-### P1 (Should Have)
-- [requirement]
-
-### P2 (Nice to Have)
-- [requirement]
-
-### Non-Goals
-- [explicitly out of scope]
-
-## Architecture
-
-### System Overview
-[1-2 paragraphs — how this feature fits into the existing system]
-
-### Component Diagram
-[ASCII diagram showing boundaries, data flow, external services]
-
-### Data Flow
-[ASCII diagrams for key paths — e.g., user action → API → LLM → response]
-
-### Database Schema
-[New tables, columns, types, constraints, indexes, JSONB schemas]
-
-### Frontend Architecture
-[Module structure, component hierarchy, state management approach]
-
-### Backend Architecture
-[Vertical slice structure, handler flow, service dependencies]
-
-### Error Handling Strategy
-[Retry, fallback, circuit breaker patterns — specific to this feature]
-
-### Security Model
-[Auth, data access boundaries, PII handling, audit requirements]
-
-## Design Decisions
-
-### DD-NNN: [Decision Title]
-**Issue:** [What needed deciding — 1-2 sentences]
-**Decision:** [What was decided — specific and concrete]
-**Alternatives Considered:** [Brief description of rejected options]
-**Rationale:** [Why this option won — concrete tradeoffs]
-
-[... repeat for each decision from Step 3 ...]
-
-## Interfaces
-
-### API Endpoints
-- `POST /api/...` — [purpose] (full contract in `docs/contracts/<feature>.md`)
-
-### DB Changes
-- Table: `...`
-- Indexes: `...`
-
-### FE Changes
-- Component: `...`
-
-### New Dependencies (R17 — MANDATORY)
-- `package>=X.Y.Z` — [URL] — Purpose: [why] — Verified: YES
-
-## Tasks
-
-### T-XXX: [Task Title]
-**Priority:** P0 | P1 | P2
-**Layers:** [DB, API, FE] | [DB, API] | HORIZONTAL-JUSTIFIED: [reason]
-**Depends On:** - (none) | T-XXX, T-YYY
-**Blocks:** T-XXX, T-YYY | - (none)
-**Spec Reference:** `T-XXX @ docs/plans/FEAT-XXX-design.md#t-xxx`
-**Objective:** [single sentence — the user-visible behavior this slice delivers]
-**Requirements:**
-- [specific bullets — must span ALL listed layers]
-**Build Guidance:**
-- Use existing `ClassName` pattern from `src/path/`
-- [SPECIFIC patterns, classes, utilities — NOT generic principles]
-**Acceptance Criteria:**
-- [ ] [criterion — MUST include at least one cross-layer AC if multi-layer]
-**Edge Cases:**
-- [edge case and expected behavior]
-**Test Plan:**
-- Unit: [per-layer unit tests]
-- Integration: [cross-layer wiring test — proves the slice connects end-to-end]
-- Slice Done Gate: [the single integration assertion that proves this vertical slice works]
-
----
-
-### T-XXX: [Next Task]
-[... same template ...]
-
-## Execution DAG (Parallel Agent Optimization)
-
-The task graph below is a **Directed Acyclic Graph** optimized for maximum parallel execution by independent coding agents. Tasks in the same concurrency batch have NO shared file modifications and can be worked simultaneously.
-
-### Concurrency Batches
-
-| Batch | Tasks | Can Run In Parallel | Blocked By |
-|-------|-------|--------------------:|-----------|
-| 1 | T-101, T-104 | Yes (no shared files) | — |
-| 2 | T-102, T-103 | Yes (no shared files) | Batch 1: T-101 |
-| 3 | T-105 | — | Batch 2: T-102, T-103 |
-
-### DAG Visualization
-```
-Batch 1 (parallel):  T-101 ─┬─► T-102 ──┐
-                             │            ├──► T-105
-                             └─► T-103 ──┘
-         (parallel):  T-104 (independent, no downstream)
-```
-
-### File Conflict Matrix
-
-| Task | Creates/Modifies | Conflicts With |
-|------|-----------------|---------------|
-| T-101 | schema.py, migration_001.py, /api/prefs.py, PrefsToggle.tsx | — |
-| T-102 | schema.py (additive), migration_002.py, /api/tz.py, TzDropdown.tsx | T-101 (schema.py — sequential) |
-| T-103 | /api/reset.py, ResetDialog.tsx, prefs.test.ts | — |
-| T-104 | ci.yml, Dockerfile | — |
-
-### Agent Assignment Rules
-- Each batch launches N agents simultaneously (one per task in the batch)
-- Agent receives: the task's mini-spec (via Spec Reference path), API contract, and this DAG
-- Agent declares DONE only when its **Slice Done Gate** integration test passes
-- Batch N+1 agents do NOT launch until ALL Batch N blocking tasks report DONE
-
-## Definition of Done
-- [ ] All T-XXX tasks pass 2 QA cycles each
-- [ ] All slice integration tests pass end-to-end
-- [ ] All tests pass (`make test`)
-- [ ] Lint passes (`make lint`)
-- [ ] User approval gate for merge
-```
+1. **Read the template** — Read `~/.claude/skills/eng-planning/templates/design-doc-template.md`
+2. **Include in the subagent prompt** — The template defines all required sections (spec-registry frontmatter, architecture, design decisions, task mini-specs with vertical slice fields, execution DAG, file conflict matrix, definition of done)
+3. **The subagent fills the template** using intermediates from disk (see subagent preamble above)
 
 **Mini-Spec Rules (non-negotiable):**
 
@@ -755,14 +541,7 @@ ls -la docs/plans/FEAT-*-design.md
 - Error response shapes — consistent error format with codes
 - Shared enums/types referenced by both FE and BE
 
-Include frontmatter:
-```yaml
----
-domain: <feature-domain>
-skills: [<relevant-skills>]
-schemas: [<relevant-schema-paths>]
----
-```
+Include spec-registry frontmatter (see Spec-Registry Frontmatter section below).
 
 **After 5b subagent completes:** Verify the artifact exists:
 ```bash
@@ -928,75 +707,11 @@ After fixing, **re-run the full 5-agent pipeline** (all fresh agents — do NOT 
 
 **Model:** opus (mandatory for all tiers that execute this step — this is a holistic reasoning task)
 
-Spawn **one Opus subagent** that reads all artifacts from disk. It does NOT receive any conversation history — completely fresh perspective.
+Spawn **one Opus subagent** that reads all artifacts from disk with no conversation history.
 
-**Subagent prompt:**
-```
-You are a Senior Engineering Architect performing a quality synthesis review
-of engineering planning artifacts. You have NO prior context — you see ONLY
-the artifacts. Read everything from disk before starting your review.
-
-Read these files:
-- PRD: [PRD_PATH]
-- Feature design doc(s): [ARTIFACT_PATHS from progress.json]
-- API contract(s): [CONTRACT_PATHS]
-- Traceability matrix: docs/.eng-planning/traceability/traceability-matrix.md
-
-Perform these checks:
-
-1. INTERNAL CONSISTENCY
-   - Do the tasks in the design doc contradict the architecture section?
-   - Do task dependencies form a valid DAG? (no cycles, no missing deps)
-   - Do Build Guidance references point to patterns that actually exist in the
-     explorer report? (read docs/.eng-planning/explorer-report.md to verify)
-   - Are priority levels consistent? (P0 task depending on P2 task = problem)
-
-2. CROSS-ARTIFACT COHERENCE
-   - Do API contract field names match the data model in the design doc?
-   - Do contract endpoints match what the tasks say they'll implement?
-   - Do error codes/shapes in the contract align with error handling in the design?
-
-3. ACCEPTANCE CRITERIA QUALITY
-   - Are all ACs testable and falsifiable? (not "works correctly")
-   - Do ACs have concrete values (thresholds, field names, status codes)?
-   - Are edge cases covered in both ACs and test plans?
-
-4. COMPLETENESS
-   - Does every PRD requirement map to at least one task?
-   - Does every task have all required fields? (Priority, Layers, Depends On,
-     Blocks, Spec Reference, Objective, Requirements, Build Guidance,
-     Acceptance Criteria, Edge Cases, Test Plan with Slice Done Gate)
-   - Are there orphan tasks that don't trace back to any PRD requirement?
-
-5. VERTICAL SLICE COMPLIANCE
-   - Does every T-XXX task have a `Layers` field listing 2+ layers?
-   - If a task lists only 1 layer, does it have `HORIZONTAL-JUSTIFIED: [reason]`?
-   - Is the justification legitimate? (Infra-only tasks like CI config or DB index
-     are valid; "this is just the API layer" is NOT valid if a UI exists for it)
-   - Does every multi-layer task have at least one cross-layer Acceptance Criterion?
-   - Does every task have a `Slice Done Gate` in its Test Plan?
-   - Are there any signs of horizontal decomposition? (e.g., T-101 = "create all
-     DB schemas", T-102 = "create all API endpoints" → P1 REJECTION)
-   - Flag any task whose Requirements bullet points all live in the same layer
-     despite claiming multiple layers in the Layers field (layer claim mismatch)
-
-6. DAG QUALITY (Parallel Agent Optimization)
-   - Is the Execution DAG a valid DAG? (no cycles)
-   - Are concurrency batches correctly computed from `Depends On` edges?
-   - Does the File Conflict Matrix accurately reflect what each task modifies?
-   - Are there false dependencies that could be removed to increase parallelism?
-   - Is the maximum batch size reasonable for the project? (>5 parallel agents
-     is a smell — check for file conflicts that were missed)
-
-For each finding, classify:
-- SPECIFIABLE — can be fixed by editing an artifact (include proposed fix)
-- REQUIRES_DECISION — needs human input (state the question)
-
-Severity: P0 (blocking), P1 (should fix), P2 (deferrable)
-
-Write your complete findings to:
-docs/.eng-planning/quality-synthesis.md
-```
+1. **Read the template** — Read `~/.claude/skills/eng-planning/templates/quality-synthesis-prompt.md`
+2. **Fill placeholders:** `[PRD_PATH]`, `[ARTIFACT_PATHS]`, `[CONTRACT_PATHS]`, `[QUALITY_SYNTHESIS_PATH]` = `docs/.eng-planning/quality-synthesis.md`
+3. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`, `model: "opus"`. Subagent writes findings to disk.
 
 **After subagent completes:** Read `docs/.eng-planning/quality-synthesis.md`. Fix all SPECIFIABLE findings autonomously by editing the artifacts. Present REQUIRES_DECISION findings to the user via AskUserQuestion before proceeding to Step 8.
 
@@ -1004,9 +719,7 @@ docs/.eng-planning/quality-synthesis.md
 
 ---
 
-### MANDATORY CHECKPOINT — YOU ARE NOT DONE
-
-**STOP HERE and read this.** Steps 8-12 (Phase F: Review Gate) are MANDATORY. You have produced artifacts in Steps 5-7.5 — you have NOT had them independently reviewed. The review chain (present artifacts -> engineering review -> auto-fix -> final output -> final traceability gate) is non-negotiable. Do not declare victory. Do not report completion. Do not summarize what you did and stop. You MUST proceed to Step 8 now.
+**MANDATORY:** Proceed to Step 8. Artifacts are not yet independently reviewed.
 
 ---
 
@@ -1109,9 +822,7 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
 
 ---
 
-### MANDATORY CHECKPOINT — STEPS 12-13 ARE NOT OPTIONAL
-
-**STOP.** You must proceed through Steps 12, 12.5, and 13 before declaring completion. The review loop (Steps 9-10) may have introduced fixes that broke traceability or coherence. Steps 12-12.5 verify the final state. Step 13 cleans up and reports.
+**MANDATORY:** Proceed through Steps 12-13. Review fixes may have broken traceability.
 
 ---
 
@@ -1155,33 +866,9 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
 
 **Model:** sonnet (lighter check — the heavy lifting was done in Steps 7.6 and 9)
 
-Spawn **one Sonnet subagent** that reads the final artifacts + the review findings to check specifically for fix-introduced regressions.
-
-**Subagent prompt:**
-```
-You are doing a focused coherence spot-check on engineering artifacts AFTER
-a review-and-fix cycle. Your job is NOT a full review — only check whether
-fixes introduced during the review process broke anything.
-
-Read these files from disk:
-- Feature design doc(s): [ARTIFACT_PATHS]
-- API contract(s): [CONTRACT_PATHS]
-- Review findings (what was changed): docs/.eng-planning/review-findings.md
-
-For each fix applied during the review cycle (listed in review-findings.md):
-1. Did the fix resolve the original finding?
-2. Did the fix introduce a new contradiction with another section?
-3. Did the fix break any cross-references (task deps, contract field names, AC)?
-
-Only flag issues that are DIRECTLY caused by review fixes. Do not re-review
-the entire document — that was already done.
-
-Output format:
-- FIX-REGRESSION-N: [original fix] → [new problem introduced]
-- Or: "No regressions found — review fixes are clean."
-
-Write your findings to: docs/.eng-planning/post-review-spotcheck.md
-```
+1. **Read the template** — Read `~/.claude/skills/eng-planning/templates/spot-check-prompt.md`
+2. **Fill placeholders:** `[ARTIFACT_PATHS]`, `[CONTRACT_PATHS]`, `[SPOT_CHECK_PATH]` = `docs/.eng-planning/post-review-spotcheck.md`
+3. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`, `model: "sonnet"`. Subagent writes findings to disk.
 
 **After subagent completes:** Read `post-review-spotcheck.md`. If regressions found, fix them directly. These should be small — if a regression requires a design decision, surface it via AskUserQuestion.
 
@@ -1248,14 +935,8 @@ At `light` VIBE level: frontmatter is recommended but not required.
 ## Red Flags — STOP Immediately
 
 If you catch yourself:
-- Opening Edit/Write on .py/.ts/.js files → STOP, you are the planner
-- Writing implementation code in any language → STOP
 - Producing a mini-spec without Build Guidance → STOP, add specific guidance
 - Writing generic Build Guidance ("follow SOLID", "keep it DRY") → STOP, name specific files/classes/patterns
-- Skipping dependency verification at `full` level → STOP, verify first
-- Proceeding after dependency verification failure → STOP, escalate
-- Making design decisions without presenting options → STOP, ask user
-- Writing artifacts outside docs/ → STOP, wrong location
 - Producing a FEAT design doc without all required sections → STOP, complete it
 - Running implementation tests or modifying test files → STOP, that is coder work
 - **Decomposing by horizontal layer** (all schemas → all APIs → all UI) → STOP, re-slice vertically
@@ -1267,10 +948,4 @@ If you catch yourself:
 
 ## Escalation
 
-If at any point:
-- A PRD requirement is ambiguous and cannot be resolved by re-reading → AskUserQuestion
-- Dependency verification fails and no alternative exists → STOP and report BLOCKED
-- The complexity check suggests fundamental redesign → present findings, wait for user
-- Explorer report reveals the codebase cannot support the PRD requirements → escalate immediately
-
-Do not guess. Do not assume. Ask.
+When blocked or ambiguous at any point, use AskUserQuestion. Do not guess. Do not assume.
