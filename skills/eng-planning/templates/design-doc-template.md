@@ -136,6 +136,91 @@ The task graph is a DAG optimized for maximum parallel execution by independent 
 - Agent declares DONE only when its **Slice Done Gate** integration test passes
 - Batch N+1 agents do NOT launch until ALL Batch N blocking tasks report DONE
 
+## API Contract Summary
+
+Full contract lives in `docs/contracts/<feature>.md` (separate file — FE and BE teams reference independently). This section summarizes the contract for quick reference within the design doc.
+
+### Endpoints
+
+| Method | Path | Request Body | Response Body | Status Codes |
+|--------|------|-------------|---------------|-------------|
+| POST | `/api/...` | `{ field: type }` | `{ field: type }` | 201, 400, 401, 500 |
+| GET | `/api/...` | — | `{ field: type }` | 200, 401, 404 |
+
+### Data Models
+
+```
+ModelName {
+  id: UUID (PK)
+  field: type (constraint)
+  created_at: timestamp
+}
+```
+
+### Error Response Shape
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable message",
+    "details": {}
+  }
+}
+```
+
+### Shared Enums/Types
+- `StatusEnum`: draft | active | archived
+- [additional shared types referenced by both FE and BE]
+
+### SSE Events (if applicable)
+- Event: `event_name` — `{ field: type, field: type }`
+
+## Codepath Coverage Diagram
+
+For each vertical slice, show planned codepaths and where tests should exist. Append after implementation planning is complete.
+
+```
+PLANNED CODEPATH COVERAGE
+===========================
+[+] src/services/feature.py
+    |
+    +-- create_item()
+    |   +-- [UNIT]        Happy path — valid input
+    |   +-- [UNIT]        Validation failure — missing required field
+    |   +-- [INTEGRATION] DB write + read-back verification
+    |   +-- [UNIT]        Edge: empty string input
+    |
+    +-- get_items()
+        +-- [UNIT]        Pagination happy path
+        +-- [UNIT]        Edge: page beyond range
+        +-- [E2E]         Full flow: create -> list -> verify
+
+[+] src/api/routes.py
+    |
+    +-- POST /api/items
+    |   +-- [INTEGRATION] Request validation + service call
+    |   +-- [UNIT]        Auth middleware rejection
+    |
+    +-- GET /api/items
+        +-- [INTEGRATION] Query params parsing + response shape
+
+-------------------------------------
+PLANNED COVERAGE: X paths
+  Unit: N | Integration: N | E2E: N
+-------------------------------------
+```
+
+## Failure Modes
+
+| Codepath | Realistic Failure | Tests Cover It? | Error Handling Exists? | Silent? |
+|----------|-------------------|-----------------|----------------------|---------|
+| create_item() | DB connection timeout during write | Yes (integration) | Yes (retry + 503) | No |
+| get_items() | Malformed pagination params | No — ADD TEST | Yes (400 response) | No |
+| POST /api/items | Request body exceeds size limit | No — ADD TEST | No — ADD HANDLER | Yes! |
+
+Flag any "Silent? Yes" entries as **P0** — silent failures in production are unacceptable.
+
 ## Definition of Done
 - [ ] All T-XXX tasks pass 2 QA cycles each
 - [ ] All slice integration tests pass end-to-end

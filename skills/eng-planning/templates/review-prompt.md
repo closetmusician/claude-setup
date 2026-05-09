@@ -35,7 +35,7 @@ Do NOT execute these sections (they are handled by the parent skill or are irrel
 Execute these sections at full depth against the artifacts listed below:
 
 1. **Step 0: Scope Challenge** — Apply all 7 questions against the design docs and PRD
-2. **Section 0.5: PRD Traceability Matrix** — Spawn a fresh sonnet-level subagent (`model: "sonnet"`) to produce a forward+reverse traceability matrix between PRD requirements/ACs and engineering tasks/ACs. Every gap is a P0 finding. The design doc must prove 1:1 faithful translation of the PRD.
+2. **Section 0.5: PRD Traceability Matrix** — Execute the 3-agent traceability pipeline from the shared template at `~/.claude/skills/eng-planning/templates/traceability-pipeline.md`. Read the template, fill placeholders, and run the pipeline. Every gap is a P0 finding. The design doc must prove 1:1 faithful translation of the PRD.
 3. **Section 1: Architecture review** — Evaluate system design, component boundaries, dependency graph, data flow, scaling, security, failure scenarios
 4. **Section 2: Code quality review** — Evaluate organization, DRY violations, error handling patterns, over/under-engineering
 5. **Section 3: Test review** — Including the codepath coverage diagram methodology. Verify every planned codepath has a corresponding test plan entry. Flag gaps.

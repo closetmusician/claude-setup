@@ -89,11 +89,11 @@ The planning pipeline scales its depth and ceremony based on the complexity of t
 |--------|---------------------|-------------------|----------------------|
 | **Scope** | Minor features, single-repo, <3 requirements | Moderate features, moderate risk | Large-scale, multi-repo, high-risk, >8 requirements |
 | **Explorer** | Single Sonnet, no multi-repo split | Multi-repo split IF feature requires it | Full multi-repo split |
-| **Step 7.5 (Pre-approval traceability)** | SKIP | Full 5-agent pipeline | Full 5-agent pipeline |
+| **Step 7.5 (Pre-approval traceability)** | SKIP | Full 3-agent pipeline | Full 3-agent pipeline |
 | **Step 7.6 (Quality synthesis)** | SKIP | Opus subagent | Opus subagent |
 | **Step 9 (Eng review)** | Simplified: single Sonnet, PRD + architecture only | Full template, 1 review iteration max | Full template, 2 iterations max |
 | **Step 10 (Auto-fix)** | 0 re-reviews (fix specifiable, report rest) | 1 iteration max | 2 iterations max |
-| **Step 12 (Final traceability)** | Simplified: 1-2 Sonnet agents, simplified matrix | Full 5-agent pipeline | Full 5-agent pipeline |
+| **Step 12 (Final traceability)** | Simplified: 1-2 Sonnet agents, simplified matrix | Full 3-agent pipeline | Full 3-agent pipeline |
 | **Artifacts** | Single design doc (contract inline if no API) | Design doc + contract if API exists | Both artifacts always |
 | **Step 2.4 (WebSearch)** | Full | Skip if no new patterns/frameworks (ask first) | Full |
 
@@ -190,7 +190,7 @@ PHASE E: Enrichment (parallel, append to FEAT design doc)
   ↓ (enrichment complete)
 
 PHASE E.5: PRD Traceability (sequential — must pass before presenting)
-  Step 7.5: Spawn Traceability Auditor pipeline (agents read/write disk) → fix gaps → re-check (max 2 iterations)
+  Step 7.5: Run 3-agent traceability pipeline (template) → fix gaps → re-check (max 2 iterations)
   ↓ (traceability verified or gaps reported)
 
 PHASE E.6: Quality Synthesis (Opus subagent — reads all artifacts from disk)
@@ -250,11 +250,9 @@ Planning runs are long. Subagent reports vanish when the agent returns. Conversa
 | B | `docs/.eng-planning/backlog-crossref.md` | Step 2.7 | Step 2 (full) |
 | C | `docs/.eng-planning/scope-challenge.md` | Step 2 (full synthesis) | Step 3, Step 5a subagent |
 | C | `docs/.eng-planning/design-decisions.md` | Step 3 (accumulated after each user answer) | Steps 5a, 5b subagents |
-| E.5 | `docs/.eng-planning/traceability/prd-extract.md` | Step 7.5 Phase 1 Agent A | Phase 2 Agents C, D (read from disk); Phase 3 Agent E |
-| E.5 | `docs/.eng-planning/traceability/eng-extract.md` | Step 7.5 Phase 1 Agent B | Phase 2 Agents C, D (read from disk); Phase 3 Agent E |
-| E.5 | `docs/.eng-planning/traceability/forward-trace.md` | Step 7.5 Phase 2 Agent C | Phase 3 Agent E (reads from disk) |
-| E.5 | `docs/.eng-planning/traceability/reverse-trace.md` | Step 7.5 Phase 2 Agent D | Phase 3 Agent E (reads from disk) |
-| E.5 | `docs/.eng-planning/traceability/traceability-matrix.md` | Step 7.5 Phase 3 Agent E | Steps 8, 10 |
+| E.5 | `docs/.eng-planning/traceability/forward-trace.md` | Step 7.5 Agent 1 (Forward Tracer) | Agent 3 (Synthesis) |
+| E.5 | `docs/.eng-planning/traceability/reverse-trace.md` | Step 7.5 Agent 2 (Reverse Tracer) | Agent 3 (Synthesis) |
+| E.5 | `docs/.eng-planning/traceability/traceability-matrix.md` | Step 7.5 Agent 3 (Synthesis) | Steps 8, 10 |
 | E.6 | `docs/.eng-planning/quality-synthesis.md` | Step 7.6 (Opus quality subagent writes to disk) | Main agent (fix issues before Step 8) |
 | F | `docs/.eng-planning/review-findings.md` | Step 9 (reviewer subagent writes directly to disk) | Step 10 |
 | F | `docs/.eng-planning/post-review-spotcheck.md` | Step 12.5 (Sonnet spot-check subagent) | Step 13 (main agent) |
@@ -556,15 +554,9 @@ ls -la docs/plans/FEAT-*-design.md
 
 **Model:** opus (mandatory — contracts require precise field-level reasoning)
 
-**Separate file** because FE and BE teams reference it independently. Per R16: one contract per feature with cross-boundary data flow. Must include:
-- Spec-registry frontmatter (at `full` level)
-- REST endpoint signatures (method, path, request body, response body, status codes)
-- Data models with exact field names, types, and constraints
-- SSE event schemas (if applicable) — event name, data shape, field types
-- Error response shapes — consistent error format with codes
-- Shared enums/types referenced by both FE and BE
+**Separate file** because FE and BE teams reference it independently. Per R16: one contract per feature with cross-boundary data flow. Follow the "API Contract Summary" template in `~/.claude/skills/eng-planning/templates/design-doc-template.md` — must include endpoint signatures, data models, error shapes, shared enums, and SSE events (if applicable).
 
-Include spec-registry frontmatter (see Spec-Registry Frontmatter section below).
+Include spec-registry frontmatter at `full` level (see Spec-Registry Frontmatter section below).
 
 **After 5b subagent completes:** Verify the artifact exists:
 ```bash
@@ -577,53 +569,7 @@ ls -la docs/contracts/*.md
 
 ## Step 6: Codepath Coverage Diagram
 
-For each FEAT design doc, produce an ASCII diagram showing planned codepaths and where tests should exist. Append to the FEAT design doc.
-
-### Codepath Diagram Format
-```
-PLANNED CODEPATH COVERAGE
-===========================
-[+] src/services/feature.py
-    |
-    +-- create_item()
-    |   +-- [UNIT]        Happy path — valid input
-    |   +-- [UNIT]        Validation failure — missing required field
-    |   +-- [INTEGRATION] DB write + read-back verification
-    |   +-- [UNIT]        Edge: empty string input
-    |
-    +-- get_items()
-        +-- [UNIT]        Pagination happy path
-        +-- [UNIT]        Edge: page beyond range
-        +-- [E2E]         Full flow: create -> list -> verify
-
-[+] src/api/routes.py
-    |
-    +-- POST /api/items
-    |   +-- [INTEGRATION] Request validation + service call
-    |   +-- [UNIT]        Auth middleware rejection
-    |
-    +-- GET /api/items
-        +-- [INTEGRATION] Query params parsing + response shape
-
--------------------------------------
-PLANNED COVERAGE: X paths
-  Unit: N | Integration: N | E2E: N
--------------------------------------
-```
-
-### Failure Modes Analysis
-
-For each new codepath, append a failure modes section:
-
-```markdown
-## Failure Modes
-
-| Codepath | Realistic Failure | Tests Cover It? | Error Handling Exists? | Silent? |
-|----------|-------------------|-----------------|----------------------|---------|
-| create_item() | DB connection timeout during write | Yes (integration) | Yes (retry + 503) | No |
-| get_items() | Malformed pagination params | No — ADD TEST | Yes (400 response) | No |
-| POST /api/items | Request body exceeds size limit | No — ADD TEST | No — ADD HANDLER | Yes! |
-```
+For each FEAT design doc, produce codepath coverage and failure modes analysis. Append to the FEAT design doc using the templates in `~/.claude/skills/eng-planning/templates/design-doc-template.md` (sections "Codepath Coverage Diagram" and "Failure Modes").
 
 Flag any "Silent? Yes" entries as P0 — silent failures in production are unacceptable.
 
@@ -691,34 +637,18 @@ Using the explorer report (`docs/.eng-planning/explorer-report.md`), verify the 
 
 **Purpose:** Before presenting artifacts for approval, verify 1:1 mapping between PRD requirements/acceptance criteria and engineering tasks/acceptance criteria. Catch gaps before the approval gate.
 
-Execute the **5-agent traceability pipeline** defined in plan-eng-review Section 0.5. This is a multi-agent audit, not a single-agent check.
-
-1. **Set up working directory:**
-   ```bash
-   mkdir -p docs/.eng-planning/traceability/
-   ```
-
-2. **Re-read the PRD** from the path in `progress.json`.
-
-3. **Run the 3-phase pipeline** with `{TRACE_DIR}` = `docs/.eng-planning/traceability/`:
-   - **Phase 1 (parallel):** Spawn Agent A (PRD Extractor) and Agent B (Eng Doc Extractor) simultaneously. Both `model: "sonnet"`, `subagent_type: "general-purpose"`. Each writes its extraction to disk.
-   - **Phase 2 (parallel):** After Phase 1 completes, spawn Agent C (Forward Tracer) and Agent D (Reverse Tracer) simultaneously. **Tell each agent to read the extraction files from disk** — do NOT pass file contents in the prompt. Each writes trace results to disk.
-   - **Phase 3 (sequential):** After Phase 2 completes, spawn Agent E (Synthesis & Verdict). **Tell it to read all four intermediate files from disk.** Writes final matrix to disk.
-
+1. **Read the template** — Read `~/.claude/skills/eng-planning/templates/traceability-pipeline.md`
+2. **Fill placeholders:**
+   - `{TRACE_DIR}` = `docs/.eng-planning/traceability/`
+   - `{PRD_PATH}` = PRD path from `progress.json`
+   - `{ARTIFACT_PATHS}` = design doc path(s) from `artifacts_produced`
+   - `{CONTRACT_PATHS}` = contract path(s) from `artifacts_produced` (if any)
+3. **Execute the 3-agent pipeline** as defined in the template (2 parallel tracers + 1 synthesis agent).
 4. **Read `docs/.eng-planning/traceability/traceability-matrix.md`** from disk — this is the authoritative result.
 
 **If VERDICT is PASS:** Proceed to Step 8.
 
-**If VERDICT is FAIL:** Fix every gap autonomously:
-   - **DROPPED** → Add missing requirement to appropriate T-XXX task or create a new task with all required fields
-   - **DILUTED** → Strengthen eng acceptance criteria to match PRD specificity (thresholds, edge cases, conditions)
-   - **DOWNGRADED** → Correct task priority to match PRD priority
-   - **SPLIT_RISK** → Add explicit cross-reference notes to affected tasks ensuring no detail is lost
-   - **SCOPE_CREEP** → Remove unauthorized work OR add explicit "Engineering Necessity" justification in the task
-   - **REINTERPRETED** → Rewrite eng version to match original PRD intent verbatim
-   - **NON_GOAL_VIOLATION** → Remove eng task that implements a PRD non-goal
-
-After fixing, **re-run the full 5-agent pipeline** (all fresh agents — do NOT reuse prior ones). Maximum 2 iterations. If gaps persist after 2 iterations, report remaining gaps when presenting in Step 8. Keep all intermediate files in `docs/.eng-planning/traceability/` — they are the audit trail for Steps 8 and 10.
+**If VERDICT is FAIL:** Fix every gap autonomously using the Gap Resolution Rules in the template. After fixing, **re-run the full pipeline** (all fresh agents — do NOT reuse prior ones). Maximum 2 iterations. If gaps persist after 2 iterations, report remaining gaps when presenting in Step 8. Keep all intermediate files in `docs/.eng-planning/traceability/` — they are the audit trail for Steps 8 and 10.
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 7.5`, remove `7.5` from `remaining_steps`. Add `traceability_pass: true|false` and `traceability_gaps_remaining: N`.
 
@@ -859,23 +789,23 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
 
 ### Tier-Conditional Traceability
 
-- **Tier 1 (Simplified Traceability):** Instead of the full 5-agent pipeline, spawn **1-2 independent Sonnet agents** to produce a simplified traceability matrix:
+- **Tier 1 (Simplified Traceability):** Instead of the full 3-agent pipeline, spawn **1-2 independent Sonnet agents** to produce a simplified traceability matrix:
   - **If PRD + design doc combined < 200 lines:** Spawn 1 Sonnet agent that reads both documents and produces a simplified forward+reverse traceability matrix.
   - **If PRD + design doc combined >= 200 lines:** Spawn 2 Sonnet agents in parallel — one for forward trace (PRD→eng), one for reverse trace (eng→PRD). Merge results.
   - Agent prompt: "Read the PRD at [path] and the design doc at [path]. For each PRD requirement, verify it maps to at least one engineering task with matching acceptance criteria. For each engineering task, verify it traces back to a PRD requirement. Write a simplified traceability matrix to `docs/.eng-planning/traceability/traceability-matrix.md` with VERDICT: PASS or FAIL and any gaps found."
   - The agent(s) must be independent — they have NOT seen the planning conversation. This is the verification guarantee.
   - If FAIL: fix gaps, re-run simplified check (max 1 iteration).
 
-- **Tier 2 and Tier 3:** Use the full 5-agent pipeline as described below.
+- **Tier 2 and Tier 3:** Use the shared 3-agent traceability pipeline template.
 
 **For Tier 2 and Tier 3, proceed with the standard flow:**
 
-1. **Clean prior traceability state and re-run the full 5-agent pipeline:**
+1. **Clean prior traceability state and re-run the pipeline:**
    ```bash
    rm -rf docs/.eng-planning/traceability/
    mkdir -p docs/.eng-planning/traceability/
    ```
-   Run the complete 3-phase pipeline from plan-eng-review Section 0.5 with `{TRACE_DIR}` = `docs/.eng-planning/traceability/`. All fresh sonnet agents — the Step 7.5 agents are long gone.
+   Read `~/.claude/skills/eng-planning/templates/traceability-pipeline.md`, fill placeholders with `{TRACE_DIR}` = `docs/.eng-planning/traceability/`, and execute. All fresh sonnet agents — the Step 7.5 agents are long gone.
 
 2. **If VERDICT is PASS:** Proceed to final output with `PRD Traceability: VERIFIED (100% forward trace, confirmed post-review)`.
 
