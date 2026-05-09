@@ -1,6 +1,6 @@
 ---
 name: eng-planning
-description: "Feature-level engineering planning spanning ARCHITECTURE_APPROVED → FEATURE_SPECS_APPROVED. Reads approved PRD, explores codebase, and produces TWO artifacts per feature: (1) a consolidated feature design doc (architecture + design decisions + task mini-specs) and (2) a separate API contract. Invoke after PRD approval. For per-task file-level design during orchestration, use code-architect instead."
+description: "Feature-level engineering planning with conditional depth (Tier 1/2/3). Reads approved PRD, auto-detects complexity, and scales planning rigor accordingly. Tier 1 (lightweight) for minor single-repo changes, Tier 2 (standard) for moderate features, Tier 3 (comprehensive) for large-scale/multi-repo/high-risk. Supports --tier override. Produces feature design doc + optional API contract. Invoke after PRD approval."
 ---
 
 # Engineering Planning
@@ -17,6 +17,58 @@ The engineering planner reads an approved PRD, explores the codebase, surfaces m
 
 **Core principle:** Your only tools are Agent (to spawn explorer/reviewer), Read/Glob/Grep (to understand code), Write (to produce docs/ artifacts), AskUserQuestion (to get decisions), and Bash (read-only + dependency checks). If you are about to Edit/Write a .py/.ts/.js file, you have violated your role.
 
+---
+
+## Vertical Slice Mandate (Tracer Bullets)
+
+**Every task ticket (T-XXX) must be a vertical slice through the full stack.** This is non-negotiable and shapes every step of the planning process.
+
+### What This Means
+
+A vertical slice is the thinnest possible end-to-end implementation that touches ALL architectural layers required for a behavior. If a feature requires DB + API + FE, the ticket encompasses all three — not "build schema first, then API, then UI."
+
+### What This Forbids
+
+**BANNED: Horizontal layer planning.** You MUST NOT decompose work as:
+- Phase 1: All DB schemas/migrations
+- Phase 2: All API endpoints
+- Phase 3: All UI components
+
+This pattern creates integration risk, blocks parallel agents from producing testable increments, and delays feedback loops.
+
+### Correct Decomposition
+
+Instead of "build the user preferences system" → 3 horizontal layers, decompose as:
+- T-101: "User can set email notification preference" → migration + API endpoint + toggle component + integration test
+- T-102: "User can set timezone preference" → migration + API endpoint + dropdown component + integration test
+- T-103: "User can bulk-reset to defaults" → API endpoint + confirmation dialog + test
+
+Each ticket is independently deployable and immediately testable end-to-end.
+
+### Escape Hatch: HORIZONTAL-JUSTIFIED
+
+Some legitimate work is single-layer (DB index for performance, CI pipeline config, shared type definitions). These tickets MUST be tagged:
+
+```
+**HORIZONTAL-JUSTIFIED:** [reason this cannot be a vertical slice]
+```
+
+The reason must explain WHY vertical slicing is impossible, not just describe what the task does. The quality synthesis (Step 7.6) will flag any single-layer ticket missing this tag as P1.
+
+### Optimizing for Parallel Agents (DAG)
+
+The final task decomposition MUST structure tickets as a **Directed Acyclic Graph (DAG)** that maximizes concurrent execution by independent coding agents. The planner must:
+1. Identify the maximum set of tickets with NO shared file modifications that can execute simultaneously
+2. Define strict `blocked_by` edges only where true data/API dependencies exist
+3. Never create artificial sequencing (e.g., "T-102 after T-101" just because they're in the same feature area)
+
+### TDD Integration Per Slice
+
+Every vertical slice defines its own **test boundary**. The coding agent knows exactly what cross-stack tests must pass to prove the slice wires together:
+- Unit tests for the new logic in each layer
+- Integration test proving the layers connect (e.g., "POST /api/prefs → DB write → GET /api/prefs returns updated value")
+- The slice is DONE only when its integration test passes — not when individual layer code compiles
+
 ## VIBE Level Detection
 
 Before planning, check `.claude/phase.json` for the `"vibe_level"` field:
@@ -29,6 +81,41 @@ At `light` level:
 - **Skip mandatory phase gate check** — do not block on phase value
 - **Dependency verification** — best-effort (warn, do not block)
 - **All other steps** — follow normally
+
+## Planning Tiers
+
+The planning pipeline scales its depth and ceremony based on the complexity of the PRD. Tier is determined in Step 0.5 (after reading the PRD) and stored in `progress.json`. The user always confirms the tier via AskUserQuestion. CLI override: `--tier 1|2|3`.
+
+### Tier Overview
+
+| Aspect | Tier 1 (Lightweight) | Tier 2 (Standard) | Tier 3 (Comprehensive) |
+|--------|---------------------|-------------------|----------------------|
+| **Scope** | Minor features, single-repo, <3 requirements | Moderate features, moderate risk | Large-scale, multi-repo, high-risk, >8 requirements |
+| **Explorer** | Single Sonnet, no multi-repo split | Multi-repo split IF feature requires it | Full multi-repo split |
+| **Step 7.5 (Pre-approval traceability)** | SKIP | Full 5-agent pipeline | Full 5-agent pipeline |
+| **Step 7.6 (Quality synthesis)** | SKIP | Opus subagent | Opus subagent |
+| **Step 9 (Eng review)** | Simplified: single Sonnet, PRD + architecture only | Full template, 1 review iteration max | Full template, 2 iterations max |
+| **Step 10 (Auto-fix)** | 0 re-reviews (fix specifiable, report rest) | 1 iteration max | 2 iterations max |
+| **Step 12 (Final traceability)** | Simplified: 1-2 Sonnet agents, simplified matrix | Full 5-agent pipeline | Full 5-agent pipeline |
+| **Artifacts** | Single design doc (contract inline if no API) | Design doc + contract if API exists | Both artifacts always |
+| **Step 2.4 (WebSearch)** | Full | Skip if no new patterns/frameworks (ask first) | Full |
+
+**Non-negotiable across ALL tiers:** Vertical slice mandate, DAG optimization, design decisions (Step 3), dependency verification (Step 4), codepath coverage (Step 6), DAG validation (Step 7), Step 12.5 (post-review spot-check), Step 13 (cleanup). These never scale down.
+
+### Tier Detection Heuristics (Step 0.5)
+
+Signals extracted from the PRD:
+
+| Signal | Tier 1 | Tier 2 | Tier 3 |
+|--------|--------|--------|--------|
+| P0 requirement count | <3 | 3-8 | >8 |
+| Repos touched | 1 | 1-2 | 3+ |
+| New external dependencies | 0 | 1-3 | 4+ |
+| New DB migrations | 0-1 | 2-4 | 5+ |
+| New services/infra | 0 | 0-1 | 2+ |
+| Architectural risk | Low | Medium | High |
+
+**Scoring:** Count how many signals fall into each tier column. The tier with the most signals wins. Ties break upward (prefer higher tier). If signals are split across all three tiers, classify as **ambiguous** and query the code-review-graph (if a graph exists for the project) for impact assessment. If no graph exists or still ambiguous, ask the user.
 
 ## When to Use
 
@@ -80,6 +167,8 @@ Steps are grouped into phases. **Within each phase, launch all independent work 
 PHASE A: Bootstrap
   Step 0: Locate & read PRD
   ↓ (PRD content available)
+  Step 0.5: Tier Detection (auto-detect + user confirm, or CLI override)
+  ↓ (tier confirmed, remaining_steps adjusted)
 
 PHASE B: Parallel Discovery (all items launch simultaneously)
   ├─ Step 1: Codebase Exploration (explorer subagent(s) — write to disk)
@@ -200,6 +289,7 @@ Before starting any work, check if a prior planning session left state on disk.
    {
      "prd_path": "docs/prd/features/FEAT-XXX.md",
      "last_completed_step": 3,
+     "tier": 2,
      "remaining_steps": [5, 6, 7, 8, 9, 10, 11],
      "artifacts_produced": [
        "docs/plans/FEAT-XXX-design.md",
@@ -209,7 +299,8 @@ Before starting any work, check if a prior planning session left state on disk.
      "review_iteration": 0
    }
    ```
-   - Report to the user: "Resuming eng-planning from Step [N]. Steps completed: [list]. Next step: [N]."
+   - Report to the user: "Resuming eng-planning from Step [N] at **Tier [T]**. Steps completed: [list]. Next step: [N]."
+   - **Use the stored tier** — do not re-detect. The tier was confirmed by the user in Step 0.5.
    - Re-read the full PRD from the `prd_path` stored in `progress.json`. The PRD is the source of truth — always read it in full.
    - Re-read any intermediate files that still exist in `docs/.eng-planning/` (they survive until Step 5c cleanup).
    - **After determining resume point, proceed to that step. Do NOT skip remaining steps.**
@@ -224,7 +315,8 @@ After each major step completion, write/update `docs/.eng-planning/progress.json
 |-------|------|-------------|
 | `prd_path` | string | Absolute or repo-relative path to the PRD |
 | `last_completed_step` | number | The step number that just finished |
-| `remaining_steps` | number[] | Steps still to execute |
+| `tier` | number\|null | Planning tier (1, 2, or 3). Set in Step 0.5. null before tier detection. |
+| `remaining_steps` | number[] | Steps still to execute (tier-adjusted after Step 0.5) |
 | `artifacts_produced` | string[] | Paths to final artifacts written so far |
 | `step_8_approved` | boolean | Whether Step 8 user approval was obtained |
 | `review_iteration` | number | Current review iteration count (0, 1, or 2) |
@@ -244,7 +336,71 @@ After each major step completion, write/update `docs/.eng-planning/progress.json
 4. **Read the PRD** — Parse it completely. Extract: objectives, requirements (P0/P1/P2), constraints, user stories, success metrics, non-goals.
 5. **Store PRD path** — Record the PRD path in `progress.json` for subagent use. The PRD is the source of truth and should be re-read in full whenever needed — never summarize it into a lossy intermediate.
 
-**→ Checkpoint:** Write `docs/.eng-planning/progress.json` with `last_completed_step: 0`, `prd_path` set, `remaining_steps: [1, 2, 3, 5, 6, 7, 7.5, 7.6, 8, 9, 10, 11, 12, 12.5, 13]`, empty `artifacts_produced`, `step_8_approved: false`, `review_iteration: 0`, `traceability_pass: false`.
+**→ Checkpoint:** Write `docs/.eng-planning/progress.json` with `last_completed_step: 0`, `prd_path` set, `remaining_steps: [0.5, 1, 2, 3, 5, 6, 7, 7.5, 7.6, 8, 9, 10, 11, 12, 12.5, 13]`, empty `artifacts_produced`, `step_8_approved: false`, `review_iteration: 0`, `traceability_pass: false`, `tier: null`.
+
+## Step 0.5: Tier Detection
+
+**Purpose:** Determine planning depth before any exploration or artifact production. This step runs after reading the PRD but before any subagent spawning.
+
+### CLI Override
+
+If the user passed `--tier 1|2|3` (e.g., `/eng-planning --tier 1 docs/prd/FEAT-001.md`), skip detection and use the specified tier. Still confirm with the user:
+> "CLI override: Tier [N] ([Lightweight|Standard|Comprehensive]). Proceeding with [summary of what this tier means]. Confirm?"
+
+### Auto-Detection
+
+1. **Extract PRD signals.** From the PRD content read in Step 0, count:
+   - Number of P0 requirements
+   - Number of distinct repos/services mentioned (look for repo paths, service names, deployment targets)
+   - Number of new external dependencies listed
+   - Number of DB migrations implied (new tables, schema changes)
+   - Number of new services or infrastructure components
+   - Architectural risk indicators (new patterns, breaking changes, security-sensitive, multi-tenant)
+
+2. **Score against thresholds:**
+
+   | Signal | Tier 1 | Tier 2 | Tier 3 |
+   |--------|--------|--------|--------|
+   | P0 requirements | <3 | 3-8 | >8 |
+   | Repos touched | 1 | 1-2 | 3+ |
+   | New external deps | 0 | 1-3 | 4+ |
+   | New DB migrations | 0-1 | 2-4 | 5+ |
+   | New services/infra | 0 | 0-1 | 2+ |
+   | Architectural risk | Low | Medium | High |
+
+   Count how many signals fall into each tier column. The tier with the most signals wins. **Ties break upward** (prefer higher tier).
+
+3. **Ambiguous signals?** If signals are split across all three tiers (no clear majority):
+   - Check if a code-review-graph exists for the project: `ls .code-review-graph/graph.db 2>/dev/null`
+   - **If graph exists:** Query it for impact assessment:
+     - Use `get_minimal_context_tool` with `task: "assess complexity of PRD requirements"` to get graph stats and risk score
+     - Use `get_hub_nodes_tool` to check if PRD-mentioned modules are architectural hotspots
+     - If the feature touches hub nodes or bridge nodes → bump tier upward
+   - **If no graph:** Proceed with the majority-signal tier and ask the user to confirm
+
+4. **Present tier recommendation via AskUserQuestion:**
+   > "Based on the PRD analysis, I recommend **Tier [N] ([Lightweight|Standard|Comprehensive])** planning for this feature."
+   >
+   > **Signals:** [list the signal counts]
+   >
+   > **What this means:**
+   > - [Tier-specific summary of what steps will run/skip — reference the Tier Overview table]
+   >
+   > "Is this the right planning depth, or would you prefer a different tier?"
+
+   Present as 3 options: Tier 1, Tier 2, Tier 3 with descriptions.
+
+5. **Record the tier.** After user confirms, the tier governs all subsequent steps.
+
+### Tier-Specific Step List
+
+After tier is confirmed, update `remaining_steps` in `progress.json`:
+
+- **Tier 1:** `[1, 2, 3, 5, 6, 7, 8, 9, 11, 12, 12.5, 13]` (skip 7.5, 7.6, 10)
+- **Tier 2:** `[1, 2, 3, 5, 6, 7, 7.5, 7.6, 8, 9, 10, 11, 12, 12.5, 13]` (full, but reduced ceremony within steps)
+- **Tier 3:** `[1, 2, 3, 5, 6, 7, 7.5, 7.6, 8, 9, 10, 11, 12, 12.5, 13]` (full pipeline)
+
+**→ Checkpoint:** Update `progress.json` — `last_completed_step: 0.5`, set `tier: 1|2|3`, update `remaining_steps` per tier.
 
 ## Step 1: Codebase Exploration
 
@@ -252,13 +408,18 @@ After each major step completion, write/update `docs/.eng-planning/progress.json
 
 Spawn explorer subagent(s) to map the codebase against PRD requirements.
 
+### Tier-Conditional Behavior
+- **Tier 1:** Single Sonnet explorer. No multi-repo split regardless of project structure. Produces a focused report on the most relevant module(s) only.
+- **Tier 2:** Multi-repo split IF the feature requires changes in multiple repos (as determined by PRD signals in Step 0.5). Otherwise single explorer.
+- **Tier 3:** Full multi-repo split for all multi-repo projects.
+
 1. **Read the template** — Read `~/.claude/skills/eng-planning/templates/explorer-prompt.md`
 2. **Fill placeholders:**
    - `[PRD_CONTENT]` — Re-read the full PRD from the path stored in `progress.json`. Pass the full text into the subagent prompt. The subagent holds the heavy document, not you.
    - `[PROJECT_PATH]` — Absolute path to the project root (or sub-repo root for split explorers)
    - `[EXPLORER_REPORT_PATH]` — `docs/.eng-planning/explorer-report.md` (or `-fe.md`/`-be.md` for multi-repo)
    - `[EXPLORER_SUMMARY_PATH]` — `docs/.eng-planning/explorer-summary.md`
-3. **Multi-repo projects:** If the project has separate FE/BE repos, spawn **one explorer per repo** in parallel (see "Multi-Repo Explorer Splitting" above). Scope each explorer's `[PROJECT_PATH]` to its sub-repo. Each writes to its own `-fe.md`/`-be.md` report path. After both complete, merge into `explorer-report.md`.
+3. **Multi-repo projects (Tier 2-3 only, see above):** If the project has separate FE/BE repos AND the tier allows splitting, spawn **one explorer per repo** in parallel (see "Multi-Repo Explorer Splitting" above). Scope each explorer's `[PROJECT_PATH]` to its sub-repo. Each writes to its own `-fe.md`/`-be.md` report path. After both complete, merge into `explorer-report.md`.
 4. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`, `model: "sonnet"`. Explorers are read-only pattern matching — Sonnet is the right tier. Each explorer runs in isolated context and **writes its report + summary directly to disk**. The main agent does NOT read the subagent return value.
 5. **Wait for all explorers to complete.** Verify output files exist:
    ```bash
@@ -275,7 +436,11 @@ Spawn explorer subagent(s) to map the codebase against PRD requirements.
 
 ### Phase B (early, parallel with Step 1):
 
-**2.4 — Search check:** For each architectural pattern, infrastructure component, or concurrency approach the plan might introduce:
+**2.4 — Search check:**
+
+**Tier-Conditional:** At **Tier 2**, if the PRD does not introduce new architectural patterns, frameworks, or infrastructure components, AskUserQuestion: "The PRD doesn't appear to introduce new patterns or frameworks. Skip WebSearch checks for this feature?" If user approves, skip 2.4 entirely. At **Tier 1 and Tier 3**, always run.
+
+For each architectural pattern, infrastructure component, or concurrency approach the plan might introduce:
    - Does the runtime/framework have a built-in? WebSearch: "{framework} {pattern} built-in"
    - Is the chosen approach current best practice? WebSearch: "{pattern} best practice {current year}"
    - Are there known footguns? WebSearch: "{framework} {pattern} pitfalls"
@@ -372,7 +537,18 @@ At `light` VIBE level: warn on verification failure but do not block. Note: "Bes
 
 Spawn **parallel Opus subagents** to produce artifacts. Each subagent reads all inputs from disk — the main agent does NOT hold these documents in context. This is the largest context-saving optimization in the pipeline.
 
-**Output: TWO files per feature.** Architecture, design decisions, and task specs are consolidated into a single feature design doc. Only the API contract is separate (because FE and BE teams reference it independently).
+### Tier-Conditional Artifact Strategy
+
+- **Tier 1:** Produce a **single design doc** (`docs/plans/FEAT-XXX-design.md`). If the feature has no API endpoints, the contract section is inlined in the design doc. If it does have API endpoints, still produce a separate contract (Step 5b).
+- **Tier 2:** Produce a **single design doc + separate API contract IF the feature has API endpoints**. If no API endpoints, contract is inlined. AskUserQuestion before skipping the separate contract: "This feature has no external API endpoints. Inline the contract in the design doc, or produce a separate contract file anyway?"
+- **Tier 3:** **Always produce both** — design doc + separate API contract.
+
+**The design doc MUST include a `Planning Tier: N` header** immediately after the frontmatter, before the Objective section:
+```markdown
+**Planning Tier:** [1 — Lightweight | 2 — Standard | 3 — Comprehensive]
+```
+
+**Output: TWO files per feature (Tier 3) or conditionally one (Tier 1-2).** Architecture, design decisions, and task specs are consolidated into a single feature design doc. Only the API contract is separate (because FE and BE teams reference it independently).
 
 **Each subagent receives this preamble in its prompt:**
 ```
@@ -385,6 +561,15 @@ Read the following files from disk before producing your artifact:
 - Dependency verification: docs/.eng-planning/dependency-verification.md
 
 Write your complete artifact to [OUTPUT_PATH] using the Write tool.
+
+CRITICAL CONSTRAINT — VERTICAL SLICE MANDATE:
+Every T-XXX task you produce MUST be a vertical slice (tracer bullet) through
+ALL architectural layers the behavior touches. NEVER decompose horizontally
+(all DB first, then all APIs, then all UI). Each task must be independently
+testable end-to-end. Include the mandatory Layers field, Slice Done Gate in
+Test Plan, cross-layer Acceptance Criteria, and Spec Reference path. Produce
+the Execution DAG with Concurrency Batches, DAG Visualization, and File
+Conflict Matrix sections. Maximize parallel agent execution.
 Do NOT return the artifact content — write to disk only.
 ```
 
@@ -474,42 +659,84 @@ schemas: [<relevant-schema-paths>]
 
 ### T-XXX: [Task Title]
 **Priority:** P0 | P1 | P2
+**Layers:** [DB, API, FE] | [DB, API] | HORIZONTAL-JUSTIFIED: [reason]
 **Depends On:** - (none) | T-XXX, T-YYY
-**Objective:** [single sentence]
+**Blocks:** T-XXX, T-YYY | - (none)
+**Spec Reference:** `T-XXX @ docs/plans/FEAT-XXX-design.md#t-xxx`
+**Objective:** [single sentence — the user-visible behavior this slice delivers]
 **Requirements:**
-- [specific bullets]
+- [specific bullets — must span ALL listed layers]
 **Build Guidance:**
 - Use existing `ClassName` pattern from `src/path/`
 - [SPECIFIC patterns, classes, utilities — NOT generic principles]
 **Acceptance Criteria:**
-- [ ] [criterion]
+- [ ] [criterion — MUST include at least one cross-layer AC if multi-layer]
 **Edge Cases:**
 - [edge case and expected behavior]
 **Test Plan:**
-- Unit: [what to test]
-- Integration: [what to test]
+- Unit: [per-layer unit tests]
+- Integration: [cross-layer wiring test — proves the slice connects end-to-end]
+- Slice Done Gate: [the single integration assertion that proves this vertical slice works]
 
 ---
 
 ### T-XXX: [Next Task]
 [... same template ...]
 
-## Task Dependencies Graph
+## Execution DAG (Parallel Agent Optimization)
+
+The task graph below is a **Directed Acyclic Graph** optimized for maximum parallel execution by independent coding agents. Tasks in the same concurrency batch have NO shared file modifications and can be worked simultaneously.
+
+### Concurrency Batches
+
+| Batch | Tasks | Can Run In Parallel | Blocked By |
+|-------|-------|--------------------:|-----------|
+| 1 | T-101, T-104 | Yes (no shared files) | — |
+| 2 | T-102, T-103 | Yes (no shared files) | Batch 1: T-101 |
+| 3 | T-105 | — | Batch 2: T-102, T-103 |
+
+### DAG Visualization
 ```
-T-101 (no deps)
-    +-- T-102 (depends on T-101)
-    +-- T-103 (depends on T-101)
-T-104 (no deps, parallel with T-101)
+Batch 1 (parallel):  T-101 ─┬─► T-102 ──┐
+                             │            ├──► T-105
+                             └─► T-103 ──┘
+         (parallel):  T-104 (independent, no downstream)
 ```
+
+### File Conflict Matrix
+
+| Task | Creates/Modifies | Conflicts With |
+|------|-----------------|---------------|
+| T-101 | schema.py, migration_001.py, /api/prefs.py, PrefsToggle.tsx | — |
+| T-102 | schema.py (additive), migration_002.py, /api/tz.py, TzDropdown.tsx | T-101 (schema.py — sequential) |
+| T-103 | /api/reset.py, ResetDialog.tsx, prefs.test.ts | — |
+| T-104 | ci.yml, Dockerfile | — |
+
+### Agent Assignment Rules
+- Each batch launches N agents simultaneously (one per task in the batch)
+- Agent receives: the task's mini-spec (via Spec Reference path), API contract, and this DAG
+- Agent declares DONE only when its **Slice Done Gate** integration test passes
+- Batch N+1 agents do NOT launch until ALL Batch N blocking tasks report DONE
 
 ## Definition of Done
 - [ ] All T-XXX tasks pass 2 QA cycles each
+- [ ] All slice integration tests pass end-to-end
 - [ ] All tests pass (`make test`)
 - [ ] Lint passes (`make lint`)
 - [ ] User approval gate for merge
 ```
 
-**Mini-Spec Rules (non-negotiable):** Every T-XXX MUST have ALL fields: Priority, Depends On, Objective, Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan. Build Guidance must be SPECIFIC — name the exact patterns, classes, and utilities from the codebase to use. NOT generic principles like "keep it DRY" or "follow SOLID". Depends On is authoritative — the orchestrator uses it to determine execution order and parallelism.
+**Mini-Spec Rules (non-negotiable):**
+
+1. Every T-XXX MUST have ALL fields: Priority, **Layers**, Depends On, Blocks, Spec Reference, Objective, Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan (with Slice Done Gate).
+2. **Vertical Slice Enforcement:** Every T-XXX must list 2+ layers in the `Layers` field UNLESS tagged `HORIZONTAL-JUSTIFIED: [reason]`. Single-layer tickets without justification are rejected.
+3. **Layers field** must accurately reflect which architectural layers the ticket touches. Valid layers: `DB`, `API`, `BE` (non-API backend), `FE`, `Infra`, `Config`.
+4. **Spec Reference** must use format: `T-XXX @ docs/plans/FEAT-XXX-design.md#t-xxx` — gives the consuming agent the exact file path and anchor to read its full spec.
+5. **Acceptance Criteria** must include at least ONE cross-layer assertion for multi-layer tickets (e.g., "POST /api/x returns 201 AND UI shows confirmation").
+6. **Slice Done Gate** (in Test Plan) is mandatory — the single integration test that proves the vertical slice wires together across all listed layers.
+7. Build Guidance must be SPECIFIC — name the exact patterns, classes, and utilities from the codebase to use. NOT generic principles like "keep it DRY" or "follow SOLID".
+8. `Depends On` / `Blocks` are authoritative — the orchestrator uses them to build the DAG and determine concurrency batches. Never create false dependencies.
+9. **DAG optimization:** Minimize blocking edges. Two tasks that touch the same file additively (e.g., both add a new route to `routes.py`) CAN be parallelized if the additions are non-overlapping — note this in the File Conflict Matrix with "(additive, safe to parallel)".
 
 **After 5a subagent completes:** Verify the artifact exists:
 ```bash
@@ -600,38 +827,65 @@ Flag any "Silent? Yes" entries as P0 — silent failures in production are unacc
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 6`, remove `6` from `remaining_steps`.
 
-## Step 7: Worktree Parallelization Strategy
+## Step 7: DAG Validation & Worktree Parallelization Strategy
 
-**Skip this step if fewer than 2 independent workstreams.**
+**Purpose:** Validate the Execution DAG produced in Step 5a is correct, resolve file conflicts, and produce the final orchestrator-ready execution plan. This step stress-tests the DAG from Step 5a against real filesystem knowledge from the explorer report.
 
-Append to the feature design doc:
+**Skip this step if fewer than 2 tasks exist.**
 
-### Dependency Table
-| Task | Depends On | Modifies Files | Parallel Lane |
-|------|-----------|----------------|---------------|
-| T-101 | - | schema.py, migration | Lane A |
-| T-102 | T-101 | routes.py, service.py | Lane A |
-| T-103 | - | components/*.tsx | Lane B |
-| T-104 | T-101 | tests/*.py | Lane A |
+### 7.1 DAG Integrity Check
 
-### Parallel Lanes
+Re-read the feature design doc from disk. Verify:
+1. **No cycles** — Follow all `Depends On` edges. If A→B→C→A, fix by removing the weakest edge.
+2. **No orphan tasks** — Every task must be reachable from at least one root (a task with no dependencies).
+3. **No phantom dependencies** — Every `Depends On` reference must point to a task that exists.
+4. **Batch assignment is correct** — Recalculate batches from the DAG edges. Tasks in the same batch must have NO blocking dependency on each other.
+
+### 7.2 File Conflict Deep Analysis
+
+Using the explorer report (`docs/.eng-planning/explorer-report.md`), verify the File Conflict Matrix from Step 5a:
+
+1. **For each pair of tasks in the same concurrency batch:**
+   - List ALL files each task will create or modify (not just the obvious ones — include test files, config, shared types)
+   - If overlap exists: Can the modifications be purely additive (e.g., both add a new export to an index file)?
+     - **Additive + non-overlapping lines:** Mark "(additive, safe to parallel)" in matrix
+     - **Conflicting modifications:** Move one task to a later batch, add `Depends On` edge
+
+2. **Shared type/interface files** — If multiple tasks define types in a shared file (e.g., `types.ts`, `models.py`), propose one of:
+   - Extract a T-000 "shared types" task (tagged `HORIZONTAL-JUSTIFIED: foundational types required by multiple slices`)
+   - Or confirm the additions are purely additive and non-conflicting
+
+### 7.3 Final Execution Plan (append to feature design doc)
+
+```markdown
+## Worktree Execution Plan
+
+### Agent Count
+- Maximum parallel agents: [N] (= largest batch size)
+- Total sequential batches: [M]
+- Estimated wall-clock batches: [M] (each batch runs in ~1 agent session)
+
+### Execution Sequence
+| Batch | Tasks (parallel) | Blocked By | Max Agents |
+|-------|-----------------|-----------|-----------|
+| 1 | T-101, T-104 | — | 2 |
+| 2 | T-102, T-103 | T-101 | 2 |
+| 3 | T-105 | T-102, T-103 | 1 |
+
+### Worktree Assignment
+- All tasks execute in the same feature worktree (shared branch)
+- Batch serialization: Orchestrator waits for ALL tasks in Batch N to pass their Slice Done Gate before launching Batch N+1
+- Merge strategy within batch: First-to-finish commits immediately; later tasks pull + auto-merge; ESCALATE on conflict (N=1 rule)
+
+### Conflict Resolution Notes
+- [Any specific notes about additive modifications, index files, etc.]
 ```
-Lane A (Backend):  T-101 --> T-102 --> T-104
-Lane B (Frontend): T-103 (independent)
-```
-
-### Execution Order
-1. Batch 1: T-101, T-103 (parallel — no shared files)
-2. Batch 2: T-102 (depends on T-101)
-3. Batch 3: T-104 (depends on T-101)
-
-### Conflict Flags
-- T-102 and T-104 both depend on T-101 but modify different files — safe to parallelize after T-101 completes
-- [Flag any file overlap between tasks in same batch]
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 7`, remove `7` from `remaining_steps`.
 
 ## Step 7.5: PRD Traceability Self-Check
+
+**Tier-Conditional:** **Tier 1 — SKIP this step entirely.** Tier 1 traceability is handled by a simplified check at Step 12 instead. **Tier 2 and Tier 3 — execute fully.**
 
 **Purpose:** Before presenting artifacts for approval, verify 1:1 mapping between PRD requirements/acceptance criteria and engineering tasks/acceptance criteria. Catch gaps before the approval gate.
 
@@ -668,9 +922,11 @@ After fixing, **re-run the full 5-agent pipeline** (all fresh agents — do NOT 
 
 ## Step 7.6: Quality Synthesis (Opus Subagent)
 
+**Tier-Conditional:** **Tier 1 — SKIP this step entirely.** The simplified review at Step 9 and traceability at Step 12 provide sufficient coverage for lightweight features. **Tier 2 and Tier 3 — execute fully.**
+
 **Purpose:** Before presenting artifacts to the user, get an independent Opus-level assessment of internal consistency, coherence, and overall quality. This catches issues that individual steps miss because they each see a slice — this agent sees everything together with fresh eyes.
 
-**Model:** opus (mandatory — this is a holistic reasoning task)
+**Model:** opus (mandatory for all tiers that execute this step — this is a holistic reasoning task)
 
 Spawn **one Opus subagent** that reads all artifacts from disk. It does NOT receive any conversation history — completely fresh perspective.
 
@@ -707,9 +963,30 @@ Perform these checks:
 
 4. COMPLETENESS
    - Does every PRD requirement map to at least one task?
-   - Does every task have all required fields? (Priority, Depends On, Objective,
-     Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan)
+   - Does every task have all required fields? (Priority, Layers, Depends On,
+     Blocks, Spec Reference, Objective, Requirements, Build Guidance,
+     Acceptance Criteria, Edge Cases, Test Plan with Slice Done Gate)
    - Are there orphan tasks that don't trace back to any PRD requirement?
+
+5. VERTICAL SLICE COMPLIANCE
+   - Does every T-XXX task have a `Layers` field listing 2+ layers?
+   - If a task lists only 1 layer, does it have `HORIZONTAL-JUSTIFIED: [reason]`?
+   - Is the justification legitimate? (Infra-only tasks like CI config or DB index
+     are valid; "this is just the API layer" is NOT valid if a UI exists for it)
+   - Does every multi-layer task have at least one cross-layer Acceptance Criterion?
+   - Does every task have a `Slice Done Gate` in its Test Plan?
+   - Are there any signs of horizontal decomposition? (e.g., T-101 = "create all
+     DB schemas", T-102 = "create all API endpoints" → P1 REJECTION)
+   - Flag any task whose Requirements bullet points all live in the same layer
+     despite claiming multiple layers in the Layers field (layer claim mismatch)
+
+6. DAG QUALITY (Parallel Agent Optimization)
+   - Is the Execution DAG a valid DAG? (no cycles)
+   - Are concurrency batches correctly computed from `Depends On` edges?
+   - Does the File Conflict Matrix accurately reflect what each task modifies?
+   - Are there false dependencies that could be removed to increase parallelism?
+   - Is the maximum batch size reasonable for the project? (>5 parallel agents
+     is a smell — check for file conflicts that were missed)
 
 For each finding, classify:
 - SPECIFIABLE — can be fixed by editing an artifact (include proposed fix)
@@ -755,6 +1032,32 @@ Artifacts were already written to disk in Step 5. Present what was written and g
 
 ## Step 9: Spawn Engineering Review
 
+### Tier-Conditional Review Depth
+
+- **Tier 1 (Simplified Review):** Do NOT use the full `review-prompt.md` template. Instead, spawn a **single Sonnet subagent** with this focused prompt:
+  ```
+  You are reviewing engineering planning artifacts for a lightweight feature.
+  Read the PRD at [PRD_PATH] and the design doc at [ARTIFACT_PATHS].
+  
+  Check ONLY:
+  1. Does every PRD requirement map to at least one task?
+  2. Are task dependencies correct (no cycles, no phantoms)?
+  3. Does the architecture section make sense for this scope?
+  4. Are acceptance criteria testable and specific?
+  5. Any obvious gaps, contradictions, or missing edge cases?
+  
+  For each finding: [SEVERITY: P0|P1|P2] [file:section] — description
+  Category: SPECIFIABLE | REQUIRES_DECISION
+  
+  Write findings to: [REVIEW_FINDINGS_PATH]
+  ```
+  The review writes to `docs/.eng-planning/review-findings.md`. After this, proceed directly to Step 11 (skip Step 10 — no re-review for Tier 1). Fix any SPECIFIABLE findings from the single review pass. Report REQUIRES_DECISION to user.
+
+- **Tier 2:** Use the full `review-prompt.md` template. **Maximum 1 review iteration** in Step 10.
+- **Tier 3:** Use the full `review-prompt.md` template. **Maximum 2 review iterations** in Step 10.
+
+**For Tier 2 and Tier 3, proceed with the standard flow below:**
+
 After approval and artifact creation, spawn a fresh review subagent.
 
 1. **Read the template** — Read `~/.claude/skills/eng-planning/templates/review-prompt.md`
@@ -772,7 +1075,12 @@ After approval and artifact creation, spawn a fresh review subagent.
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 9`, remove `9` from `remaining_steps`.
 
-## Step 10: Auto-Fix Loop (max 2 iterations)
+## Step 10: Auto-Fix Loop
+
+### Tier-Conditional Iteration Limits
+- **Tier 1:** SKIP this step entirely. Tier 1 fixes SPECIFIABLE findings inline during Step 9 and proceeds directly to Step 11.
+- **Tier 2:** Maximum **1 iteration**. Fix specifiable, re-run review once. If issues persist, report and proceed.
+- **Tier 3:** Maximum **2 iterations**. Full auto-fix loop as described below.
 
 Parse the review findings. Categorize each:
 
@@ -810,6 +1118,19 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
 ## Step 12: Final PRD Traceability Gate
 
 **Purpose:** After the full review cycle (Steps 9-10) and fix iterations, verify the final artifacts still maintain 1:1 PRD traceability. Review fixes may have introduced new gaps or broken existing mappings.
+
+### Tier-Conditional Traceability
+
+- **Tier 1 (Simplified Traceability):** Instead of the full 5-agent pipeline, spawn **1-2 independent Sonnet agents** to produce a simplified traceability matrix:
+  - **If PRD + design doc combined < 200 lines:** Spawn 1 Sonnet agent that reads both documents and produces a simplified forward+reverse traceability matrix.
+  - **If PRD + design doc combined >= 200 lines:** Spawn 2 Sonnet agents in parallel — one for forward trace (PRD→eng), one for reverse trace (eng→PRD). Merge results.
+  - Agent prompt: "Read the PRD at [path] and the design doc at [path]. For each PRD requirement, verify it maps to at least one engineering task with matching acceptance criteria. For each engineering task, verify it traces back to a PRD requirement. Write a simplified traceability matrix to `docs/.eng-planning/traceability/traceability-matrix.md` with VERDICT: PASS or FAIL and any gaps found."
+  - The agent(s) must be independent — they have NOT seen the planning conversation. This is the verification guarantee.
+  - If FAIL: fix gaps, re-run simplified check (max 1 iteration).
+
+- **Tier 2 and Tier 3:** Use the full 5-agent pipeline as described below.
+
+**For Tier 2 and Tier 3, proceed with the standard flow:**
 
 1. **Clean prior traceability state and re-run the full 5-agent pipeline:**
    ```bash
@@ -937,6 +1258,10 @@ If you catch yourself:
 - Writing artifacts outside docs/ → STOP, wrong location
 - Producing a FEAT design doc without all required sections → STOP, complete it
 - Running implementation tests or modifying test files → STOP, that is coder work
+- **Decomposing by horizontal layer** (all schemas → all APIs → all UI) → STOP, re-slice vertically
+- Producing a T-XXX with only 1 layer and no `HORIZONTAL-JUSTIFIED` tag → STOP, add justification or re-slice
+- Creating artificial `Depends On` edges between tasks that don't truly depend on each other → STOP, maximize parallelism
+- Producing a mini-spec without `Layers` field or `Slice Done Gate` → STOP, add them
 
 **All of these mean: You have confused your role. Return to planning.**
 
