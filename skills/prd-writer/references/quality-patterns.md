@@ -246,8 +246,34 @@ Idle nudge disabled after 3 dismissals. User override in settings.
 ```
 
 ### Rule: Scope Paragraphs Are Tight
-Requirement scope paragraphs explain what + how in 2-3 sentences max. Implementation minutiae (LLM temperature, JSON schema shapes, UI micro-interactions) belong in Business Rules or Data Model, not scope paragraphs.
+Requirement scope paragraphs explain what + how in 2-3 sentences max. Implementation minutiae (LLM temperature, JSON schema shapes, UI micro-interactions) belong in Engineering sections, not scope paragraphs.
 
 ### Rule: Out of Scope Is One Line Each
 **Bad:** "Cross-org intelligence — V1 uses org-specific history only. Anonymized cross-org patterns (leveraging Diligent's dataset) is a future exploration pending legal/privacy review."
-**Good:** "Cross-org intelligence — future; pending legal/privacy review."
+**Good:** "Cross-org intelligence — V1 uses org-specific history only. Cross-org history deferred pending legal/privacy review."
+
+### Rule: Density Has Boundaries — Protected vs. Safe Targets
+
+Density means fewer words for the same information, not fewer details. The heuristic: if removing text would cause an engineer to ASK A QUESTION the text answered, the cut is destructive. If they'd make the same decision independently, the cut is safe.
+
+**NEVER cut (protected categories):**
+1. **Negative constraints** — "must not", "never", "is blocked until", "does not"
+2. **Failure/error behaviors** — "on failure...", "if invalid...", "rejects with..."
+3. **API contracts** — request/response shapes, event payloads, status codes, error formats
+4. **Cross-feature conventions** — lock ID formats, FK naming, shared enum values
+5. **Data model fields** referenced by any in-scope requirement
+6. **Performance targets** for specific operations (query budgets, latency thresholds)
+7. **Open architectural questions** flagged for resolution
+8. **Enum value lists** — especially when values are non-sequential (legacy artifact)
+9. **State machine transitions** — all states and all transitions, not just the happy path
+10. **Security/validation constraints** — server-side enforcement, input sanitization, access filtering rules
+
+**MAY cut (safe targets):**
+1. Illustrative examples when the rule is unambiguous without them
+2. UI implementation details (DOM structure, CSS classes) that don't affect behavior
+3. Redundant restatements of the same rule across multiple sections (use "Describe Once" above)
+4. Motivation/context prose that explains WHY but doesn't change WHAT
+5. Legacy system internals that are replaced entirely (jQuery configs, Lotus Notes formats)
+6. Aspirational / "v2 Opportunities" sections when scope-reducing to MVP
+
+**NEVER use a numeric compression target.** Compression is a RESULT of cutting safe targets, not a TARGET to optimize toward. If given a numeric goal (e.g., "compress by 23%"), ignore it and cut only within the safe zone.
