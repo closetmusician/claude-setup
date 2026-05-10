@@ -55,12 +55,6 @@ BAD (implementation details leaked into requirement):
 GOOD (user-facing language matching the PRD):
 > "CP-1: Determine why normal messages like 'hello' are being blocked by content policy, and document the fix plan (PRD JTBD-1)"
 
-BAD (alphabet soup):
-> "AG-1: Root cause investigation: confirm blank agent response is caused by `hasStreamingAssistant` race condition in Chat.tsx"
-
-GOOD (plain language with PRD traceability):
-> "AG-1: Determine why agent responses appear blank after completing research, and document the fix plan (PRD JTBD-2)"
-
 **Rules:**
 1. Each requirement MUST cite its parent PRD requirement or JTBD (e.g., "PRD JTBD-1", "PRD CP-2").
 2. Requirement descriptions use the PRD's user-facing language. If the PRD says "benign messages must never be blocked," the design doc says the same — not "disable MISCONDUCT filter at MEDIUM sensitivity."
@@ -71,8 +65,6 @@ GOOD (plain language with PRD traceability):
 
 - Every instruction explains WHAT the developer is doing (the goal) and WHY, then names the specific code
 - File paths, line numbers, function names, and class names are mandatory — they anchor the explanation, they don't replace it
-- BAD: "Fix the early return in onFinish at Chat.tsx:187–193"
-- GOOD: "Stop the chat from freezing after a content policy block. The `onFinish` handler's content-filter branch returns early without calling `chatMessages.refresh()`, so the UI stays in a blocked state. Remove the early return and call `refresh()` after showing the error. Location: `Chat.tsx:187–193`."
 
 ### Enforcement
 
@@ -85,120 +77,13 @@ LANGUAGE STANDARD: All output must be understandable by a smart CS senior unfami
 
 ## Vertical Slice Mandate (Tracer Bullets)
 
-**Every task ticket (T-XXX) must be a vertical slice through the full stack.** This is non-negotiable and shapes every step of the planning process.
+**Every T-XXX must be a vertical slice.** Full rules, Jira hierarchy mapping, story consolidation heuristics, and decomposition examples live in `~/.claude/skills/eng-planning/templates/design-doc-template.md` — the Step 5a subagent reads them there. The main agent enforces the principle; the template carries the details.
 
-### What This Means
-
-A vertical slice is the thinnest possible end-to-end implementation that touches ALL architectural layers required for a behavior. If a feature requires DB + API + FE, the ticket encompasses all three — not "build schema first, then API, then UI."
-
-### What This Forbids
-
-**BANNED: Horizontal layer planning.** You MUST NOT decompose work as:
-- Phase 1: All DB schemas/migrations
-- Phase 2: All API endpoints
-- Phase 3: All UI components
-
-This pattern creates integration risk, blocks parallel agents from producing testable increments, and delays feedback loops.
-
-### Correct Decomposition
-
-Instead of "build the user preferences system" → 3 horizontal layers, decompose as:
-- T-101: "User can set email notification preference" → migration + API endpoint + toggle component + integration test
-- T-102: "User can set timezone preference" → migration + API endpoint + dropdown component + integration test
-- T-103: "User can bulk-reset to defaults" → API endpoint + confirmation dialog + test
-
-Each ticket is independently deployable and immediately testable end-to-end.
-
-### Escape Hatch: HORIZONTAL-JUSTIFIED
-
-Some legitimate work is single-layer (DB index for performance, CI pipeline config, shared type definitions). These tickets MUST be tagged:
-
-```
-**HORIZONTAL-JUSTIFIED:** [reason this cannot be a vertical slice]
-```
-
-The reason must explain WHY vertical slicing is impossible, not just describe what the task does. The quality synthesis (Step 7.6) will flag any single-layer ticket missing this tag as P1.
-
-### Optimizing for Parallel Agents (DAG)
-
-The final task decomposition must form a **DAG** maximizing concurrent agent execution. Minimize `blocked_by` edges — only true data/API dependencies, never artificial sequencing.
-
-### TDD Integration Per Slice
-
-Every vertical slice defines its own **test boundary**:
-- Unit tests for the new logic in each layer
-- Integration test proving the layers connect (e.g., "POST /api/prefs → DB write → GET /api/prefs returns updated value")
-- The slice is DONE only when its integration test passes — not when individual layer code compiles
-
-### Jira Hierarchy Mapping
-
-The design doc maps to Jira's three-level hierarchy. This mapping is authoritative — every artifact this skill produces must conform to it.
-
-| Jira Level | Design Doc Artifact | Granularity | Example |
-|------------|-------------------|-------------|---------|
-| **Epic** | `FEAT-XXX` (the feature) | One per PRD or major feature. Groups all stories for a body of work. | FEAT-G1: Critical Bug Fixes |
-| **Story** | `T-XXX` (each mini-spec) | One per JTBD or independently deliverable user outcome. A story is what one engineer picks up and completes end-to-end. | T-CP: Fix content policy false positives |
-| **Sub-task** | Phases within a story's Build Guidance | Internal steps within a story — investigation phases, layer-specific work, individual files. NOT separate mini-specs. | "Phase 1: Investigate guardrail config. Phase 2: Apply CDK fix." |
-
-**The rules that follow from this:**
-
-1. **T-XXX = Jira Story.** Each mini-spec must be story-sized: independently deliverable, independently reviewable, independently testable. If a mini-spec is too small to be a meaningful story (e.g., "change one CSS selector"), it should be a sub-task of a larger story, not its own T-XXX.
-
-2. **Sub-tasks live inside Build Guidance, not as separate T-XXX entries.** Investigation phases, per-layer steps, and sequential work within one story are documented as ordered steps in Build Guidance. They do not get their own mini-spec headers.
-
-3. **FEAT-XXX = Jira Epic.** The design doc itself is the epic's technical specification. The `## Objective` section becomes the epic description. The list of T-XXX stories becomes the epic's child stories.
-
-4. **One story per JTBD is the default.** Start with one T-XXX per JTBD from the PRD. Split only when the "keep separate" rules below justify it. Never split below story level into separate T-XXX entries.
-
-### Story-Level Consolidation (Anti-Fragmentation)
-
-Vertical slicing prevents horizontal decomposition. These rules prevent the opposite failure: **over-fragmentation**, where PRD requirements are split into too many tiny tasks at sub-task granularity instead of story granularity.
-
-**Start with one story per JTBD.** Then apply these rules to decide whether to split or keep consolidated:
-
-**Split a JTBD into multiple stories ONLY when:**
-
-1. **Different architectural layers with no overlap.** Infra (CDK) change vs. frontend component — different repos, different skills, different engineers. These are naturally separate stories.
-2. **Independent testability AND independent value.** Both stories can be tested, deployed, and deliver user value independently. A progress indicator (AG-3) delivers value without the blank-response fix (AG-2) being done.
-3. **Different risk profiles.** One is a safe CSS tweak, the other is a risky state management change — separate stories allow separate QA intensity.
-4. **Fan-out dependency.** Story A completing unblocks both Story B and Story C (which are independent of each other) — A must be its own story so B and C can parallelize after it.
-
-**Keep as sub-tasks within one story (do NOT create separate T-XXX) when:**
-
-1. **Investigation + Fix pairs.** "Investigate root cause" followed by "fix the bug" is ONE story with an investigation phase in Build Guidance and fix-phase acceptance criteria. Tag: `INVESTIGATION-FIRST: investigation phase in Build Guidance, acceptance criteria describe the fixed behavior.`
-2. **Same file, same handler.** Two requirements that modify the same function, handler, or CSS block belong in one story.
-3. **Same user flow, incremental depth.** Base fix + polish of the same flow (e.g., "fix the error" + "make the error message more informative") belong in one story.
-4. **Prerequisite chain with no fan-out.** If sub-task B depends on sub-task A AND nothing else unblocks when A completes, they're phases of one story, not two stories.
-
-**Fragmentation smell test:** If a feature with N JTBDs produces more than N+ceil(N/2) stories, justify each story beyond that threshold. The justification must cite a "split" rule above. If it can't, consolidate.
-
-**Example — WRONG (11 stories from 3 JTBDs, sub-task granularity):**
-```
-JTBD-1: T-CP1 investigate → T-CP2 fix → T-CP3 recovery → T-CP4 error UX  (4 stories)
-JTBD-2: T-AG1 investigate → T-AG2 fix → T-AG3 progress → T-AG4 nav       (4 stories)
-JTBD-3: T-RN1 lists → T-RN2 spacing → T-RN3 scroll                      (3 stories)
-```
-
-**Example — RIGHT (7 stories from 3 JTBDs, story granularity):**
-```
-Epic: FEAT-G1 Critical Bug Fixes
-├── JTBD-1 Content Policy
-│   ├── T-CP-CORE: Fix content policy false positives (Infra — INVESTIGATION-FIRST)
-│   │   └── Sub-tasks in Build Guidance: investigate guardrail → apply CDK fix → verify
-│   └── T-CP-UX: Let users recover from content policy blocks (FE — depends T-CP-CORE)
-│       └── Sub-tasks in Build Guidance: fix onFinish handler → add inline error
-├── JTBD-2 Agent Mode
-│   ├── T-AG-CORE: Fix blank agent responses (FE+BFF — INVESTIGATION-FIRST)
-│   │   └── Sub-tasks in Build Guidance: trace race condition → fix render gate → fix extractStepText
-│   ├── T-AG-PROGRESS: Show step counter during agent research (FE — split: independent value)
-│   └── T-AG-NAV: Recover agent responses after navigate-away (FE+BFF — split: different risk)
-└── JTBD-3 Rendering
-    ├── T-RN-RENDER: Fix broken list and markdown spacing (FE CSS — same CSS block)
-    └── T-RN-SCROLL: Stop auto-scroll from yanking viewport (FE — split: different code path)
-```
-**Smell test:** 3 JTBDs → threshold = 3 + ceil(3/2) = 5. We have 7, so 2 need justification:
-- T-AG-PROGRESS: independent value (split rule 2) — progress indicator delivers value without blank-fix
-- T-AG-NAV: different risk profile (split rule 3) — touches stream lifecycle, separate QA needed
+**Key invariants (always loaded for red-flag detection):**
+- BANNED: horizontal layer planning (all schemas → all APIs → all UI)
+- Single-layer tickets require `HORIZONTAL-JUSTIFIED: [reason]`
+- T-XXX = Jira Story. Sub-tasks live in Build Guidance, not as separate T-XXX entries.
+- Fragmentation smell test: story count > N + ceil(N/2) where N = JTBD count requires justification.
 
 ## VIBE Level Detection
 
@@ -678,8 +563,8 @@ Do NOT return the artifact content — write to disk only.
 7. Build Guidance must be SPECIFIC — name the exact patterns, classes, and utilities from the codebase to use. NOT generic principles like "keep it DRY" or "follow SOLID".
 8. `Depends On` / `Blocks` are authoritative — the orchestrator uses them to build the DAG and determine concurrency batches. Never create false dependencies.
 9. **DAG optimization:** Minimize blocking edges. Two tasks that touch the same file additively (e.g., both add a new route to `routes.py`) CAN be parallelized if the additions are non-overlapping — note this in the File Conflict Matrix with "(additive, safe to parallel)".
-10. **Story-Level Granularity:** Each T-XXX = one Jira Story. Apply the Story-Level Consolidation rules (see "Anti-Fragmentation" section above). Start with one story per JTBD, split only with justification. Investigation+fix pairs are one story. Run the fragmentation smell test: if story count > N + ceil(N/2) where N = JTBD count, justify each excess or consolidate.
-11. **Sub-tasks within stories:** Complex stories may document internal phases (investigation, per-layer fixes, sequential steps) as an ordered list in Build Guidance under a `**Sub-tasks:**` heading. These are NOT separate T-XXX entries. They provide structure for the implementing engineer without creating separate Jira stories.
+10. **Story-Level Granularity:** Each T-XXX = one Jira Story. Apply the Story-Level Consolidation rules in `design-doc-template.md`. Start with one story per JTBD, split only with justification. Run the fragmentation smell test.
+11. **Sub-tasks within stories:** Complex stories document internal phases as an ordered list in Build Guidance under a `**Sub-tasks:**` heading. These are NOT separate T-XXX entries.
 
 **After 5a subagent completes:** Verify the artifact exists:
 ```bash

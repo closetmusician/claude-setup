@@ -1,128 +1,177 @@
-# Plan: Improve Orchestration — Spec Propagation Fix
+# Plan: Improve Orchestration
 
-**Date:** 2026-03-28
-**Root cause:** PR #93 revealed 137 YAML e2e tests missed NL capabilities because the orchestrator never passed spec references to subagents, and the Spec Wall pointed to a non-existent directory.
-**Scope:** Layers 0-2 of the defense-in-depth stack.
+**Date:** 2026-03-28 (Layers 0-2), 2026-05-10 (eng-planning analysis)
 
 ---
 
-## Layer 0: Fix Spec Wall Path
+## Completed Work (summary)
 
-**Goal:** Change `docs/prd/features/` → `docs/` everywhere. The `docs/` tree is the canonical spec location.
-
-### Tasks
-
-- [x] **L0-1:** Update `~/.claude/rules/vibe-protocol.md` — line 10, change Spec Wall path
-- [x] **L0-2:** Update `~/.claude/docs/vibe-manual.md` — lines 8 and 114, change Spec Wall path and PM Interviewer output path
-- [x] **L0-3:** Update `~/.claude/skills/new-project/SKILL.md` — lines 98, 134, update directory references
-- [x] **L0-4:** Update `~/.claude/skills/lead-orchestrator/SKILL.md` — line 25, update skip-spec-wall reference
-- [x] **L0-5:** Update `~/.claude/skills/lead-orchestrator/templates/test-writer-prompt.md` — line 16
-- [x] **L0-6:** Update `~/.claude/skills/e2e-test-writer/SKILL.md` — line 18, input location
-- [x] **L0-7:** Update `~/.claude/skills/pr-review-pr/personas/domain-specialist.md` — line 33
-- [x] **L0-8:** Update `~/.claude/skills/pr-briefing/SKILL.md` — line 92
-- [x] **L0-9:** N/A — project-level vibe-protocol.md doesn't exist in this worktree (only in nested worktrees)
-
-**Replacement rule:** `docs/prd/features/` → `docs/` for the Spec Wall. Specific references to PRD output paths (e.g., "Output: docs/prd/features/FEAT-XXX.md") become `docs/plans/FEAT-XXX.md` or just `docs/`.
+- **Layer 0: Fix Spec Wall Path** — Changed `docs/prd/features/` → `docs/` across 8 files. Done 2026-03-28.
+- **Layer 1: PreToolUse Hook on Task** — Two-tier warn/block gate for subagent spawning without spec refs. Done 2026-03-28.
+- **Layer 2: Spec Registry with Frontmatter** — Auto-generated `docs/spec-registry.yaml` from frontmatter + pre-commit hook + orchestrator injection. Done 2026-03-28.
 
 ---
 
-## Layer 1: PreToolUse Hook on Task (Two-Tier Warn/Block)
+## eng-planning Skill Analysis (2026-05-10)
 
-**Goal:** Gate subagent spawning. Hard-block high-confidence build tasks without spec refs. Soft-warn on ambiguous tasks.
+**Context:** eng-planning at 1,884 total lines ranks #9 of 31 gstack skills (p74). Risk: 3/5. Primary risk is subagent indirection (templates read at runtime), not raw size.
 
-### Design
+### ASCII Logic Tree — Full Execution Flow
 
-- **Hard-block pattern:** Task prompt matches `(generate.*test|create.*schema|implement.*feature|write.*spec)` AND contains no `docs/*.md` reference → block
-- **Soft-warn pattern:** Task prompt matches `(create|write|implement|build|generate)` AND contains no `docs/*.md` reference → stderr warning, allow
-- **Pass-through:** All other Task calls (debug, explore, review, QA) → allow silently
-- **Escape hatch:** `NO_SPEC_REQUIRED` in prompt → always allow
-
-### Tasks
-
-- [x] **L1-1:** Create script `~/.claude/scripts/task-spec-gate.sh`
-  - Read JSON from stdin (tool_name, tool_input)
-  - Only process `Task` tool calls
-  - Extract prompt from `tool_input.prompt` or `tool_input.description`
-  - Hard-block tier: match `(generate.*test|create.*schema|implement.*feature)` without `docs/.*\.md` ref
-  - Soft-warn tier: match `(create|write|implement|build|generate)` without `docs/.*\.md` ref — print warning to stderr, exit 0
-  - Check for `NO_SPEC_REQUIRED` escape hatch
-  - Return `{"decision": "block", "reason": "..."}` format for blocks
-- [x] **L1-2:** Add hook to `~/.claude/settings.json` under `hooks.PreToolUse`:
-  ```json
-  {"matcher": "Task", "hooks": [{"type": "command", "command": "/Users/yklin/.claude/scripts/task-spec-gate.sh"}]}
-  ```
-- [x] **L1-3:** Test the hook — spawn a Task without spec ref (should block), with spec ref (should pass), with NO_SPEC_REQUIRED (should pass), with debug/explore prompt (should pass)
-
----
-
-## Layer 2: Spec Registry with Frontmatter + Auto-Generated Index (Option C)
-
-**Goal:** Specs declare their domain/skills/schemas in frontmatter. Pre-commit hook auto-generates `docs/spec-registry.yaml`. Orchestrator reads the registry to resolve spec context for subagents.
-
-### Design
-
-**Spec frontmatter format:**
-```yaml
----
-domain: e2e-test-infrastructure
-skills: [e2e-test-writer]
-schemas: [boardroom-ai/e2e/schemas/test-case.schema.yaml]
----
+```
+/eng-planning [prd-path] [--tier N]
+│
+├─ SKILL.md ALWAYS LOADED (1,056 lines — loaded by Skill tool on invocation)
+│
+├─ Step -1: Resume Detection
+│   └─ Read progress.json → resume or fresh start
+│
+├─ Step 0: Locate & Read PRD
+│
+├─ Step 0.5: Tier Detection
+│   ├─ CLI override OR auto-detect from PRD signals
+│   ├─ AskUserQuestion → confirm tier
+│   └─ Set remaining_steps per tier:
+│       ├─ Tier 1: [1,2,3,5,6,7,8,9,11,12,12.5,13]      ← SKIP 7.5, 7.6, 10
+│       ├─ Tier 2: [1,2,3,5,6,7,7.5,7.6,8,9,10,11,12,12.5,13]
+│       └─ Tier 3: [1,2,3,5,6,7,7.5,7.6,8,9,10,11,12,12.5,13]
+│
+├─ PHASE B (parallel):
+│   ├─ Step 1: Codebase Exploration
+│   │   └─ READ explorer-prompt.md (153 lines) ←── ALWAYS
+│   │       └─ Spawn Sonnet subagent(s) with filled template
+│   │
+│   ├─ Step 4: Dependency Verification (inline, no template)
+│   │
+│   ├─ Step 2.4: WebSearch checks (inline, no template)
+│   │   └─ Tier 2: AskUserQuestion "skip?" gate
+│   │
+│   └─ Step 2.7: Backlog cross-ref (inline, no template)
+│
+├─ PHASE C (sequential):
+│   ├─ Step 2: Scope Challenge synthesis (inline)
+│   └─ Step 3: Design Decisions (inline, AskUserQuestion loop)
+│
+├─ PHASE D (parallel Opus subagents):
+│   ├─ Step 5a: Feature Design Doc
+│   │   └─ READ design-doc-template.md (263 lines) ←── ALWAYS
+│   │       └─ Spawn Opus subagent with filled template
+│   │
+│   └─ Step 5b: API Contract
+│       └─ Uses contract section from design-doc-template.md ←── CONDITIONAL
+│           ├─ Tier 1: inline if no API endpoints, else separate
+│           ├─ Tier 2: AskUserQuestion "inline or separate?"
+│           └─ Tier 3: always separate
+│
+├─ PHASE E (parallel, append to design doc):
+│   ├─ Step 6: Codepath Coverage (uses section from design-doc-template.md)
+│   └─ Step 7: DAG Validation (inline)
+│
+├─ PHASE E.5: PRD Traceability
+│   └─ READ traceability-pipeline.md (221 lines) ←── CONDITIONAL
+│       ├─ Tier 1: SKIP entirely
+│       └─ Tier 2/3: Run 3-agent pipeline
+│
+├─ PHASE E.6: Quality Synthesis
+│   └─ READ quality-synthesis-prompt.md (52 lines) ←── CONDITIONAL
+│       ├─ Tier 1: SKIP entirely
+│       └─ Tier 2/3: Spawn Opus subagent
+│
+├─ PHASE F (sequential):
+│   ├─ Step 8: Present artifacts for approval (inline)
+│   │
+│   ├─ Step 9: Engineering Review
+│   │   └─ READ review-prompt.md (103 lines) ←── CONDITIONAL
+│   │       ├─ Tier 1: SKIP template, use inline simplified prompt
+│   │       └─ Tier 2/3: Full template
+│   │
+│   ├─ Step 10: Auto-Fix Loop
+│   │   ├─ Tier 1: SKIP entirely
+│   │   ├─ Tier 2: max 1 iteration → re-spawns review (re-reads review-prompt.md)
+│   │   └─ Tier 3: max 2 iterations → re-spawns review (re-reads review-prompt.md)
+│   │
+│   ├─ Step 11: Pre-Final Output (inline)
+│   │
+│   ├─ Step 12: Final Traceability Gate
+│   │   └─ READ traceability-pipeline.md (221 lines) ←── ALWAYS (but tier-conditional depth)
+│   │       ├─ Tier 1: Simplified 1-2 Sonnet agents (DON'T use template)
+│   │       └─ Tier 2/3: Full 3-agent pipeline (uses template)
+│   │
+│   ├─ Step 12.5: Post-Review Spot-Check
+│   │   └─ READ spot-check-prompt.md (36 lines) ←── ALWAYS
+│   │
+│   └─ Step 13: Cleanup & Output (inline)
 ```
 
-**Auto-generated registry:** `docs/spec-registry.yaml`
-```yaml
-# Auto-generated from spec frontmatter. Do not edit manually.
-# Regenerated by pre-commit hook when docs/plans/*.md changes.
-e2e-test-infrastructure:
-  spec: docs/plans/qa-tool-eval.md
-  skills: [e2e-test-writer]
-  schemas: [boardroom-ai/e2e/schemas/test-case.schema.yaml]
-```
+### Template Loading Summary
 
-**Hybrid behavior (Option C):**
-- If spec has frontmatter → extract and generate complete entry
-- If spec has no frontmatter → auto-add stub (spec path only, empty skills/schemas) + print warning
-- Never blocks
+| Template | Lines | Loaded When | Times Read Per Run |
+|----------|------:|-------------|-------------------|
+| `explorer-prompt.md` | 153 | Always (Step 1) | 1 (or 2 for multi-repo split) |
+| `design-doc-template.md` | 263 | Always (Step 5a, referenced by 5b, 6) | 1-2 |
+| `traceability-pipeline.md` | 221 | Tier 2/3 only (Steps 7.5 + 12) | 2 (pre-approval + post-review) |
+| `quality-synthesis-prompt.md` | 52 | Tier 2/3 only (Step 7.6) | 1 |
+| `review-prompt.md` | 103 | Tier 2/3 only (Step 9, possibly re-read in Step 10) | 1-3 |
+| `spot-check-prompt.md` | 36 | Always (Step 12.5) | 1 |
 
-### Tasks
+Templates are NOT all loaded at once. They load conditionally at specific steps. Three are always loaded (explorer, design-doc, spot-check = 452 lines), two are tier-gated (traceability, quality-synthesis = 273 lines), and one is tier-gated with an inline fallback (review = 103 lines). At Tier 1, only 452 lines of templates are read. At Tier 3, all 828 lines could be read.
 
-- [x] **L2-1:** Add frontmatter to existing specs in `docs/plans/` (boardroom-ai project):
-  - `docs/plans/qa-tool-eval.md` → domain: e2e-test-infrastructure, skills: [e2e-test-writer], schemas: [boardroom-ai/e2e/schemas/test-case.schema.yaml]
-  - Other specs: stub frontmatter with domain only (skills/schemas TBD)
-- [x] **L2-2:** Create script `~/.claude/scripts/rebuild-spec-registry.sh`
-  - Scan all `docs/plans/*.md` and `docs/contracts/*.md` for YAML frontmatter
-  - Extract domain, skills, schemas fields
-  - For specs without frontmatter: generate stub entry with warning
-  - Write `docs/spec-registry.yaml` with auto-generated header
-  - `git add docs/spec-registry.yaml`
-- [x] **L2-3:** Add git pre-commit hook to `.git/hooks/pre-commit` (main repo):
-  - Matcher: detect staged changes to `docs/plans/*.md` or `docs/contracts/*.md`
-  - Run `rebuild-spec-registry.sh` only when spec files change
-- [x] **L2-4:** Update `~/.claude/skills/lead-orchestrator/SKILL.md` — add mandatory Step 0:
-  - "Read `docs/spec-registry.yaml` before spawning any subagent"
-  - "Inject matching spec files, skills, and schemas into subagent prompts"
-  - Add Mandatory Context block template to coder/test-writer prompt templates
-- [x] **L2-5:** Generate initial `docs/spec-registry.yaml` for boardroom-ai by running the script
+### Redundancy & Bloat Findings
 
----
+#### Finding 1: Language Standard repeated 4 times (~90 duplicated lines)
 
-## Execution Order
+The same "explain to a smart CS senior" rule appears in:
+- **SKILL.md:24-82** — Full section with examples (58 lines)
+- **SKILL.md:81** — "Include this preamble in EVERY subagent prompt" (1-line block)
+- **explorer-prompt.md:74-84** — Near-identical section (11 lines)
+- **design-doc-template.md:133-140** — Identical examples section (8 lines)
 
-1. **Layer 0** first (no dependencies, pure text replacement)
-2. **Layer 2-1** (add frontmatter — needed before registry script)
-3. **Layer 2-2** (create registry rebuild script)
-4. **Layer 1-1** (create task gate script)
-5. **Layer 1-2 + L2-3** (add both hooks to settings.json — single edit)
-6. **Layer 2-4** (update orchestrator skill)
-7. **Layer 2-5 + L1-3** (generate initial registry + test hooks)
+The copies in templates are necessary (subagents are isolated). But SKILL.md includes 4 BAD/GOOD example pairs that are variations of the same lesson. Two examples would suffice (~30 lines saveable).
 
-## Parallelization
+#### Finding 2: traceability-pipeline.md is read TWICE per Tier 2/3 run
 
-- **Wave 1:** L0 (all files) — single agent, text replacements
-- **Wave 2 (parallel):**
-  - Agent A: L1-1 (task gate script)
-  - Agent B: L2-1 + L2-2 (frontmatter + registry script)
-- **Wave 3:** L1-2 + L2-3 (hooks config — depends on Wave 2 scripts existing)
-- **Wave 4:** L2-4 (orchestrator skill update — depends on registry design being final)
-- **Wave 5:** L2-5 + L1-3 (generate + test — depends on everything)
+Steps 7.5 and 12 both read and execute the same 221-line template. This is intentional — Step 7.5 checks pre-approval, Step 12 checks post-review. No fix needed.
+
+#### Finding 3: review-prompt.md chain-loads plan-eng-review skill
+
+The review template (line 8) says "Invoke the `plan-eng-review` skill" then lists 16 sections to SKIP and 6 to FOLLOW. The subagent loads the full external skill then applies ~30% of it. The "sections to FOLLOW" could be inlined into review-prompt.md to eliminate chain-load overhead.
+
+#### Finding 4: Tier 1 inline prompts duplicate parts of templates
+
+At Tier 1, three templates are bypassed with inline prompts in SKILL.md (Step 9: 18 lines, Step 12: 4 lines). These share structural elements with their template counterparts but are simplified. Not redundancy — the tier system working as designed.
+
+#### Finding 5: Vertical Slice rules repeated between SKILL.md and design-doc-template.md
+
+The vertical slice mandate in SKILL.md (lines 88-198, ~110 lines) contains rules the design-doc subagent needs but can't access (subagents don't see SKILL.md). Current mitigation: Step 5a prompt includes the mini-spec rules from SKILL.md explicitly via copy-paste. Could be moved into design-doc-template.md to make it self-contained.
+
+#### Finding 6: Story-Level Consolidation section is dense and example-heavy
+
+SKILL.md lines 155-198 (43 lines) contain Anti-Fragmentation rules with a 19-line ASCII tree example. Loaded into context every time but only relevant during Step 5a. Could be a template read on-demand.
+
+#### Finding 7: Jira Hierarchy Mapping section
+
+SKILL.md lines 135-152 (17 lines). Always loaded but only relevant during Step 5a. Low bloat but could move to design-doc-template.md.
+
+### Quantified Redundancy
+
+| Category | Lines | Assessment |
+|----------|------:|------------|
+| Language Standard duplicated across files | ~90 | Necessary for subagents; SKILL.md examples trimmable by ~30 lines |
+| Vertical Slice rules (main agent only, subagent needs via prompt copy) | ~110 | Move to design-doc-template.md |
+| Story Consolidation examples | ~43 | Move to template; only Step 5a needs them |
+| Jira Hierarchy Mapping | ~17 | Move to template |
+| Tier 1 inline prompts | ~22 | Acceptable |
+
+**Total addressable:** ~200 lines moveable from SKILL.md to templates (SKILL.md drops from ~1,056 to ~850). Templates grow by ~170 lines but only load when needed, reducing net context cost per run.
+
+### Structural Observations
+
+- **No loops found.** Execution is strictly a DAG. Auto-fix loop (Step 10) bounded at max 2 iterations. Traceability re-runs (Step 7.5) bounded at max 2.
+- **No template merges recommended.** Each template serves a distinct subagent role. Merging would create a monolith every subagent loads but only partially uses.
+
+### Recommendations (not yet implemented)
+
+- [ ] **R1:** Move Vertical Slice rules (~110 lines), Story Consolidation (~43 lines), Jira Hierarchy Mapping (~17 lines) from SKILL.md into design-doc-template.md
+- [ ] **R2:** Trim Language Standard in SKILL.md from 4 BAD/GOOD example pairs to 2 (~30 lines saved)
+- [ ] **R3:** Inline the 6 plan-eng-review sections into review-prompt.md to eliminate chain-load of external skill
+- [ ] **R4:** No structural changes to template split or tier system — architecture is sound

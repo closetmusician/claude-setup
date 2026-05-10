@@ -94,6 +94,71 @@ schemas: [<relevant-schema-paths>]
 ### New Dependencies (R17 — MANDATORY)
 - `package>=X.Y.Z` — [URL] — Purpose: [why] — Verified: YES
 
+## Vertical Slice Mandate (Tracer Bullets)
+
+**Every task ticket (T-XXX) must be a vertical slice through the full stack.** This is non-negotiable.
+
+A vertical slice is the thinnest possible end-to-end implementation that touches ALL architectural layers required for a behavior. If a feature requires DB + API + FE, the ticket encompasses all three — not "build schema first, then API, then UI."
+
+**BANNED: Horizontal layer planning.** You MUST NOT decompose work as Phase 1: All DB schemas → Phase 2: All API endpoints → Phase 3: All UI components. This creates integration risk, blocks parallel agents from producing testable increments, and delays feedback loops.
+
+**Correct Decomposition Example:**
+Instead of "build the user preferences system" → 3 horizontal layers:
+- T-101: "User can set email notification preference" → migration + API endpoint + toggle component + integration test
+- T-102: "User can set timezone preference" → migration + API endpoint + dropdown component + integration test
+Each ticket is independently deployable and immediately testable end-to-end.
+
+**Escape Hatch: HORIZONTAL-JUSTIFIED** — Some legitimate work is single-layer (DB index for performance, CI pipeline config, shared type definitions). These tickets MUST be tagged: `**HORIZONTAL-JUSTIFIED:** [reason this cannot be a vertical slice]`. The quality synthesis will flag any single-layer ticket missing this tag as P1.
+
+**DAG Optimization:** The final task decomposition must form a DAG maximizing concurrent agent execution. Minimize `blocked_by` edges — only true data/API dependencies, never artificial sequencing.
+
+**TDD Integration Per Slice:** Every vertical slice defines its own test boundary: unit tests for new logic, integration test proving layers connect, slice DONE only when its integration test passes.
+
+### Jira Hierarchy Mapping
+
+| Jira Level | Design Doc Artifact | Granularity | Example |
+|------------|-------------------|-------------|---------|
+| **Epic** | `FEAT-XXX` (the feature) | One per PRD or major feature | FEAT-G1: Critical Bug Fixes |
+| **Story** | `T-XXX` (each mini-spec) | One per JTBD or independently deliverable outcome | T-CP: Fix content policy false positives |
+| **Sub-task** | Phases within Build Guidance | Internal steps within a story | "Phase 1: Investigate. Phase 2: Apply fix." |
+
+**Rules:** T-XXX = Jira Story (independently deliverable, reviewable, testable). Sub-tasks live inside Build Guidance, not as separate T-XXX entries. FEAT-XXX = Jira Epic. One story per JTBD is the default.
+
+### Story-Level Consolidation (Anti-Fragmentation)
+
+**Start with one story per JTBD.** Then apply these rules:
+
+**Split a JTBD into multiple stories ONLY when:**
+1. **Different architectural layers with no overlap** — different repos, different skills, different engineers.
+2. **Independent testability AND independent value** — both can be tested and deployed independently.
+3. **Different risk profiles** — separate QA intensity needed.
+4. **Fan-out dependency** — Story A unblocks both B and C (which are independent of each other).
+
+**Keep as sub-tasks within one story (do NOT create separate T-XXX) when:**
+1. **Investigation + Fix pairs** — one story with investigation phase in Build Guidance. Tag: `INVESTIGATION-FIRST`.
+2. **Same file, same handler** — two requirements modifying the same function.
+3. **Same user flow, incremental depth** — base fix + polish of same flow.
+4. **Prerequisite chain with no fan-out** — B depends on A and nothing else unblocks when A completes.
+
+**Fragmentation smell test:** If a feature with N JTBDs produces more than N+ceil(N/2) stories, justify each story beyond that threshold citing a "split" rule above.
+
+**Example — RIGHT (7 stories from 3 JTBDs, story granularity):**
+```
+Epic: FEAT-G1 Critical Bug Fixes
+├── JTBD-1 Content Policy
+│   ├── T-CP-CORE: Fix false positives (Infra — INVESTIGATION-FIRST)
+│   └── T-CP-UX: Let users recover from blocks (FE — depends T-CP-CORE)
+├── JTBD-2 Agent Mode
+│   ├── T-AG-CORE: Fix blank responses (FE+BFF — INVESTIGATION-FIRST)
+│   ├── T-AG-PROGRESS: Show step counter (FE — split: independent value)
+│   └── T-AG-NAV: Recover after navigate-away (FE+BFF — split: different risk)
+└── JTBD-3 Rendering
+    ├── T-RN-RENDER: Fix list/markdown spacing (FE CSS — same CSS block)
+    └── T-RN-SCROLL: Stop auto-scroll yanking viewport (FE — split: different code path)
+```
+
+---
+
 ## Tasks
 
 ### T-XXX: [Task Title]
