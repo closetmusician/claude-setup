@@ -46,6 +46,7 @@ If ANY of these are true, the verdict MUST be FAIL:
 - Uncaptured warnings in pytest output (test output must be pristine)
 - Entire core dependency mocked (e.g., mocking all of `claude_agent_sdk`)
 - TDD Evidence table missing or empty in ready-for-review.md with no TDD-EXEMPT declaration (R2 = P0 FAIL)
+- Test exhibits anti-patterns from vibe-manual Section 6.5: testing implementation details, interdependent tests, insufficient assertions (e.g., `toBeTruthy()` instead of specific values), mock-heavy internals, catch-all error assertions, snapshot overuse
 - TDD-EXEMPT declared on a file whose primary purpose is executable logic (functions, classes, conditionals). Allowed exemptions: pure config, generated code, type-only files, constants, declarative route tables, migrations, docs. If uncertain, flag P1 for coordinator.
 
 ## Create qa/FEAT-XXX/T-XXX-cycle-1.md with

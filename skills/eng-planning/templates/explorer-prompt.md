@@ -43,9 +43,15 @@ Work through each section. For every finding, include `file:line` references.
 
 ### 4. PRD Requirement Mapping
 For each PRD requirement, identify:
+- **User impact** — what the user currently experiences (the visible bug or missing capability)
+- **Root cause in plain terms** — WHY it happens, explained as cause-and-effect that a CS senior unfamiliar with this codebase would understand. Build up: user impact → mechanism → code location.
 - **Existing code that partially/fully solves it** — file:line, what it does, how much work remains
 - **Gaps** — what does not exist yet and must be built
 - **Reuse opportunities** — existing utilities, patterns, or services that can be leveraged
+
+**Language rule for this section:** Always preserve specific code names (functions, classes, variables) but embed them in explanations that make sense without them. Never dump variable names as the ONLY explanation. Example:
+- BAD: "hasStreamingAssistant becomes false while isLoading is true, creating a zero-render window"
+- GOOD: "The user sees a blank response area after the agent finishes. This happens because two UI components race to render the response — the streaming view (`hasStreamingAssistant`) gives up at the same moment the history view hasn't loaded the saved message yet (`chatMessages.refresh()` and `isLoading` resolve in the same React render batch). Root cause: `Chat.tsx:1287`"
 
 ### 5. Dependency Map
 - External service integrations (APIs, queues, caches)
@@ -64,6 +70,18 @@ For each PRD requirement, identify:
 - Existing tables/models relevant to PRD
 - Migration history (how many, latest)
 - Schema patterns (soft deletes, timestamps, UUIDs vs integers)
+
+## Language Standard (applies to ALL output)
+
+Every technical finding must be understandable by a smart CS senior who has NOT read this codebase before:
+
+1. **Lead with user impact:** "The user sees X" / "The user experiences X"
+2. **Explain the mechanism in plain cause-and-effect:** WHY does the user see that? Use concrete nouns ("the chat message area", "the streaming response"), active voice, and build from impact → mechanism → code.
+3. **Then cite the code:** `file.ts:NNN` — what the code does wrong, in plain English.
+
+Never write jargon word salad like "if chatMessages.refresh() resolves before isLoading goes false, hasStreamingAssistant becomes false creating a zero-render window." Instead: "Two UI components race to render the response. The streaming view stops because the stream ended. The history view hasn't loaded the saved message yet. For one render frame, neither shows anything — and that blank state sticks."
+
+Technical precision is welcome. Variable-name-soup without context is not.
 
 ## Output Format
 

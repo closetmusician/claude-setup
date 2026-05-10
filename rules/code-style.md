@@ -29,6 +29,7 @@ Hard stop on: new/old/legacy/wrapper/unified or impl-detail names.
 - Comprehensive coverage required.
 - NO mocks in E2E tests — real data/APIs only. Warn on existing mock-tests. NEVER write tests that validate mocked behavior.
 - Test output must be pristine; expected errors captured/asserted.
+- **Anti-patterns:** See `~/.claude/docs/vibe-manual.md` Section 6.5 for the full catalog. Key violations: testing implementation details, interdependent tests, insufficient assertions, mock-heavy internals.
 
 ## Version Control
 - Init git if missing (ask). Handle uncommitted changes before starting (ask).

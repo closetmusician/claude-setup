@@ -197,6 +197,7 @@ echo "No static-constraint mismatches found"
 **Additional auto-reject criteria (TDD -- R2):**
 - TDD Evidence section missing or empty (no exemption declared)
 - Implementation committed without corresponding test in same or prior commit
+- Test exhibits any anti-pattern from Section 6.5 (testing impl details, interdependent tests, insufficient assertions, mock-heavy, catch-all errors)
 
 ### 5.3 Recommended Verification Items (Cycle 2 - P1/P2)
 
@@ -259,6 +260,22 @@ Visual test definitions (e.g., YAML step files) are instructions for QA agents, 
 3. Stale DB -- tear down volumes and recreate for fresh migrations on schema changes
 4. Token/session expiry -- setup tokens have a TTL; re-run setup for long test sessions
 5. Wrong route patterns -- verify FE routes and API prefixes match backend registration exactly
+
+### 6.5 Testing Anti-Patterns (Mandatory Reading)
+
+These are the most common ways AI agents write bad tests. QA MUST auto-reject any test exhibiting these patterns.
+
+| Anti-Pattern | Why It's Wrong | Correct Approach |
+|---|---|---|
+| **Testing implementation details** — asserting internal state, private methods, or call counts on internal modules | Couples tests to implementation; refactors break tests without changing behavior | Test user-visible behavior and public API outputs only |
+| **Interdependent tests** — tests that rely on execution order or shared mutable state from prior tests | Hides bugs, creates cascade failures, makes parallelization impossible | Each test sets up its own data/state independently; tests pass in any order |
+| **Insufficient assertions** — test "passes" but only asserts existence, not correctness (e.g., `expect(result).toBeTruthy()`) | False confidence; test passes for wrong values | Assert specific expected values, shapes, and edge-case boundaries |
+| **Brittle selectors** — CSS class selectors (`.css-xyz`), DOM structure paths, or auto-generated IDs | Break on any styling/layout change unrelated to behavior | Use `data-testid`, ARIA roles, or semantic selectors |
+| **Mock-heavy tests** — mocking internal modules to avoid setup complexity | Tests validate the mock, not the code; miss real integration bugs | Mock only external HTTP boundaries; use real DB (SavepointConnection), real services |
+| **Catch-all error tests** — `expect(() => fn()).toThrow()` without checking the error message/type | Passes for ANY throw, including unrelated bugs | Assert specific error class/message: `toThrow(SpecificError)` or `.toThrow(/expected message/)` |
+| **Snapshot overuse** — large snapshot tests on frequently changing output | Developers blindly update snapshots; no one reads the diff | Snapshot only stable, meaningful structures; prefer explicit assertions for dynamic content |
+
+**Flaky test rule:** A test that passes intermittently is worse than a missing test. If a test fails on any of 3 consecutive runs, it is flaky. Diagnose root cause (timing, shared state, network, randomness) before proceeding. Never mark flaky tests as skipped/pending — fix or delete.
 
 ---
 
