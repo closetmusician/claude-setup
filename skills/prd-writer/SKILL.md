@@ -78,11 +78,11 @@ Same as v1 — intermediary checkpoint files prevent context loss.
 - `<working-name>-interview.md` — Step 2 checkpoint
 - `<working-name>-research.md` — Step 3 checkpoint
 
-**Cleanup:** Delete all three after final PRD is generated & saved. AND ask user for permission
+**Cleanup:** Delete all three after final PRD is generated & saved. Use `AskUserQuestion` to confirm before deleting.
 
 ### Step 0: Resume Detection
 
-Check for existing `*-context.md`, `*-interview.md`, `*-research.md` in `docs/` and project root. If found, offer to resume or start fresh. If not found, proceed to Step 0.5.
+Check for existing `*-context.md`, `*-interview.md`, `*-research.md` in `docs/` and project root. If found, use `AskUserQuestion` to offer resume vs. start fresh (list which checkpoint files were found). If not found, proceed to Step 0.5.
 
 ### Step 0.5: Determine Document Mode
 
@@ -94,13 +94,16 @@ Template: `templates/diligent-prd-template.md` (all 12 sections)
 
 **Mode B: PRD-Lite (1-pager / discovery brief)**
 Trigger: User asks for a "1-pager", "discovery brief", "early-stage doc", or explicitly says they don't have enough data for a full PRD.
-Template: `templates/prd-lite-template.md` (sections 1, 2, 3, 7 at reduced depth with TBD placeholders for 4-6)
+Template: `templates/prd-lite-template.md` (sections 1, 2, 3, 7 — requirements include numbered observable behaviors (≥2 per P0), TBD placeholders for 4-6)
 
 **Mode C: Stakeholder Pitch**
 Trigger: User explicitly asks for a "pitch brief", "stakeholder alignment doc", or "conversation starter."
 Template: `references/discovery-brief-format.md` (standalone format, not expandable to full PRD)
 
-If ambiguous, ask the user: "Do you want (A) a full PRD, (B) a PRD-Lite covering Problem, JTBD, and Engineering Effort — expandable to a full PRD later, or (C) a standalone stakeholder pitch?"
+If ambiguous, use `AskUserQuestion` with these options:
+- **Full PRD** — All 12 sections, production-grade
+- **PRD-Lite** — Problem, JTBD, Engineering Effort; expandable to full PRD later
+- **Stakeholder Pitch** — Standalone conversation starter, not expandable
 
 **Default to Mode B** when the user says "discovery brief" or "1-pager." Mode C requires explicit "pitch" or "conversation starter" language.
 
@@ -114,16 +117,29 @@ Assess what the user brought (raw notes, brief, verbal description, custom templ
 
 **HARD GATE:** Execute this step even if the user's input appears complete. "Already covered" is not a reason to skip — user confirmation IS the point. If a mandatory question was answered in Step 1, state your understanding and ask the user to confirm or correct. Do NOT silently assume. Skipping = protocol violation equivalent to skipping TDD.
 
-**Procedure:** Present all mandatory questions grouped efficiently. Wait for answers. Follow up on anything too vague to write a requirement against. Do NOT proceed to Step 3 without answers.
+**Procedure:** Use `AskUserQuestion` for ALL interview questions. Batch into 3 rounds (max 4 questions per call). If a mandatory question was already answered in Step 1, pre-fill your understanding as the question description and ask the user to confirm or correct via the "Other" escape hatch. Do NOT proceed to Step 3 without answers to all 3 rounds.
 
-#### Mandatory Questions (ask ALL)
+**Follow-up rule:** After each round, review answers. If any answer is too vague to write a requirement against (e.g., "improve engagement" for M3, or "everyone" for M7), use another `AskUserQuestion` to push for specifics before moving to the next round.
 
-- **M1. Why now?** Urgency driver — deadline, escalation, competitive window? What happens if this ships 6 months late?
-- **M2. Prior art.** Tried before (internally, competitors, user workarounds)? What happened?
-- **M3. Success metrics.** North star metric + guardrails (must NOT degrade). Reject "improve engagement" — push for a number or directional threshold.
-- **M4. Scope boundaries.** What's explicitly out? Most likely scope creep risk? If nothing is out of scope, probe adjacent features that shouldn't ship in v1.
-- **M5. KPI approach.** Mature (quant: analytics, A/B) or early-stage (qual: interviews, beta feedback)?
-- **M6. Delivery context.** Product launch | demo/sprint (<3 weeks) | internal tool? Calibrates P0/P1/P2:
+#### Round 1: Strategic Context (AskUserQuestion — 4 questions)
+
+| Q# | Header | Question | Options |
+|----|--------|----------|---------|
+| M1 | Urgency | "What's driving the timeline? What happens if this ships 6 months late?" | Deadline (hard date), Escalation (customer/exec pressure), Competitive window, No urgency — quality-driven |
+| M2 | Prior art | "Has this been tried before — internally, by competitors, or as user workarounds? What happened?" | Yes — failed (describe), Yes — partial success, Competitors do it (describe), Never attempted |
+| M3 | Metrics | "What's the north star metric? What must NOT degrade?" | *(open-ended — all options are illustrative, user will use "Other")* Revenue/conversion, Engagement/retention, Operational efficiency, User satisfaction (NPS/CSAT) |
+| M4 | Scope | "What's explicitly OUT of scope? What's the most likely scope creep risk?" | *(open-ended — user describes boundaries)* Well-defined boundaries, Still fuzzy — help me define, V1 only — list what to defer, No constraints yet |
+
+#### Round 2: Users & Delivery (AskUserQuestion — 4 questions)
+
+| Q# | Header | Question | Options |
+|----|--------|----------|---------|
+| M5 | KPI approach | "Mature product (quant: analytics, A/B tests) or early-stage (qual: interviews, beta feedback)?" | Quantitative (analytics/A/B), Qualitative (interviews/beta), Mixed — both available, Too early to tell |
+| M6 | Delivery | "What's the delivery context? This calibrates P0/P1/P2 priority." | Product launch, Demo/sprint (< 3 weeks), Internal tool |
+| M7 | Users | "Who exactly uses this — role, context, frequency? What do they know/not know?" | *(open-ended — user describes persona)* Single persona, Multiple personas (describe primary), Broad audience, Internal team |
+| M8 | Workflow | "How is this job done today? What's the specific moment of friction or failure?" | *(open-ended)* Manual workaround exists, Competitor tool used, Not done at all, Partially automated |
+
+**Delivery context calibration** (apply after M6 answer):
 
 | Context | P0 emphasis | P1 emphasis | Deprioritize |
 |---------|------------|------------|-------------|
@@ -131,22 +147,27 @@ Assess what the user brought (raw notes, brief, verbal description, custom templ
 | Demo/sprint (<3 weeks) | Core happy path, perceived quality, progress feedback | Broad format support, visual polish | Governance, persistence, data retention |
 | Internal tool | Core functionality, correctness | Error handling | Polish, onboarding |
 
-- **M7. Target user(s).** Who exactly — role, context, frequency? Primary persona if multiple? What do they know/not know when encountering this feature?
-- **M8. Current workflow.** How is this job done today? Specific moment of friction or failure?
-- **M9. Error & edge cases.** What happens on bad input, partial failure, timeout, concurrent access? Recovery path? Probe the 2-3 most likely failure modes if the user hasn't considered them.
-- **M10. Dependencies.** Other teams, systems, data sources, API contracts, or shared databases that constrain the design?
+#### Round 3: Edge Cases & Dependencies (AskUserQuestion — 2 questions)
 
-#### Ambiguity Probe
+| Q# | Header | Question | Options |
+|----|--------|----------|---------|
+| M9 | Edge cases | "What happens on bad input, partial failure, timeout, concurrent access? Probe the 2-3 most likely failure modes." | *(open-ended)* Known failure modes exist, Haven't considered yet — help me think through, Low-risk — simple CRUD, Complex — multiple failure paths |
+| M10 | Dependencies | "What other teams, systems, data sources, API contracts, or shared databases constrain the design?" | None — self-contained, Internal dependencies (describe), External API/service, Cross-team coordination needed |
 
-After mandatory questions, review all collected context (Step 1 + M1-M10 answers) and ask: **"What in this spec could two engineers reasonably interpret differently?"** Surface any terms, behaviors, or scope edges where misreading is plausible — propose your interpretation and ask the user to confirm or correct.
+#### Ambiguity Probe (AskUserQuestion — after Round 3)
 
-#### Conditional Questions (ask when relevant)
+Review all collected context (Step 1 + M1-M10 answers). Use `AskUserQuestion` to surface any terms, behaviors, or scope edges where two engineers could reasonably interpret the spec differently. Propose your interpretation as options and ask the user to confirm or correct. Frame as: "I want to make sure we're aligned on these points before drafting."
 
+#### Conditional Questions (AskUserQuestion — when relevant)
+
+After the ambiguity probe, if any of these topics are relevant but unaddressed, batch them into one `AskUserQuestion` call (pick the most relevant 2-4):
 Personas/RACI | UX detail level (flows / IA / wireframes) | tech stack constraints | effort expectations / deadlines | cross-team coordination | pricing/release constraints | data sensitivity / compliance | accessibility requirements
 
 #### Completion Criteria
 
-Complete when: all M1-M10 answered or confirmed, ambiguity probe resolved, and each answer is concrete enough that two engineers would make the same implementation decision.
+Complete when: all M1-M10 answered or confirmed via `AskUserQuestion`, ambiguity probe resolved, and each answer is concrete enough that two engineers would make the same implementation decision.
+
+**No deferred questions.** Every open question must be resolved via `AskUserQuestion` during this step and incorporated directly into the PRD. Never output an "Open Questions" section — that's a failure to do your job. If a question truly can't be answered yet, flag it as a `[Data gap: recommend X research]` inline where the answer would go, not in a separate section.
 
 **Checkpoint:** Write `<working-name>-interview.md` with all M1-M10 answers, ambiguity resolutions, and conditional Q&A.
 
@@ -243,7 +264,7 @@ Dedicated section immediately after JTBD & Requirements. Organized by JTBD — e
 3. Output: [format]
 ```
 
-**2. Edge Flows (illustrative)** — Show business rules in action via representative scenarios. Purpose: make constraints concrete for stakeholders and designers. These are NOT exhaustive — eng planning will expand into full acceptance criteria. Include 1-2 per JTBD when meaningful rules exist.
+**2. Edge Flows (illustrative)** — Show business rules in action via representative scenarios. Purpose: make constraints concrete for stakeholders and designers. These are NOT exhaustive — eng planning will expand into the full edge-case matrix. Include 1-2 per JTBD when meaningful rules exist.
 
 ```
 ### Edge Flow: [Rule Name] → REQ-010, REQ-001.4
@@ -299,7 +320,9 @@ Update in place. Each iteration reduces flagged items.
 
 ### Step 7: Adversarial Review (Recommended)
 
-Offer `/prd-review` after user is satisfied. Same as v1.
+Use `AskUserQuestion` to offer `/prd-review` after user is satisfied:
+- **Run adversarial review** — 5 specialized personas probe for ambiguities and hidden complexity
+- **Skip for now** — PRD is ready as-is
 
 ---
 
@@ -318,6 +341,6 @@ Use user's template structure. Apply quality patterns regardless. Suggest missin
 ## Edge Cases
 
 - **No data:** Flag honestly as "[Data gap: recommend X research]"
-- **Very early stage:** Use Mode B (PRD-Lite) per Step 0.5. Same section structure as full PRD, reduced depth, TBD markers for §3-8.
+- **Very early stage:** Use Mode B (PRD-Lite) per Step 0.5. Same section structure as full PRD, same behavior requirements for P0/P1, reduced depth for §3 UX Flows, TBD markers for §4-6.
 - **User pushes back on rigor:** Help identify obtainable metrics. Frame gaps as action items.
 - **Multiple audiences:** Note where detail levels need adjustment.

@@ -117,7 +117,7 @@ stay inline above.]
 Don't re-describe requirements — reference by ID.
 Include illustrative edge-case flows showing business rules in action.
 These are representative, not exhaustive — eng planning will expand
-edge cases and error handling into full acceptance criteria.]
+into the full edge-case matrix.]
 
 ## JTBD-1: [abbreviated]
 

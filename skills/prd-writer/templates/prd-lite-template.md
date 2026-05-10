@@ -48,8 +48,8 @@ Do NOT list user pain points here — those belong as evidence within each JTBD 
 # 2. Jobs to Be Done & Requirements
 
 [Each JTBD uses the same persona format as the full PRD.
-Requirements are listed with IDs and priorities — one-line descriptions
-with key constraints noted parenthetically where known.]
+P0/P1 requirements include numbered observable behaviors (≥2 per P0)
+using the same format as the full PRD. P2 requirements are one-line only.]
 
 ## JTBD-1: [Job statement]
 
@@ -64,11 +64,17 @@ with key constraints noted parenthetically where known.]
 | **Primary** | [qual for early-stage, quant for mature] |
 | **Secondary** | [measurable backstop] |
 
-1. **REQ-001: [Name]** (P0) — [One-line description]. [Key constraint if known, e.g. "Requires Editor role" or "Max 500 chars"]
+**REQ-001: [Name]** (P0)
+[One-line scope. Key constraint if known.]
+1. [Observable system behavior — happy path]
+2. [Error/validation behavior or edge case]
 
-2. **REQ-002: [Name]** (P1) — [One-line description]. [Constraint hint if applicable]
+**REQ-002: [Name]** (P1)
+[One-line scope.]
+1. [Observable system behavior — happy path]
+2. [Error/validation behavior or edge case]
 
-3. **REQ-003: [Name]** (P2) — [One-line description]
+**REQ-003: [Name]** (P2) — [One-line description only, no behaviors]
 
 ## JTBD-2: [Job statement]
 [...same structure...]
@@ -143,17 +149,13 @@ Note any known API contracts or data shape constraints here.]
 
 ---
 
-# Open Questions
-- [ ] [Question that needs answering before committing to a full PRD]
-- [ ] ...
-
 # Next Steps
 - [ ] [What needs to happen to move from 1-pager to full PRD?]
 ```
 
 ## Key Differences from Full PRD
 
-- **Requirements:** ID + priority + one-line description with constraint hints (no numbered behaviors)
+- **Requirements:** P0/P1 get numbered observable behaviors (≥2 per P0), same as full PRD. P2 = one-line description only
 - **Business rules:** Noted parenthetically on affected REQ-IDs where known (not a separate section)
 - **Hypotheses:** Include KPI tables (mandatory even at this stage)
 - **UX Flows (§3):** High-level interaction flows + 1-2 key wireframes + optional illustrative edge flow (not 3-5 wireframes, no component specs or accessibility)
@@ -164,8 +166,7 @@ Note any known API contracts or data shape constraints here.]
 ## Expansion Path
 
 To upgrade this to a full PRD:
-1. Add numbered behaviors to each requirement (2+ per P0), including inline permission/validation constraints
-2. Add cross-cutting REQ-IDs for complex business rules (state machines, permission models)
+1. Add cross-cutting REQ-IDs for complex business rules (state machines, permission models)
 3. Expand §3 UX Flows (3-5 wireframes, edge flows showing rules in action, full component specs, use cases table)
 4. Fill in §4-6 as needed
 5. Expand §7 Engineering (hour-range estimates + full data model with API endpoints and tracking)
