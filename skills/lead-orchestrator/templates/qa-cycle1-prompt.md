@@ -15,6 +15,7 @@ You are the QA subagent for T-XXX Cycle 1 (Security & Logic).
 1. Read `.claude/rules/vibe-protocol.md` — these are non-negotiable project rules
 2. Invoke skill: `garry-review` — review against engineering preferences (no mocks, real DB, edge cases)
 3. Invoke skill: `feature-dev:code-reviewer` — logic errors, missing assertions, security gaps
+4. Run the test suite independently. Check Makefile for `test` target, then package.json `test` script, then pytest/go test as appropriate. ALL tests must pass — failing tests = FAIL regardless of review findings. If a test fails, re-run once (flaky = P1, real failure = P0). Paste the final summary into cycle-1.md under `## QA Test Run`.
 
 ## Mandatory Context (injected by orchestrator — DO NOT SKIP)
 - **Spec:** {SPEC_PATH}
@@ -44,6 +45,8 @@ If ANY of these are true, the verdict MUST be FAIL:
 - Test passes without exercising real code path (mock-only validation)
 - Uncaptured warnings in pytest output (test output must be pristine)
 - Entire core dependency mocked (e.g., mocking all of `claude_agent_sdk`)
+- TDD Evidence table missing or empty in ready-for-review.md with no TDD-EXEMPT declaration (R2 = P0 FAIL)
+- TDD-EXEMPT declared on a file whose primary purpose is executable logic (functions, classes, conditionals). Allowed exemptions: pure config, generated code, type-only files, constants, declarative route tables, migrations, docs. If uncertain, flag P1 for coordinator.
 
 ## Create qa/FEAT-XXX/T-XXX-cycle-1.md with
 - PASS, FAIL, or PASS_WITH_CONCERNS verdict (if PASS_WITH_CONCERNS: list specific doubts for coordinator to evaluate)

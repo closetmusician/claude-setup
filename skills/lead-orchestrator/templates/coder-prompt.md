@@ -49,7 +49,10 @@ You are the CODER subagent for T-XXX.
    - **DONE**: Task complete, no concerns
    - **DONE_WITH_CONCERNS**: Task complete but I have doubts (list concerns explicitly)
    - **BLOCKED**: Cannot proceed (explain why)
-9. Commit your work with `git add` (specific files) then `git commit`
+9. Before your final ReviewCommit, make a separate commit containing ONLY your test files (and test fixtures/config). Then commit your implementation. This gives QA verifiable evidence that tests were written before implementation.
+   Example:
+     `git add tests/` (test files only) → `git commit -m "T-XXX: add tests for <behavior>"`
+     `git add src/` (implementation files) → `git commit -m "T-XXX: implement <behavior>"`
 
 ## Decision Boundaries
 - **DECIDE autonomously** (factual/technical): which file to edit, what exists in codebase, dependency chains, line numbers, test assertions, import paths

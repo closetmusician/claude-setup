@@ -95,6 +95,15 @@ Task assigned → [Architect Gate] → Spawn CODER → wait for T-XXX-ready-for-
 
 **No artifact = No proceed.** If subagent returns without artifact, treat as fix cycle failure — re-spawn once, then escalate. This rule applies to the sequential loop, not parallel E2E spawning.
 
+### Pre-QA TDD Verification
+
+Before spawning QA C1, the orchestrator MUST:
+1. Read `qa/FEAT-XXX/T-XXX-ready-for-review.md`
+2. Verify `## TDD Evidence` table exists with at least one data row, OR every behavior has a `TDD-EXEMPT` declaration with justification
+3. If missing: re-spawn coder with instruction "TDD Evidence table is missing — add RED/GREEN evidence for each behavior before resubmitting"
+4. Run `make test` (or project equivalent — check Makefile, package.json, pytest, go test in that order). If exit code != 0, do NOT spawn QA. Re-spawn coder with the failing test output and instruction to fix.
+5. (At `full` VIBE level) Run `git log -n 5 --name-only --pretty=format:"%h %s"`. Verify at least one commit touching only test files precedes the final implementation commit. If not found, warn but do not block — the coder may have legitimate reasons (refactors, shared files). Log for QA to review.
+
 ### Bug Severity at QA Boundary
 
 - **P0:** MUST fix before next QA cycle (loop back through coder)
