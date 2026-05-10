@@ -1,6 +1,6 @@
 ---
 name: lead-orchestrator
-description: Use when asked to "act as orchestrator", coordinate multiple subagents, manage feature implementation across coder/QA pairs, or run e2e test suites. Use when you need to spawn isolated subagents for tasks and ensure QA cycles complete.
+description: Use when asked to "act as orchestrator", coordinate multiple subagents, or manage feature implementation across coder/QA pairs. Use when you need to spawn isolated subagents for tasks and ensure QA cycles complete.
 ---
 
 # Lead Orchestrator
@@ -137,15 +137,6 @@ Before marking T-XXX complete, verify in `qa/FEAT-XXX/`:
 | `T-XXX-cycle-1.md` | QA (Cycle 1) |
 | `T-XXX-cycle-2.md` | QA (Cycle 2, `full` only) |
 
-At FEAT completion, also verify:
-
-| Artifact | Created By |
-|----------|-----------|
-| `e2e/tests/feat-XXX/*.yaml` | Test Writer |
-| `qa/e2e/*-report.md` | QA Runner |
-| `qa/e2e/screenshots/*.png` | QA Runner |
-| `qa/e2e/suite-*-{timestamp}.md` | Orchestrator |
-
 ### Spec-Diff Verification (Mandatory)
 
 Before marking ANY task complete:
@@ -224,8 +215,6 @@ If the task has no formal spec, you MUST still provide a `docs/*.md` reference �
 | Architect | `templates/architect-prompt.md` | `general-purpose` |
 | QA Cycle 1 | `templates/qa-cycle1-prompt.md` | (default) |
 | QA Cycle 2 | `templates/qa-cycle2-prompt.md` | (default) |
-| Test Writer | `templates/test-writer-prompt.md` | (default) |
-| QA Runner | `templates/qa-runner-prompt.md` | `general-purpose` |
 
 ---
 
@@ -284,103 +273,13 @@ User references a structured plan file with waves/tasks (e.g., "Execute the plan
     ```
 
 ---
-
-## E2E Suite Mode
-
-### Trigger
-
-User says "run e2e test suites for FEAT-XXX [to FEAT-YYY]", "run e2e tests for FEAT-XXX", or "run the full e2e suite".
-
-### Allowed Bash Commands (this mode ONLY)
-
-| Command | Purpose |
-|---------|---------|
-| `docker compose -f boardroom-ai/docker-compose.yml ps` | Health check |
-| `curl -sf http://localhost:3456/health` | Backend alive |
-| `python boardroom-ai/e2e/setup.py` | Bootstrap test env |
-| `python boardroom-ai/e2e/run_all.py --feature X --dry-run` | Discover tests |
-| `python boardroom-ai/e2e/teardown.py` | Cleanup |
-
-### Protocol
-
-#### Phase 1: Prerequisites
-
-1. Check Docker stack (`docker compose ps`) — all 3 services running/healthy. If not: STOP with startup instructions.
-2. Check backend health (`curl -sf http://localhost:3456/health`). If not 200: STOP with log instructions.
-3. Run `python boardroom-ai/e2e/setup.py`, then Read `boardroom-ai/e2e/.state/session.json` for `token`, `user_id`, `project_id`, `fe_url`, `be_url`.
-
-#### Phase 2: Discover
-
-4. Parse feature range from input (e.g., "FEAT-001 to FEAT-004" = list, "full suite" = all in `boardroom-ai/e2e/tests/`)
-5. Discover tests per feature via `run_all.py --feature feat-XXX --dry-run`
-6. Present test matrix and ask to proceed:
-   ```
-   Feature  | Tests | Backend-only | Browser
-   FEAT-001 |   3   |     1        |    2
-   ...
-   Total    |  12   |     4        |    8
-   Browser tests run IN PARALLEL (each subagent gets own Chrome tab).
-   Proceed?
-   ```
-
-#### Phase 3: Execute
-
-7. Spawn ALL subagents in parallel (one message, multiple Task calls):
-   - ONE subagent for all backend-only tests
-   - ONE subagent per feature for browser tests
-   - Each subagent creates its own tab via `tabs_create_mcp()` — NEVER share tabs
-8. Read `templates/qa-runner-prompt.md`, fill `{PLACEHOLDERS}`, spawn with `subagent_type: "general-purpose"`
-
-#### Phase 4: Consolidate
-
-9. Read all subagent reports from `qa/e2e/*.md`
-10. Write consolidated report to `qa/e2e/suite-{features}-{timestamp}.md`:
-    ```markdown
-    # E2E Suite Report — {features} — {timestamp}
-    **Total tests:** N | **PASS:** X | **FAIL:** Y | **SKIP:** Z
-
-    ## Results by Feature
-    ### FEAT-XXX (Name)
-    | Test ID | Name | Type | Result |
-    ...
-
-    ## P0 Failures (blocking merge)
-    | Test | Step | Expected | Actual | Screenshot |
-
-    ## Verdict
-    - All P0 passed: YES / NO
-    - Merge eligible: YES / NO
-    ```
-11. Run `python boardroom-ai/e2e/teardown.py`
-12. Present summary. Flag P0 failures prominently.
-
-### E2E Gate Rules
-
-| Trigger | Action |
-|---------|--------|
-| FEAT completion | E2E suite for that FEAT (mandatory) |
-| User-facing JTBD complete | Tests covering that job (mandatory) |
-| Pre-merge to main | Full P0 suite (mandatory) |
-| Major task milestone | Related tests (recommended) |
-| After P0 bug fix | Regression test (recommended) |
-
-P0 failure = merge blocker (spawn fix cycle). P1/P2 = log to `docs/backlog.md`, proceed. FEAT is NOT complete without e2e.
-
-### Integration with Orchestration Loop
-
-1. Complete coder-QA cycles for task group
-2. At FEAT boundary: enter E2E Suite Mode
-3. P0 pass = proceed | P0 fail = fix cycle | P1/P2 = backlog
-
----
-
 ## Red Flags — STOP Immediately
 
 If you catch yourself doing any of these, you've confused your role. Return to orchestration.
 
 - **Editing implementation files** (Edit/Write on .py/.ts/.js) → spawn coder
 - **Running implementation tests** → coder's job
-- **Skipping QA cycles or e2e** → violation, no exceptions
+- **Skipping QA cycles** → violation, no exceptions
 - **Proceeding without artifact** → wait for it
 - **Running Bash on implementation code** → Bash is for lifecycle only
 - **"Just this once" / "Quick fix" / "I already know"** → spawn the subagent anyway. Subagent isolation prevents context pollution.
@@ -397,9 +296,4 @@ Write `logs/build-{timestamp}.md`:
 - [ ] QA C1 spawned / cycle-1.md (PASS/FAIL)
 - [ ] QA C2 spawned / cycle-2.md (PASS/FAIL)
 
-## E2E Suite
-- [ ] Setup / Tests discovered: N
-- [ ] Subagents spawned / Reports collected
-- [ ] Suite report: qa/e2e/suite-*.md
-- [ ] Teardown / P0 pass: YES/NO
 ```
