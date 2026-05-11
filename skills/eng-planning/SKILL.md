@@ -11,11 +11,11 @@ description: "Feature-level engineering planning with conditional depth (Tier 1/
 
 The engineering planner reads an approved PRD, explores the codebase, surfaces major design decisions, and produces all architecture/design artifacts needed before BUILD phase. You produce ZERO implementation code.
 
-**Two-tier design system:**
-- **eng-planning** (this skill) — Feature-level planning. Spans ARCHITECTURE_APPROVED to FEATURE_SPECS_APPROVED. Produces TWO artifacts per feature: (1) a single consolidated **feature design doc** containing architecture, design decisions, and task mini-specs, and (2) a separate **API contract**. Runs once per feature or group of features.
+**Two-level design workflow:**
+- **eng-planning** (this skill) — Feature-level planning. Spans ARCHITECTURE_APPROVED to FEATURE_SPECS_APPROVED. Produces a **feature design doc** (always) plus a separate **API contract** (when API boundaries exist or Tier 3 requires it). Runs once per feature or group of features.
 - **code-architect** — Task-level design. Runs per T-XXX during orchestration. Reads the task mini-spec produced here and outputs file-level design (which files to create/modify, which patterns to follow). Much narrower scope.
 
-**Core principle:** Your only tools are Agent (to spawn explorer/reviewer), Read/Glob/Grep (to understand code), Write (to produce docs/ artifacts), AskUserQuestion (to get decisions), and Bash (read-only + dependency checks). If you are about to Edit/Write a .py/.ts/.js file, you have violated your role.
+**Core principle:** Your only tools are Agent (to spawn explorer/reviewer), Read/Glob/Grep (to understand code), Write (to produce docs/ artifacts), AskUserQuestion (to get decisions), and Bash (read-only commands, dependency checks, and `docs/.eng-planning/` cleanup). If you are about to Edit/Write a .py/.ts/.js file, you have violated your role.
 
 ---
 
@@ -87,14 +87,15 @@ LANGUAGE STANDARD: All output must be understandable by a smart CS senior unfami
 
 ## VIBE Level Detection
 
-Before planning, check `.claude/phase.json` for the `"vibe_level"` field:
-- `"full"` — eng-planning is mandatory after PRD approval. All artifacts required. Dependency verification enforced.
-- `"light"` — eng-planning is available but optional. When used, still produces all artifacts but dependency verification is best-effort and spec-registry frontmatter is optional.
-- **Default:** If `"vibe_level"` is absent, treat as `"full"`
+**Execution:** Read `.claude/phase.json` in Step 0 (if it exists). Store `vibe_level` in `progress.json`. On resume, reuse the stored value.
+
+- `"full"` — eng-planning is mandatory after PRD approval. All artifacts required. Dependency verification enforced. **Phase gate enforced:** if phase is before `ARCHITECTURE_APPROVED`, block and report.
+- `"light"` — eng-planning is available but optional. When used, still produces all artifacts but dependency verification is best-effort and spec-registry frontmatter is optional. Phase gate: warn but continue.
+- **Default:** If `.claude/phase.json` is absent or `"vibe_level"` is missing, treat as `"full"`
 
 At `light` level:
 - **Skip spec-registry frontmatter** — optional, not required
-- **Skip mandatory phase gate check** — do not block on phase value
+- **Skip mandatory phase gate check** — warn, do not block
 - **Dependency verification** — best-effort (warn, do not block)
 - **All other steps** — follow normally
 
@@ -114,7 +115,7 @@ The planning pipeline scales its depth and ceremony based on the complexity of t
 | **Step 10 (Auto-fix)** | 0 re-reviews (fix specifiable, report rest) | 1 iteration max | 2 iterations max |
 | **Step 12 (Final traceability)** | Simplified: 1-2 Sonnet agents, simplified matrix | Full 3-agent pipeline | Full 3-agent pipeline |
 | **Artifacts** | Single design doc (contract inline if no API) | Design doc + contract if API exists | Both artifacts always |
-| **Step 2.4 (WebSearch)** | Full | Skip if no new patterns/frameworks (ask first) | Full |
+| **Step 2.4 (WebSearch)** | Best-effort (skip unless new dependency/framework) | Targeted search (ask before skipping) | Full |
 
 **Non-negotiable across ALL tiers:** Vertical slice mandate, DAG optimization, design decisions (Step 3), dependency verification (Step 4), codepath coverage (Step 6), DAG validation (Step 7), Step 12.5 (post-review spot-check), Step 13 (cleanup). These never scale down.
 
@@ -157,8 +158,9 @@ Signals extracted from the PRD:
 | **Grep** | Search code for patterns, usages | Any directory |
 | **Write** | Produce design artifacts + intermediate files | `docs/` directory ONLY (includes `docs/.eng-planning/` for intermediates) |
 | **AskUserQuestion** | Get design decisions, escalate | Throughout |
-| **Bash** | Read-only commands + dependency checks | `pip install --dry-run`, `npm info`, `git log`, `find`, `wc` — NO writes |
+| **Bash** | Read-only commands, dependency checks, `docs/.eng-planning/` cleanup | `pip install --dry-run`, `npm info`, `git log`, `find`, `wc`, `rm -rf docs/.eng-planning/`, `mkdir -p docs/.eng-planning/` — NO writes outside `docs/.eng-planning/` |
 | **WebSearch** | Research patterns, best practices, footguns | When checking architectural approaches |
+| **MCP tools** (code-review-graph) | `get_minimal_context_tool`, `get_hub_nodes_tool` — graph-based tier detection | Step 0.5 only, when graph exists |
 
 ## Forbidden Actions
 
@@ -297,7 +299,7 @@ Before starting any work, check if a prior planning session left state on disk.
    - Report to the user: "Resuming eng-planning from Step [N] at **Tier [T]**. Steps completed: [list]. Next step: [N]."
    - **Use the stored tier** — do not re-detect. The tier was confirmed by the user in Step 0.5.
    - Re-read the full PRD from the `prd_path` stored in `progress.json`.
-   - Re-read any intermediate files that still exist in `docs/.eng-planning/` (they survive until Step 5c cleanup).
+   - Re-read any intermediate files that still exist in `docs/.eng-planning/` (they survive until Step 13 cleanup).
    - **After determining resume point, proceed to that step. Do NOT skip remaining steps.**
 
 3. **If not found:** Start fresh from Step 0. Create the progress file after Step 0 completes (see checkpoint instructions below).
@@ -311,6 +313,7 @@ After each major step completion, write/update `docs/.eng-planning/progress.json
 | `prd_path` | string | Absolute or repo-relative path to the PRD |
 | `last_completed_step` | number | The step number that just finished |
 | `tier` | number\|null | Planning tier (1, 2, or 3). Set in Step 0.5. null before tier detection. |
+| `vibe_level` | string | `"full"` or `"light"`. Read from `.claude/phase.json` in Step 0. |
 | `remaining_steps` | number[] | Steps still to execute (tier-adjusted after Step 0.5) |
 | `artifacts_produced` | string[] | Paths to final artifacts written so far |
 | `step_8_approved` | boolean | Whether Step 8 user approval was obtained |
@@ -395,11 +398,11 @@ Spawn explorer subagent(s) to map the codebase against PRD requirements.
    - `[EXPLORER_SUMMARY_PATH]` — `docs/.eng-planning/explorer-summary.md`
 3. **Multi-repo projects (Tier 2-3 only, see above):** If the project has separate FE/BE repos AND the tier allows splitting, spawn **one explorer per repo** in parallel (see "Multi-Repo Explorer Splitting" above). Scope each explorer's `[PROJECT_PATH]` to its sub-repo. Each writes to its own `-fe.md`/`-be.md` report path. After both complete, merge into `explorer-report.md`.
 4. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`, `model: "sonnet"`. Explorers are read-only pattern matching — Sonnet is the right tier. Each explorer runs in isolated context and **writes its report + summary directly to disk**. The main agent does NOT read the subagent return value.
-5. **Wait for all explorers to complete.** Verify output files exist:
+5. **Wait for all explorers to complete.** Verify output files exist and are valid:
    ```bash
    ls -la docs/.eng-planning/explorer-report.md docs/.eng-planning/explorer-summary.md
    ```
-   If any file is missing, re-spawn that explorer.
+   For each output file, verify: (a) file exists and is non-empty, (b) contains expected headings (e.g., `## Project Structure`, `## PRD Requirement Mapping`), (c) no placeholder tokens remain (e.g., `[PROJECT_PATH]`). If any check fails, re-spawn that explorer.
 6. **Main agent reads ONLY `explorer-summary.md`** for subsequent steps. The full `explorer-report.md` stays on disk for subagents (Steps 5a, 5b, 9) to reference.
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 1`, remove `1` from `remaining_steps`. (Step 4 runs in parallel; if it finished first, this checkpoint captures both.)
@@ -412,7 +415,7 @@ Spawn explorer subagent(s) to map the codebase against PRD requirements.
 
 **2.4 — Search check:**
 
-**Tier-Conditional:** At **Tier 2**, if the PRD does not introduce new architectural patterns, frameworks, or infrastructure components, AskUserQuestion: "The PRD doesn't appear to introduce new patterns or frameworks. Skip WebSearch checks for this feature?" If user approves, skip 2.4 entirely. At **Tier 1 and Tier 3**, always run.
+**Tier-Conditional:** At **Tier 1**, skip unless the PRD introduces a new dependency or unfamiliar framework — lightweight plans do not need full web research. At **Tier 2**, if the PRD does not introduce new architectural patterns, frameworks, or infrastructure components, AskUserQuestion: "Skip WebSearch checks for this feature?" If user approves, skip 2.4 entirely. At **Tier 3**, always run.
 
 For each architectural pattern, infrastructure component, or concurrency approach the plan might introduce:
    - Does the runtime/framework have a built-in? WebSearch: "{framework} {pattern} built-in"
@@ -484,13 +487,15 @@ Example format:
 
 ## Step 4: Dependency Verification (R17)
 
-**Phase B — launch in parallel with Steps 1, 2.4, 2.7.** Dependencies are listed in the PRD; no need to wait for design decisions.
+**Phase B — launch in parallel with Steps 1, 2.4, 2.7.** PRD-listed dependencies can be verified immediately. Dependencies introduced by design decisions in Step 3 are verified in Step 4b (after Step 3 completes).
+
+### Step 4a: PRD-Listed Dependencies (Phase B)
 
 For every NEW external dependency identified in the PRD:
 
 1. **Record the dependency** — exact package name, purpose, why it is needed
 2. **Verify it is installable:**
-   - Python: `pip install --dry-run <package>>=<version>`
+   - Python: `pip install --dry-run "<package>>=<version>"`
    - Node: `npm info <package> version`
    - Go: `go list -m <module>@<version>`
    - .NET: `dotnet list package --include-transitive | grep <package>` or check NuGet
@@ -506,6 +511,10 @@ For every NEW external dependency identified in the PRD:
 ```
 
 At `light` VIBE level: warn on verification failure but do not block. Note: "Best-effort verification — manual check recommended before BUILD."
+
+### Step 4b: Design-Decision Dependencies (after Step 3)
+
+After Step 3 completes, check if any design decisions introduced new dependencies not in the PRD (e.g., a library chosen during tech selection). Verify each using the same process as Step 4a. Step 5 cannot start until both 4a and 4b pass.
 
 ## Step 5: Produce Artifacts (Opus Subagents)
 
@@ -600,7 +609,7 @@ Flag any "Silent? Yes" entries as P0 — silent failures in production are unacc
 
 **Purpose:** Validate the Execution DAG produced in Step 5a is correct, resolve file conflicts, and produce the final orchestrator-ready execution plan. This step stress-tests the DAG from Step 5a against real filesystem knowledge from the explorer report.
 
-**Skip this step if fewer than 2 tasks exist.**
+**Step 7 is mandatory.** For single-task plans, record "single-task DAG, no conflicts possible" and checkpoint.
 
 ### 7.1 DAG Integrity Check
 
@@ -821,12 +830,12 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
 
 **For Tier 2 and Tier 3, proceed with the standard flow:**
 
-1. **Clean prior traceability state and re-run the pipeline:**
+1. **Clean prior traceability state (Step 7.5 artifacts are superseded) and re-run the pipeline:**
    ```bash
    rm -rf docs/.eng-planning/traceability/
    mkdir -p docs/.eng-planning/traceability/
    ```
-   Read `~/.claude/skills/eng-planning/templates/traceability-pipeline.md`, fill placeholders with `{TRACE_DIR}` = `docs/.eng-planning/traceability/`, and execute. All fresh sonnet agents — the Step 7.5 agents are long gone.
+   Read `~/.claude/skills/eng-planning/templates/traceability-pipeline.md`, fill placeholders with `{TRACE_DIR}` = `docs/.eng-planning/traceability/`, and execute. All fresh sonnet agents — the Step 7.5 agents are long gone. The final traceability matrix replaces any prior audit trail.
 
 2. **If VERDICT is PASS:** Proceed to final output with `PRD Traceability: VERIFIED (100% forward trace, confirmed post-review)`.
 
@@ -854,7 +863,11 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
 
 ## Step 13: Final Cleanup & Output
 
-1. **Delete the entire `docs/.eng-planning/` directory:**
+1. **Checkpoint BEFORE cleanup:**
+
+**→ Checkpoint:** Update `progress.json` — `last_completed_step: 13`, `remaining_steps: []`.
+
+2. **Delete the entire `docs/.eng-planning/` directory:**
 
 ```bash
 rm -rf docs/.eng-planning/
@@ -862,7 +875,7 @@ rm -rf docs/.eng-planning/
 
 The final artifacts in `docs/plans/` and `docs/contracts/` are the permanent record.
 
-2. **Report completion status:**
+3. **Report completion status:**
 
 - **DONE** — All artifacts produced, review passed, traceability verified, no outstanding concerns.
 - **DONE_WITH_CONCERNS** — All artifacts produced, but concerns remain. List each concern explicitly.
@@ -891,8 +904,6 @@ NEXT STEPS:
 - Update .claude/phase.json to FEATURE_SPECS_APPROVED
 - Orchestrator can begin spawning coder subagents for T-XXX tasks
 ```
-
-**→ Checkpoint:** Update `progress.json` — `last_completed_step: 13`, `remaining_steps: []`.
 
 ## Spec-Registry Frontmatter
 

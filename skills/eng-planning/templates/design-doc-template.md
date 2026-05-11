@@ -2,7 +2,20 @@
 
 # Feature Design Doc Template
 
-Produce a complete feature design doc following this structure. Include spec-registry frontmatter and ALL sections below.
+## Producer Instructions (DO NOT EMIT — these guide the subagent only)
+
+- Include spec-registry frontmatter and ALL artifact sections below.
+- **Vertical Slice Mandate:** Every T-XXX must be a vertical slice (thinnest end-to-end implementation touching ALL layers). BANNED: horizontal layer planning. Single-layer tickets require `HORIZONTAL-JUSTIFIED: [reason]`. T-XXX = Jira Story; sub-tasks live in Build Guidance.
+- **Story Consolidation:** Start with one story per JTBD. Split ONLY when: different architectural layers with no overlap, independent testability AND value, different risk profiles, or fan-out dependency. Keep as sub-tasks when: investigation+fix pairs (tag `INVESTIGATION-FIRST`), same file/handler, same user flow, or prerequisite chain with no fan-out. Fragmentation smell: story count > N + ceil(N/2) where N = JTBD count requires justification.
+- **Jira Mapping:** FEAT-XXX = Epic. T-XXX = Story (independently deliverable, reviewable, testable). Sub-tasks = phases within Build Guidance (not separate T-XXX entries).
+- **DAG Optimization:** Maximize concurrent agent execution. Minimize `blocked_by` edges — only true data/API dependencies. Additive non-overlapping modifications to the same file CAN be parallelized.
+- **Language Rule:** Requirements tables use PRD user-facing language with parent PRD JTBD/ID cited. No variable names, config fields, or implementation details in requirements — those go in Build Guidance only.
+
+---
+
+## Artifact Template (emit everything below this line)
+
+Produce the complete feature design doc following this structure:
 
 ```markdown
 ---
@@ -19,8 +32,6 @@ schemas: [<relevant-schema-paths>]
 [Single paragraph — what this feature accomplishes and why]
 
 ## Requirements
-
-**LANGUAGE RULE:** Requirements tables use the PRD's user-facing language. Each row cites its parent PRD JTBD or requirement ID. Implementation details (variable names, config fields, file paths) belong in Build Guidance, not here. A stakeholder who has never read the codebase must understand every row.
 
 ### P0 (Must Have)
 
@@ -94,69 +105,6 @@ schemas: [<relevant-schema-paths>]
 ### New Dependencies (R17 — MANDATORY)
 - `package>=X.Y.Z` — [URL] — Purpose: [why] — Verified: YES
 
-## Vertical Slice Mandate (Tracer Bullets)
-
-**Every task ticket (T-XXX) must be a vertical slice through the full stack.** This is non-negotiable.
-
-A vertical slice is the thinnest possible end-to-end implementation that touches ALL architectural layers required for a behavior. If a feature requires DB + API + FE, the ticket encompasses all three — not "build schema first, then API, then UI."
-
-**BANNED: Horizontal layer planning.** You MUST NOT decompose work as Phase 1: All DB schemas → Phase 2: All API endpoints → Phase 3: All UI components. This creates integration risk, blocks parallel agents from producing testable increments, and delays feedback loops.
-
-**Correct Decomposition Example:**
-Instead of "build the user preferences system" → 3 horizontal layers:
-- T-101: "User can set email notification preference" → migration + API endpoint + toggle component + integration test
-- T-102: "User can set timezone preference" → migration + API endpoint + dropdown component + integration test
-Each ticket is independently deployable and immediately testable end-to-end.
-
-**Escape Hatch: HORIZONTAL-JUSTIFIED** — Some legitimate work is single-layer (DB index for performance, CI pipeline config, shared type definitions). These tickets MUST be tagged: `**HORIZONTAL-JUSTIFIED:** [reason this cannot be a vertical slice]`. The quality synthesis will flag any single-layer ticket missing this tag as P1.
-
-**DAG Optimization:** The final task decomposition must form a DAG maximizing concurrent agent execution. Minimize `blocked_by` edges — only true data/API dependencies, never artificial sequencing.
-
-**TDD Integration Per Slice:** Every vertical slice defines its own test boundary: unit tests for new logic, integration test proving layers connect, slice DONE only when its integration test passes.
-
-### Jira Hierarchy Mapping
-
-| Jira Level | Design Doc Artifact | Granularity | Example |
-|------------|-------------------|-------------|---------|
-| **Epic** | `FEAT-XXX` (the feature) | One per PRD or major feature | FEAT-G1: Critical Bug Fixes |
-| **Story** | `T-XXX` (each mini-spec) | One per JTBD or independently deliverable outcome | T-CP: Fix content policy false positives |
-| **Sub-task** | Phases within Build Guidance | Internal steps within a story | "Phase 1: Investigate. Phase 2: Apply fix." |
-
-**Rules:** T-XXX = Jira Story (independently deliverable, reviewable, testable). Sub-tasks live inside Build Guidance, not as separate T-XXX entries. FEAT-XXX = Jira Epic. One story per JTBD is the default.
-
-### Story-Level Consolidation (Anti-Fragmentation)
-
-**Start with one story per JTBD.** Then apply these rules:
-
-**Split a JTBD into multiple stories ONLY when:**
-1. **Different architectural layers with no overlap** — different repos, different skills, different engineers.
-2. **Independent testability AND independent value** — both can be tested and deployed independently.
-3. **Different risk profiles** — separate QA intensity needed.
-4. **Fan-out dependency** — Story A unblocks both B and C (which are independent of each other).
-
-**Keep as sub-tasks within one story (do NOT create separate T-XXX) when:**
-1. **Investigation + Fix pairs** — one story with investigation phase in Build Guidance. Tag: `INVESTIGATION-FIRST`.
-2. **Same file, same handler** — two requirements modifying the same function.
-3. **Same user flow, incremental depth** — base fix + polish of same flow.
-4. **Prerequisite chain with no fan-out** — B depends on A and nothing else unblocks when A completes.
-
-**Fragmentation smell test:** If a feature with N JTBDs produces more than N+ceil(N/2) stories, justify each story beyond that threshold citing a "split" rule above.
-
-**Example — RIGHT (7 stories from 3 JTBDs, story granularity):**
-```
-Epic: FEAT-G1 Critical Bug Fixes
-├── JTBD-1 Content Policy
-│   ├── T-CP-CORE: Fix false positives (Infra — INVESTIGATION-FIRST)
-│   └── T-CP-UX: Let users recover from blocks (FE — depends T-CP-CORE)
-├── JTBD-2 Agent Mode
-│   ├── T-AG-CORE: Fix blank responses (FE+BFF — INVESTIGATION-FIRST)
-│   ├── T-AG-PROGRESS: Show step counter (FE — split: independent value)
-│   └── T-AG-NAV: Recover after navigate-away (FE+BFF — split: different risk)
-└── JTBD-3 Rendering
-    ├── T-RN-RENDER: Fix list/markdown spacing (FE CSS — same CSS block)
-    └── T-RN-SCROLL: Stop auto-scroll yanking viewport (FE — split: different code path)
-```
-
 ---
 
 ## Tasks
@@ -192,16 +140,6 @@ Epic: FEAT-G1 Critical Bug Fixes
 - Unit: [per-layer unit tests]
 - Integration: [cross-layer wiring test — proves the slice connects end-to-end]
 - Slice Done Gate: [the single integration assertion that proves this vertical slice works]
-
----
-
-**LANGUAGE STANDARD FOR ALL TASK CONTENT:**
-- Lead technical descriptions with user impact, then mechanism (with code names woven in), then code reference
-- Always preserve function, class, and variable names — but embed them in explanations that make sense without them
-- Edge cases must be framed as user scenarios, not internal state descriptions
-- Build Guidance must explain WHAT each step accomplishes (the goal) and name the specific code to change
-- BAD: "hasStreamingAssistant becomes false while isLoading is true creating a zero-render window"
-- GOOD: "Two UI components race to show the response. The streaming view (`hasStreamingAssistant`) stops because the stream ended, while the history view hasn't loaded the saved message yet (`chatMessages.refresh()` resolves in the same render batch). For one frame neither renders anything, and that blank state persists."
 
 ---
 
