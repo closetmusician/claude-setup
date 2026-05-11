@@ -20,7 +20,7 @@ Optimized for density. Same rigor as verbose PRDs but you must not lose specific
 - Data Model lives under §7 Engineering (after effort estimates) — keeps all eng-facing content together
 - Prose that restates tables is banned
 - Wireframes: 3-5 per feature PRD for major interaction patterns
-- Behavior minimums are guidance, not floors
+- Acceptance criteria minimums are guidance, not floors
 - Compact formatting preferred (inline pipes, dense bullets) over multi-line prose
 
 ## Core Principles
@@ -32,7 +32,7 @@ Same as v1, plus three density rules:
 3. **Brutal honesty about prior art.** Document what's been tried, what failed, what's different.
 4. **Show the projection math.** Expose derivation: "[base] x [rate] = [outcome]."
 5. **User voice, not corporate voice.** "I don't know what to share" not "Users experience friction."
-6. **Implementation-ready requirements.** Each P0/P1 gets numbered observable behaviors mapping to test cases.
+6. **Implementation-ready requirements.** Each P0/P1 gets numbered acceptance criteria mapping to test cases.
 7. **Hypotheses tied to measurable KPIs.** Each feature gets a KPI table (qual primary for early-stage, quant for mature).
 
 ### End-User POV Rule
@@ -94,7 +94,7 @@ Template: `templates/diligent-prd-template.md` (all 12 sections)
 
 **Mode B: PRD-Lite (1-pager / discovery brief)**
 Trigger: User asks for a "1-pager", "discovery brief", "early-stage doc", or explicitly says they don't have enough data for a full PRD.
-Template: `templates/prd-lite-template.md` (sections 1, 2, 3, 7 — requirements include numbered observable behaviors (≥2 per P0), TBD placeholders for 4-6)
+Template: `templates/prd-lite-template.md` (sections 1, 2, 3, 7 — requirements include numbered acceptance criteria (≥2 per P0), TBD placeholders for 4-6)
 
 **Mode C: Stakeholder Pitch**
 Trigger: User explicitly asks for a "pitch brief", "stakeholder alignment doc", or "conversation starter."
@@ -223,24 +223,24 @@ Show projection math. Reference precedents. Be honest about assumptions.
 ```
 **REQ-ID: Name** (P0)
 [1-paragraph scope. What it does, how it works, key details.]
-1. [Observable system behavior — maps to one test case]
-2. [Another behavior]
+1. [Acceptance criterion — maps to one test case]
+2. [Another criterion]
 3. [Error/edge case]
 4. [Permission/validation constraint if applicable]
 ```
 
-**P2:** Description only, no numbered behaviors.
+**P2:** Description only, no acceptance criteria.
 
 **Business rules placement (mix approach):**
-- **Simple constraints** (field validation, role checks, format rules): inline as numbered behaviors under the REQ they govern (e.g., "4. Only users with Editor role can invoke")
+- **Simple constraints** (field validation, role checks, format rules): inline as acceptance criteria under the REQ they govern (e.g., "4. Only users with Editor role can invoke")
 - **Complex cross-cutting rules** (permission models spanning multiple REQs, state machines, lifecycle transitions): dedicated REQ-IDs in a "Cross-Cutting Rules" subsection within the JTBD or at end of §2
 
-**Behavior description rules:**
+**Acceptance criteria rules:**
 - Observable system behavior, not user action
 - Concrete values: field names, max lengths, valid states
 - Each independently falsifiable (one test case per item)
 - Order: happy path -> error/validation -> edge cases -> constraints/permissions
-- **Minimum count:** Every P0 requirement must have ≥2 numbered behaviors. If you can't identify at least 2 observable behaviors, the requirement is too vague — split or rewrite it.
+- **Minimum count:** Every P0 requirement must have ≥2 acceptance criteria. If you can't identify at least 2, the requirement is too vague — split or rewrite it.
 
 **Priority tiers within each JTBD's build scope:** P0 = must ship, P1 = should ship, P2 = defer.
 

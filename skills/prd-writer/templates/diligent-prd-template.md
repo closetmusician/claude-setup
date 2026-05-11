@@ -2,7 +2,7 @@
 
 Default PRD template — Diligent Boards conventions. Apply quality patterns from `quality-patterns.md` throughout.
 
-**Structural rules:** User pain points live in JTBDs (not Problem Definition). UX Flows section (§3) is organized by JTBD with explicit req ID references — dedicated but mapped, no redundancy. Business rules are specified inline within §2 requirements (simple rules as numbered behaviors, complex cross-cutting rules as dedicated REQ-IDs). Describe once, reference by ID.
+**Structural rules:** User pain points live in JTBDs (not Problem Definition). UX Flows section (§3) is organized by JTBD with explicit req ID references — dedicated but mapped, no redundancy. Business rules are specified inline within §2 requirements (simple rules as acceptance criteria, complex cross-cutting rules as dedicated REQ-IDs). Describe once, reference by ID.
 
 ## Template Structure
 
@@ -46,8 +46,8 @@ Do NOT restate the table in prose afterward.]
 # 2. Jobs to Be Done & Requirements
 
 [Each JTBD groups problem, evidence, hypothesis, KPIs, and requirements.
-Business rules are specified here — simple constraints inline as numbered
-behaviors under the REQ they govern; complex cross-cutting rules (permissions,
+Business rules are specified here — simple constraints inline as acceptance
+criteria under the REQ they govern; complex cross-cutting rules (permissions,
 state machines, lifecycle) as their own dedicated REQ-IDs.
 UX flows live in §3 and reference back by req ID.]
 
@@ -246,7 +246,7 @@ Use tables. Include only sections that apply.]
 ## Template Notes
 
 - Core sections: §1 Problem Definition, §2 JTBD & Requirements, §3 UX Flows. Everything else is optional based on project complexity.
-- §2 JTBD section is the core — evidence, requirements, rationale, AND business rules. Simple constraints (permissions, validation) are numbered behaviors under the REQ they govern. Complex cross-cutting rules (state machines, permission models spanning multiple REQs) get their own REQ-IDs within the JTBD or in a "Cross-Cutting Rules" subsection.
+- §2 JTBD section is the core — evidence, requirements, rationale, AND business rules. Simple constraints (permissions, validation) are acceptance criteria under the REQ they govern. Complex cross-cutting rules (state machines, permission models spanning multiple REQs) get their own REQ-IDs within the JTBD or in a "Cross-Cutting Rules" subsection.
 - §3 UX Flows is organized by JTBD — each flow references req IDs it satisfies. Include illustrative edge-case flows showing rules in action (representative, not exhaustive — eng planning expands these).
 - **Describe once:** If a behavior is fully specified in a requirement, UX flows reference by ID, not re-describe. Edge flows illustrate rules for stakeholder comprehension.
 - **Tables speak for themselves:** Never follow a table with prose restating its contents.

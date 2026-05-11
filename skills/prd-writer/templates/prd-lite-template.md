@@ -48,7 +48,7 @@ Do NOT list user pain points here — those belong as evidence within each JTBD 
 # 2. Jobs to Be Done & Requirements
 
 [Each JTBD uses the same persona format as the full PRD.
-P0/P1 requirements include numbered observable behaviors (≥2 per P0)
+P0/P1 requirements include numbered acceptance criteria (≥2 per P0)
 using the same format as the full PRD. P2 requirements are one-line only.]
 
 ## JTBD-1: [Job statement]
@@ -155,7 +155,7 @@ Note any known API contracts or data shape constraints here.]
 
 ## Key Differences from Full PRD
 
-- **Requirements:** P0/P1 get numbered observable behaviors (≥2 per P0), same as full PRD. P2 = one-line description only
+- **Requirements:** P0/P1 get numbered acceptance criteria (≥2 per P0), same as full PRD. P2 = one-line description only
 - **Business rules:** Noted parenthetically on affected REQ-IDs where known (not a separate section)
 - **Hypotheses:** Include KPI tables (mandatory even at this stage)
 - **UX Flows (§3):** High-level interaction flows + 1-2 key wireframes + optional illustrative edge flow (not 3-5 wireframes, no component specs or accessibility)

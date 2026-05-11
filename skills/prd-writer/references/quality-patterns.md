@@ -54,19 +54,19 @@ Testable hypothesis + KPI table per JTBD:
 ### Requirement IDs
 Short prefix + number: `AC-1`, `BRF-2`, `AUTH-3`. Enables reference in code, tests, commits.
 
-### Behavior Descriptions
-Each P0/P1 requirement gets numbered behaviors mapping to test cases:
+### Acceptance Criteria
+Each P0/P1 requirement gets numbered acceptance criteria mapping to test cases:
 ```
 **REQ-1: Name** (P0)
 [Scope paragraph.]
-1. [Observable system behavior with concrete values]
+1. [Acceptance criterion with concrete values]
 2. [Happy path]
 3. [Error/edge case]
 ```
 
 **Rules:** Observable system behavior (not user action). Concrete values. Independently falsifiable. Happy path first, then errors, then edge cases.
 
-**Minimum count:** Every P0 requirement must have ≥2 numbered behaviors. If you can't identify at least 2 observable behaviors, the requirement is too vague — split or rewrite it.
+**Minimum count:** Every P0 requirement must have ≥2 acceptance criteria. If you can't identify at least 2, the requirement is too vague — split or rewrite it.
 
 ---
 
@@ -182,9 +182,9 @@ P0 (MVP) and P1+ tables. Component breakdown. Backend vs. client. Ranges, not po
 | "Rate limiter at 100 req/min" | "Rapid actions (bulk approvals) may be throttled; user sees 'please wait' after ~100 items" |
 | "Webhook delivery is at-most-once" | "Notifications may occasionally not arrive; user should check dashboard as backup" |
 
-### §2 Exception: Technical Constraints as Observable Behaviors
+### §2 Exception: Technical Constraints as Acceptance Criteria
 
-Within §2 requirement behaviors, technical constraints are acceptable ONLY when framed as user-observable effects:
+Within §2 acceptance criteria, technical constraints are acceptable ONLY when framed as user-observable effects:
 
 **OK:** "5. Session expires after 4 hours; user sees 'Please refresh to continue voting' banner with one-click refresh"
 **NOT OK:** "5. SignalR 2.4.1 WebSocket connection drops after token expiry; requires reconnection handler with exponential backoff"
