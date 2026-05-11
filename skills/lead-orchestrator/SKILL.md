@@ -22,7 +22,7 @@ Read `.claude/phase.json` for `"vibe_level"` (default `"full"` if absent):
 
 | | `full` | `light` |
 |---|---|---|
-| QA Cycles | 2 (C1 + C2) | 1 (C1 only) |
+| QA Cycles | 2 (C1: test + break, C2: re-test bugs) | 1 (C1 only) |
 | Spec wall | Enforced | Skipped |
 | Phase gate | Enforced | Skipped |
 | API contracts | Required | Skipped |
@@ -86,23 +86,42 @@ When needed:
 ## The Orchestration Loop
 
 ```
-Task assigned → [Architect Gate] → Spawn CODER → wait for T-XXX-ready-for-review.md
-  → Spawn QA C1 → wait for T-XXX-cycle-1.md → P0 found? → Spawn CODER fix → loop back
-  → No P0 → Spawn QA C2 → wait for T-XXX-cycle-2.md → COMPLETE
+1. Task assigned → [Architect Gate]
+2. Spawn CODER → wait for T-XXX-ready-for-review.md
+3. Pre-QA Gates (TDD evidence, test suite, commit ordering)
+4. Spawn GARRY-REVIEW → wait for review findings
+5. If P0/P1 findings → Spawn CODER fix → wait for updated artifact
+6. Spawn QA TESTER C1 (test + break) → wait for T-XXX-cycle-1.md
+7. If FAIL → Spawn CODER fix → re-run C1 → if still FAIL: ESCALATE (N=1)
+8. Spawn QA TESTER C2 (regression + edge cases, full only) → wait for T-XXX-cycle-2.md
+9. COMPLETE
 ```
 
 **STOP boundaries are mandatory.** Wait for artifact before proceeding.
 
 **No artifact = No proceed.** If subagent returns without artifact, treat as fix cycle failure — re-spawn once, then escalate. This rule applies to the sequential loop, not parallel E2E spawning.
 
-### Pre-QA TDD Verification
+### Pre-QA Gates
 
-Before spawning QA C1, the orchestrator MUST:
+Before spawning Garry-Review or QA Tester, the orchestrator MUST:
 1. Read `qa/FEAT-XXX/T-XXX-ready-for-review.md`
 2. Verify `## TDD Evidence` table exists with at least one data row, OR every behavior has a `TDD-EXEMPT` declaration with justification
 3. If missing: re-spawn coder with instruction "TDD Evidence table is missing — add RED/GREEN evidence for each behavior before resubmitting"
 4. Run `make test` (or project equivalent — check Makefile, package.json, pytest, go test in that order). If exit code != 0, do NOT spawn QA. Re-spawn coder with the failing test output and instruction to fix.
-5. (At `full` VIBE level) Run `git log -n 5 --name-only --pretty=format:"%h %s"`. Verify at least one commit touching only test files precedes the final implementation commit. If not found, warn but do not block — the coder may have legitimate reasons (refactors, shared files). Log for QA to review.
+
+Commit ordering is enforced by the `commit-order-guard.sh` PreToolUse hook — code commits are blocked until a test-only commit exists. No manual verification needed.
+
+### Garry-Review Step
+
+Spawn a `general-purpose` subagent with an inline review prompt (no template — `GOVERNANCE_EXEMPT`). The review covers four categories:
+
+- **Architecture**: coupling, separation of concerns, dependency direction
+- **Code Quality**: naming, duplication, complexity, YAGNI
+- **Tests**: coverage gaps, assertion quality, anti-patterns from vibe-manual 6.5
+- **Performance**: obvious N+1, unnecessary allocations, missing indexes
+
+Output: `qa/FEAT-XXX/T-XXX-review-findings.md` with P0/P1/P2 findings.
+If P0 or P1 found: spawn coder to fix before QA Tester.
 
 ### Bug Severity at QA Boundary
 
@@ -112,7 +131,7 @@ Before spawning QA C1, the orchestrator MUST:
 
 ### Light-Level Shortcut
 
-At `light` VIBE level: Spawn CODER → wait for `T-XXX-ready-for-review.md` → Spawn QA C1 → wait for `T-XXX-cycle-1.md` → if PASS, task complete. No C2, no spec wall, no phase gate checks.
+At `light` VIBE level: Spawn CODER → Pre-QA Gates → Garry-Review → fix if needed → Spawn QA Tester C1 → if PASS, task complete. No C2, no spec wall, no phase gate checks.
 
 ### Escalation (N=1)
 
@@ -134,8 +153,9 @@ Before marking T-XXX complete, verify in `qa/FEAT-XXX/`:
 | Artifact | Created By |
 |----------|-----------|
 | `T-XXX-ready-for-review.md` | Coder |
-| `T-XXX-cycle-1.md` | QA (Cycle 1) |
-| `T-XXX-cycle-2.md` | QA (Cycle 2, `full` only) |
+| `T-XXX-review-findings.md` | Garry-Review |
+| `T-XXX-cycle-1.md` | QA Tester (Cycle 1) |
+| `T-XXX-cycle-2.md` | QA Tester (Cycle 2, `full` only) |
 
 ### Spec-Diff Verification (Mandatory)
 
@@ -213,8 +233,8 @@ If the task has no formal spec, you MUST still provide a `docs/*.md` reference �
 |----------|----------|------|
 | Coder | `templates/coder-prompt.md` | (default) |
 | Architect | `templates/architect-prompt.md` | `general-purpose` |
-| QA Cycle 1 | `templates/qa-cycle1-prompt.md` | (default) |
-| QA Cycle 2 | `templates/qa-cycle2-prompt.md` | (default) |
+| Garry-Review | Inline prompt (`GOVERNANCE_EXEMPT`) | `general-purpose` |
+| QA Tester | `templates/qa-tester-prompt.md` | (default) |
 
 ---
 
@@ -253,7 +273,7 @@ User references a structured plan file with waves/tasks (e.g., "Execute the plan
    Wave X — [priority] ([total tests])
    Batch A (parallel): W1-01: test_main_endpoints.py (~25) — no deps ...
    Batch B (after A): W1-09: PRD gap fillers (~5) — depends W1-01
-   Total: X tasks, ~Y tests. Each task: coder → QA C1 → QA C2
+   Total: X tasks, ~Y tests. Each task: coder → garry-review → fix → QA Tester C1 → QA Tester C2
    Proceed?
    ```
 
@@ -293,7 +313,9 @@ Write `logs/build-{timestamp}.md`:
 
 ## T-101: [Task Name]
 - [ ] Coder spawned / ready-for-review.md
-- [ ] QA C1 spawned / cycle-1.md (PASS/FAIL)
-- [ ] QA C2 spawned / cycle-2.md (PASS/FAIL)
+- [ ] Garry-Review spawned / review-findings.md
+- [ ] Coder fix (if P0/P1 findings)
+- [ ] QA Tester C1 spawned / cycle-1.md (PASS/FAIL)
+- [ ] QA Tester C2 spawned / cycle-2.md (PASS/FAIL, full only)
 
 ```

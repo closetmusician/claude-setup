@@ -103,39 +103,44 @@ Verify:
 If no TDD evidence for a behavior: declare `TDD-EXEMPT: <reason>` (config-only, no testable behavior, generated file, etc.)
 ```
 
-### 4.3 Required QA Cycle Files
-
-**`qa/FEAT-XXX/T-XXX-cycle-1.md` (Security & Logic -- P0 HARD GATE):**
+### 4.3 QA Cycle File Template
 
 ```markdown
-Task: T-XXX
-STATUS: PASS|FAIL
-Scope: Security & Logic (P0 blocking)
-CommandsRun: make test; make lint; /code-review
-ReviewCommit: <SHA>
-P0 Blocking Issues (if FAIL):
-1) <file:line> -- <issue> -- <severity P0> -- <expected fix> -- <verification>
-P1 Issues Found (for Cycle 2):
-1) <file:line> -- <issue> -- <severity P1>
-Verified (if PASS):
-- <bullets>
+# T-XXX QA {Cycle 1|Cycle 2}
+
+**Task:** T-XXX
+**Status:** {PASS|FAIL|PASS_WITH_CONCERNS}
+**Mode:** {cycle-1|cycle-2}
+**ReviewCommit:** {SHA from ready-for-review.md}
+
+## Commands Run
+- `{test command}` — {result summary}
+
+## Tests Written
+| Test File | Test Name | What It Covers | Result |
+|-----------|-----------|----------------|--------|
+| ... | ... | ... | PASS/FAIL |
+
+## Test Results
+{Full test output or summary}
+
+## Bugs Found
+| ID | Severity | Description | Repro Steps | File:Line |
+|----|----------|-------------|-------------|-----------|
+
+## Auto-Reject Checklist
+- [ ] No internal module mocks
+- [ ] SavepointConnection used for DB tests
+- [ ] All tests exercise real code paths
+- [ ] Test output is pristine
+- [ ] No entire core dependency mocked
+- [ ] TDD Evidence table present and complete (or TDD-EXEMPT justified)
+
+## Verification Evidence
+REQ-XX: {what you tested and found}
 ```
 
-**`qa/FEAT-XXX/T-XXX-cycle-2.md` (Quality & Resilience -- P1 fix, P2 defer):**
-
-```markdown
-Task: T-XXX
-STATUS: PASS|FAIL
-Scope: Quality & Resilience
-CommandsRun: make test; make lint (and /code-review if needed)
-ReviewCommit: <SHA>
-P1 Issues (must fix):
-1) <file:line> -- <issue> -- <severity P1> -- <expected fix> -- <verification>
-P2 Issues (deferred to docs/backlog.md):
-1) <file:line> -- <issue> -- <severity P2>
-Verified (if PASS):
-- <bullets>
-```
+C1 = full protocol (test + break). C2 = independent regression + edge cases (`full` mode only).
 
 ---
 
@@ -172,6 +177,7 @@ Verified (if PASS):
    - For each row: test file was written/modified BEFORE implementation file (verify via git log or tool-call ordering in evidence)
    - TDD-EXEMPT declarations are justified (config, docs, generated files)
    - Missing TDD evidence with no exemption = P0 FAIL
+   - Commit ordering enforced by `commit-order-guard.sh` hook — code commits blocked until test-only commit exists
 
 ### 5.2 Automated Code Review Gates
 
@@ -199,7 +205,11 @@ echo "No static-constraint mismatches found"
 - Implementation committed without corresponding test in same or prior commit
 - Test exhibits any anti-pattern from Section 6.5 (testing impl details, interdependent tests, insufficient assertions, mock-heavy, catch-all errors)
 
-### 5.3 Recommended Verification Items (Cycle 2 - P1/P2)
+**QA Tester template enforcement:** QA cycle files MUST use the unified template from SS4.3. Missing sections (Commands Run, Tests Written, Auto-Reject Checklist, Verification Evidence) = incomplete review artifact. See also Section 6.5 QA Evidence Ownership — QA writes RED tests as proof of understanding before verifying GREEN.
+
+### 5.3 Recommended Verification Items (All Cycles)
+
+> **Review order:** `garry-review` runs first (Fix-First + confidence calibration), then QA Tester executes structured testing per the SS4.3 template. QA Testers should actively "try to break it" — write tests that feed unexpected inputs, probe boundary conditions, and attempt to make the feature fail. Passing is not the goal; finding bugs is.
 
 1. **Code Quality**
    - Linting passes (make lint)

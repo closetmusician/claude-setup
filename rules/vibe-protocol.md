@@ -10,13 +10,13 @@
 2. **R1 Spec Wall** -- No code without an approved spec in `docs/`.
 3. **R2 TDD** -- Red-Green-Refactor mandatory. Write failing test FIRST, then minimal implementation to pass. Document evidence in ready-for-review TDD Evidence table (see manual SS4.2). No evidence + no TDD-EXEMPT declaration = P0 auto-reject.
 4. **R3 Mock-First Parallelism** -- FE agents MUST mock API responses (conforming to contract per R7). Never block on BE.
-5. **R4 2 QA Cycles** -- No merge without 2 documented review passes.
+5. **R4 2 QA Test Cycles** -- No merge without 2 documented QA test passes. QA writes tests, runs suite, and tries to break the feature.
 6. **R5 Phase Gates** -- Respect `.claude/phase.json`; no code until phase = `BUILD`.
 7. **R6 Auto-Commit** -- `git add -A && git commit && git push` after every task completion. RED/GREEN micro-commits within a task are encouraged (R2 evidence); ReviewCommit SHA (R11) is the final commit.
 8. **R7 Contract-First** -- Before BUILD, Architect produces `docs/contracts/<feature>.md` (data models, SSE schemas, endpoints, field names). All agents reference this. No inventing field names.
 9. **R8 Per-Task Subagents** -- Dedicated subagent pairs per T-XXX (not per feature); prevents context exhaustion.
 10. **R9 Role Separation** -- Coder and QA MUST be separate subagents.
-11. **R10 QA No-Edit** -- QA NEVER edits implementation code; only writes QA artifacts.
+11. **R10 QA No-Edit** -- QA NEVER edits implementation code; writes test files and QA artifacts only. Test files written by QA are QA artifacts, not coder TDD evidence.
 12. **R11 Review Snapshot** -- Coder commits `qa/FEAT-XXX/T-XXX-ready-for-review.md` with `ReviewCommit:<SHA>`; QA reviews that SHA.
 13. **R12 STOP Boundaries** -- Each subagent produces artifact(s) then STOPs. Orchestrator decides next spawn.
 14. **R13 N=1 Escalation** -- After 1 failed fix cycle, STOP and ask Yu-Kuan.
@@ -39,7 +39,7 @@ Set `"vibe_level"` in `.claude/phase.json`. Default: `"full"`.
 | R1 Spec Wall | **Yes** | No |
 | R2 TDD | Yes | Yes |
 | R3 Mock-First | Yes | N/A |
-| R4 2 QA Cycles | **Yes** | 1 pass |
+| R4 2 QA Test Cycles | **2 test cycles** | 1 test cycle |
 | R5 Phase Gates | **Yes** | No |
 | R6 Auto-Commit | Yes | Yes |
 | R7 Contract-First | **Yes** | No |
@@ -93,22 +93,22 @@ Set `"vibe_level"` in `.claude/phase.json`. Default: `"full"`.
 ### 3.3 Developer
 **Trigger:** `feat/*` worktree, phase = BUILD, assigned T-XXX.
 
-**Invoke IN ORDER:** `superpowers:test-driven-development` -> `superpowers:verification-before-completion`
+TDD protocol is inlined in the coder prompt template (`templates/coder-prompt.md`). No external skill invocation needed.
 
-Steps: Context load -> Dependency check (R17) -> Follow Build Guidance -> For each behavior: write failing test (RED) -> run test (confirm FAIL) -> write minimal implementation (GREEN) -> run test (confirm PASS) -> refactor -> Real testing (R18) -> Output `T-XXX-ready-for-review.md` with TDD Evidence table and `ReviewCommit:<SHA>` (R11).
+Steps: Context load -> Dependency check (R17) -> Follow Build Guidance -> For each behavior: write failing test (RED) -> run test (confirm FAIL) -> write minimal implementation (GREEN) -> run test (confirm PASS) -> refactor -> Real testing (R18) -> Output `T-XXX-ready-for-review.md` with TDD Evidence table and `ReviewCommit:<SHA>` (R11). Commit ordering enforced by `commit-order-guard.sh` hook.
 
-### 3.4 QA Auditor
-**Trigger:** Developer claims T-XXX complete. QA NEVER edits implementation code (R10).
+### 3.4 QA Tester
+**Trigger:** Developer claims T-XXX complete. QA NEVER edits implementation code (R10). QA writes tests, runs suite, tries to break the feature.
 
-**Invoke IN ORDER:** `garry-review` -> `feature-dev:code-reviewer` -> `/qa`
-**Also read:** `~/.claude/docs/vibe-manual.md` SS5 (QA verification checklist + automated review gates).
+Uses `templates/qa-tester-prompt.md`. Garry-review runs as a separate step before QA Tester (see Section 4.1).
 
 **Auto-Reject (P0):** mock on internal module | no SavepointConnection | test without real path | uncaptured warnings (P1) | entire core dependency mocked | missing TDD Evidence (no exemption)
+**QA Evidence Ownership:** Tests written by QA are verification/acceptance tests — NOT coder TDD evidence. Missing coder TDD evidence = P0 FAIL on the coder.
 **Severity:** P0 = must fix. P1 = should fix, escalate if stuck. P2 = log to `docs/backlog.md`.
 
 **2 cycles, sequential** (C1 must PASS before C2):
-- **C1 (Security & Logic, P0 gate):** garry-review -> code-reviewer -> /qa. Verify contracts (R7), auto-reject criteria (R18). Output `T-XXX-cycle-1.md`.
-- **C2 (Quality & Resilience):** naming, duplication, edge cases, failure modes. Output `T-XXX-cycle-2.md`.
+- **C1 (Test + Break):** Run existing suite, write new tests, try to break the feature. Verify auto-reject criteria. Output `T-XXX-cycle-1.md`.
+- **C2 (Regression + Edge Cases, `full` only):** Independent regression and edge-case testing. Do NOT re-test C1 bugs. Output `T-XXX-cycle-2.md`.
 
 Re-run failing cycle after fix. N=1 escalation (R13).
 
@@ -130,20 +130,23 @@ Subagents share NO context -- communication via committed artifacts under `qa/FE
 ```
 For each T-XXX (respecting depends_on):
   1. ARCHITECT (skip if trivial): spawn code-architect -> file-level design -> STOP
-  2. CODER: spawn subagent using superpowers:test-driven-development to write failing test -> then do R/G TDD -> T-XXX-ready-for-review.md -> then superpowers:verification-before-completion -> STOP.
-  3. QA C1 (P0 gate): spawn code-reviewer -> garry-review + code-reviewer + /qa
+  2. CODER: spawn subagent (TDD inlined in coder prompt) -> R/G TDD -> T-XXX-ready-for-review.md -> STOP
+  3. PRE-QA GATES: verify TDD evidence, run test suite, check commit ordering
+  4. GARRY-REVIEW: spawn general-purpose subagent -> review-findings.md -> STOP
+  5. IF P0/P1 findings: spawn CODER fix -> STOP
+  6. QA TESTER C1 (test + break): spawn qa-tester -> write tests, run suite, try to break
      -> T-XXX-cycle-1.md -> STOP
-  4. IF C1 FAIL: fix -> re-run C1 -> if still fail ESCALATE (N=1)
-  5. QA C2: spawn code-reviewer -> quality checks -> T-XXX-cycle-2.md -> STOP
-  6. IF C2 FAIL: fix P1 (P2 -> backlog) -> re-run C2 -> if still fail ESCALATE
-  7. ON PASS: git add -A && git commit && git push; update progress log
+  7. IF C1 FAIL: fix -> re-run C1 -> if still fail ESCALATE (N=1)
+  8. QA TESTER C2 (full only): spawn qa-tester -> regression + edge cases
+     -> T-XXX-cycle-2.md -> STOP
+  9. ON PASS: git add -A && git commit && git push; update progress log
 ```
 
 **Skip Architect:** setup/config, bash commands, rote tasks, or Build Guidance already file-level specific.
 
 ### 4.2 Spawning Model
 
-**Within-task (architect -> coder -> C1 -> C2): FOREGROUND (blocking).** Each step waits for prior artifact.
+**Within-task (architect -> coder -> garry-review -> fix -> C1 -> C2): FOREGROUND (blocking).** Each step waits for prior artifact.
 **Cross-task independent pipelines: BACKGROUND (`run_in_background: true`).** Orchestrator monitors artifacts.
 **Rule:** C1 and C2 are always sequential -- C2 depends on C1's findings.
 
@@ -193,8 +196,9 @@ State: (1) Phase, (2) Role, (3) Next Actions, (4) Questions, (5) Artifacts to Up
 | Explore | `feature-dev:code-explorer` | N/A | Patterns, dependencies report |
 | Architect (Feature) | `eng-planning` | + `/plan-eng-review`; if UI: + `/plan-design-review` | Arch docs, contracts, FEAT design docs |
 | Architect (Task) | `feature-dev:code-architect` | N/A | Files to create/modify, test mapping |
-| Implement | `feature-dev:feature-dev` | `superpowers:test-driven-development` then `superpowers:verification-before-completion` | Code + tests + `T-XXX-ready-for-review.md` |
-| QA | `feature-dev:code-reviewer` | `garry-review` -> `feature-dev:code-reviewer` -> `/qa` | `T-XXX-cycle-1.md`, `T-XXX-cycle-2.md` |
+| Implement | `feature-dev:feature-dev` | TDD inlined in coder prompt | Code + tests + `T-XXX-ready-for-review.md` |
+| Review | `general-purpose` | Inline garry-review prompt (`GOVERNANCE_EXEMPT`) | `T-XXX-review-findings.md` |
+| QA | `qa-tester-prompt.md` | QA Tester template | `T-XXX-cycle-1.md`, `T-XXX-cycle-2.md` |
 | Debug | `/investigate` | Fallback: `superpowers:systematic-debugging` | Diagnosis + fix |
 | Fix Bugs | `feature-dev:feature-dev` | Same as Implement | Targeted fixes |
 

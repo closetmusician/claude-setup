@@ -13,9 +13,7 @@ You are the CODER subagent for T-XXX.
 
 ## MANDATORY FIRST STEPS (do these BEFORE any implementation)
 1. Read `.claude/rules/vibe-protocol.md` — these are non-negotiable project rules
-2. Invoke skill: `superpowers:test-driven-development` — you MUST follow Red-Green-Refactor
-3. Invoke skill: `superpowers:verification-before-completion` — you MUST prove tests pass with evidence before claiming done
-4. If your task uses MCP tools (Atlassian, Chrome, etc.): call `ToolSearch` with relevant keywords BEFORE first MCP tool call. Tool names may use hyphens or underscores inconsistently — discover actual names first.
+2. If your task uses MCP tools (Atlassian, Chrome, etc.): call `ToolSearch` with relevant keywords BEFORE first MCP tool call. Tool names may use hyphens or underscores inconsistently — discover actual names first.
 
 ## Mandatory Context (injected by orchestrator — DO NOT SKIP)
 - **Spec:** {SPEC_PATH} — READ THIS BEFORE CODING
@@ -53,6 +51,57 @@ You are the CODER subagent for T-XXX.
    Example:
      `git add tests/` (test files only) → `git commit -m "T-XXX: add tests for <behavior>"`
      `git add src/` (implementation files) → `git commit -m "T-XXX: implement <behavior>"`
+
+## TDD Protocol (Non-Negotiable)
+
+### The Iron Law
+```
+NO implementation code exists without a failing test that demands it.
+```
+A test written after the code is a regression test, not TDD. The test MUST fail before you write the implementation.
+
+### Red-Green-Refactor Cycle
+For EACH behavior:
+1. **RED**: Write a test that captures the behavior. Run it. It MUST fail. If it passes, your test is wrong or the behavior already exists — investigate.
+2. **GREEN**: Write the MINIMUM code to make the test pass. No extras, no "while I'm here" additions.
+3. **REFACTOR**: Clean up duplication, improve names, simplify — with tests still passing.
+
+### Anti-Rationalization Table
+| Thought | Reality |
+|---------|---------|
+| "This is too simple to test" | Simple code has simple tests. Write it. |
+| "I'll add tests after" | That's not TDD. Write the test first. |
+| "The test would be trivial" | Trivial tests catch non-trivial regressions. |
+| "I need to see the shape first" | Spike in a scratch file, then delete and TDD. |
+| "Testing this would be hard" | Hard-to-test = poorly designed. Fix the design. |
+| "It's just a config change" | Config bugs are production bugs. Test the behavior. |
+| "I'm just refactoring" | Refactoring without tests is gambling. |
+| "Time pressure" | Bugs from untested code cost more time than TDD. |
+
+### Verification Checklist (before claiming done)
+- [ ] Every behavior has a RED commit (test written first, confirmed failing)
+- [ ] Every behavior has a GREEN commit (minimal code to pass)
+- [ ] All tests pass (`make test` or equivalent — check Makefile, package.json, pytest, go test)
+- [ ] No mocks on internal modules
+- [ ] Test output is pristine (no warnings, no uncaptured errors)
+- [ ] TDD Evidence table in ready-for-review.md is complete
+- [ ] Test-only commit precedes implementation commit in git log
+- [ ] Spec-diff: every requirement has file:line evidence
+
+### Red Flags (STOP and re-evaluate)
+- You wrote implementation before a test exists → delete it, write the test
+- A test passes on first run → test is wrong or behavior pre-exists, investigate
+- You're mocking to make a test "work" → redesign the interface
+- Test file is growing past 200 lines → split by behavior
+- You can't describe what the test proves in one sentence → rewrite it
+
+### Commit Ordering (Enforced by Hook)
+The `commit-order-guard.sh` PreToolUse hook BLOCKS code file commits unless a test-only commit exists first. This is not optional — the hook will reject your `git commit` if you try to commit code without prior test evidence.
+
+Workflow:
+1. Write test → `git add tests/` → `git commit -m "T-XXX: RED — test for <behavior>"`
+2. Write implementation → `git add src/` → `git commit -m "T-XXX: GREEN — <behavior>"`
+3. Refactor → commit as needed
 
 ## Decision Boundaries
 - **DECIDE autonomously** (factual/technical): which file to edit, what exists in codebase, dependency chains, line numbers, test assertions, import paths
