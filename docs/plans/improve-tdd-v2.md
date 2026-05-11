@@ -70,6 +70,8 @@ Renumber step 4 (MCP tools) to step 2.
 
 **Net change:** Remove 2 lines, add ~50 lines. Eliminates two skill invocations (~280 tokens each at runtime).
 
+**Commit ordering enforcement:** The `commit-order-guard.sh` PreToolUse hook will **block** any `git commit` that includes code files if no test-only commit exists yet. The coder MUST commit test files first, independently — mixed test+code commits are rejected. Doc and script files are exempt.
+
 ---
 
 ### Step 2: `templates/qa-tester-prompt.md` — New unified QA template
@@ -110,7 +112,7 @@ Replaces `qa-cycle1-prompt.md` and `qa-cycle2-prompt.md`. Same governance struct
 
 5. **Mode Handling** via `{QA_MODE}` placeholder:
    - `cycle-1`: Full protocol (all 5 steps). Produce `T-XXX-cycle-1.md`.
-   - `cycle-2`: Re-test ONLY bugs from cycle-1. Read cycle-1 bug list. Verify each fix. Run regression. Produce `T-XXX-cycle-2.md`.
+   - `cycle-2` (`full` only): Independent second testing round. Read cycle-1 findings for context. Focus on: regression from C1 fixes, edge cases C1 didn't cover, integration/system-level testing, stress/boundary testing. Produce `T-XXX-cycle-2.md`.
 
 6. **Auto-Reject Criteria** (carried from existing templates):
    - Mock on internal module (only external HTTP)
@@ -120,6 +122,11 @@ Replaces `qa-cycle1-prompt.md` and `qa-cycle2-prompt.md`. Same governance struct
    - Core dependency entirely mocked
    - Missing TDD Evidence table (no exemption)
    - Testing anti-patterns (vibe-manual Section 6.5)
+
+6.5. **QA Evidence Ownership:**
+   - Tests you write are QA verification/acceptance tests — they do NOT count as coder TDD evidence.
+   - If the coder's TDD Evidence table is missing coverage for a requirement, that is a P0 FAIL. Do NOT compensate by writing the missing test yourself. Report it as a bug.
+   - Your tests supplement the coder's tests; they do not replace them.
 
 7. **Allowed Actions** (R10 compliance):
    - WRITE: test files (`tests/`, `test_*`, `*_test.*`, `*.spec.*`, `*.test.*`), QA artifacts (`qa/`)
@@ -150,40 +157,105 @@ Replaces `qa-cycle1-prompt.md` and `qa-cycle2-prompt.md`. Same governance struct
 
 ---
 
-### Step 3: `post-agent-audit.sh` — Add commit-ordering check
+### Step 3: Commit-ordering guard — PreToolUse hook on Bash
 
-**File:** `~/.claude/scripts/governance/post-agent-audit.sh`
+**New file:** `~/.claude/scripts/governance/commit-order-guard.sh`
+**Also modify:** `~/.claude/settings.json` (register hook)
 
-**Insert** ~20 lines after the "ALL GREEN: persist ledger and allow" block (after line 127, before line 130 "RED items exist"). Runs only when all evidence is GREEN.
+This is a **PreToolUse hook on Bash** that intercepts `git commit` commands in real-time and **blocks** if code files are staged without a prior test-only commit. This replaces the original plan of a warn-only check in post-agent-audit.sh — post-audit runs after the subagent finishes (too late to redirect).
+
+#### Hook logic:
 
 ```bash
-# ─── Commit ordering check (warn-only) ───
-if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
-  TASK_PATTERN=$(echo "$TASK_ID" | sed 's/[^a-zA-Z0-9-]//g')
-  if [[ -n "$TASK_PATTERN" ]]; then
-    FIRST_TEST_COMMIT=""
-    while IFS= read -r LINE; do
-      COMMIT_HASH=$(echo "$LINE" | awk '{print $1}')
-      FILES=$(git diff-tree --no-commit-id --name-only -r "$COMMIT_HASH" 2>/dev/null || true)
-      HAS_TEST=false; HAS_IMPL=false
-      while IFS= read -r F; do
-        if echo "$F" | grep -qE '(^tests/|test_|_test\.|\.spec\.|\.test\.)'; then
-          HAS_TEST=true
-        elif echo "$F" | grep -qE '\.(py|ts|js|tsx|jsx|go|rs)$'; then
-          HAS_IMPL=true
-        fi
-      done <<< "$FILES"
-      [[ "$HAS_TEST" == true && "$HAS_IMPL" == false ]] && FIRST_TEST_COMMIT="$COMMIT_HASH"
-    done < <(git log --oneline -n 10 --grep="$TASK_PATTERN" -i 2>/dev/null || true)
-    
-    if [[ -z "$FIRST_TEST_COMMIT" ]]; then
-      echo "post-agent-audit: WARN — no test-only commit found for ${TASK_ID}. TDD commit ordering not verified." >&2
-    fi
+#!/usr/bin/env bash
+# ABOUTME: PreToolUse hook on Bash. Blocks git commit of code files
+# ABOUTME: if no test-only commit exists yet. Enforces TDD commit ordering.
+set -euo pipefail
+trap 'exit 0' ERR
+
+# Only active when governance sentinel exists
+[[ ! -f "$HOME/.claude/scripts/governance/state/.active" ]] && exit 0
+
+INPUT=$(cat)
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+
+# Only intercept git commit commands
+echo "$COMMAND" | grep -qE '^\s*git\s+commit' || exit 0
+
+# Classify staged files
+STAGED=$(git diff --cached --name-only 2>/dev/null || true)
+[[ -z "$STAGED" ]] && exit 0
+
+HAS_CODE=false
+while IFS= read -r F; do
+  # Skip test files
+  echo "$F" | grep -qE '(^tests/|/tests/|test_|_test\.|\.spec\.|\.test\.|conftest\.py|fixtures/)' && continue
+  # Skip doc/script/config files (not "code")
+  echo "$F" | grep -qE '\.(md|sh|bash|yml|yaml|json|toml|cfg|ini|txt|css|html|svg|sql|lock)$' && continue
+  echo "$F" | grep -qE '(Makefile|Dockerfile|\.gitignore|LICENSE)' && continue
+  # Remaining files with code extensions = code files
+  if echo "$F" | grep -qE '\.(py|ts|js|tsx|jsx|go|rs|java|kt|swift|rb|c|cpp|h)$'; then
+    HAS_CODE=true
+    break
   fi
+done <<< "$STAGED"
+
+# If no code files staged, allow (test-only or doc-only commits always fine)
+[[ "$HAS_CODE" == false ]] && exit 0
+
+# Code files staged — check if a test-only commit already exists in recent history
+TEST_COMMIT_EXISTS=false
+while IFS= read -r HASH; do
+  FILES=$(git diff-tree --no-commit-id --name-only -r "$HASH" 2>/dev/null || true)
+  ONLY_TESTS=true
+  while IFS= read -r TF; do
+    [[ -z "$TF" ]] && continue
+    if ! echo "$TF" | grep -qE '(^tests/|/tests/|test_|_test\.|\.spec\.|\.test\.|conftest\.py|fixtures/)'; then
+      ONLY_TESTS=false
+      break
+    fi
+  done <<< "$FILES"
+  [[ "$ONLY_TESTS" == true ]] && { TEST_COMMIT_EXISTS=true; break; }
+done < <(git log --oneline -n 20 HEAD 2>/dev/null | awk '{print $1}' || true)
+
+if [[ "$TEST_COMMIT_EXISTS" == false ]]; then
+  BLOCK_MSG="TDD COMMIT ORDER VIOLATION: You are committing code files before committing tests.
+
+Stage ONLY your test files and commit them first:
+  git add tests/ (or your test file paths)
+  git commit -m \"T-XXX: add tests for <behavior>\"
+
+Then stage and commit your implementation files."
+  printf '{"decision": "block", "reason": %s}\n' "$(echo "$BLOCK_MSG" | jq -Rs .)"
+  exit 0
 fi
 ```
 
-**Behavior:** Warn-only (never blocks). Searches last 10 commits mentioning the task ID for a test-only commit. Logs to stderr. All git ops guarded with `|| true`.
+#### Register in settings.json:
+
+Add to `PreToolUse` array:
+```json
+{
+  "matcher": "Bash",
+  "hooks": [
+    {
+      "type": "command",
+      "command": "/Users/yklin/.claude/scripts/governance/commit-order-guard.sh"
+    }
+  ]
+}
+```
+
+#### Behavior:
+- **BLOCKS** (not warn-only) when code files are staged without a prior test-only commit
+- **Redirects** the agent with specific instructions to commit tests first
+- **Allows** commits of test-only files, doc/script/config files freely
+- **Allows** code commits once a test-only commit already exists in the last 20 commits
+- **Only active** when governance sentinel `.active` exists (orchestrator mode)
+- **File classification:**
+  - Test files: `tests/`, `test_*`, `*_test.*`, `*.spec.*`, `*.test.*`, `conftest.py`, `fixtures/`
+  - Ignored (doc/script/config): `*.md`, `*.sh`, `*.yml`, `*.json`, `*.toml`, `*.css`, `*.html`, `*.sql`, `*.lock`, `Makefile`, `Dockerfile`, etc.
+  - Code files: `*.py`, `*.ts`, `*.js`, `*.tsx`, `*.jsx`, `*.go`, `*.rs`, `*.java`, `*.kt`, `*.swift`, `*.rb`, `*.c`, `*.cpp`, `*.h`
 
 ---
 
@@ -201,7 +273,8 @@ Task assigned → [Architect Gate] → Spawn CODER → wait for T-XXX-ready-for-
   → Spawn GARRY-REVIEW subagent (report-only) → wait for T-XXX-review-findings.md
   → Findings? → Spawn CODER fix → wait for updated ready-for-review.md
   → Spawn QA TESTER C1 (test + break) → wait for T-XXX-cycle-1.md
-  → Bugs found? → Spawn CODER fix → QA TESTER C2 (re-test bugs, full only)
+  → Bugs found? → Spawn CODER fix → re-run C1 until PASS
+  → (full only) QA TESTER C2 (independent regression + edge cases) → T-XXX-cycle-2.md
   → COMPLETE
 ```
 
@@ -293,6 +366,8 @@ TDD protocol is inlined in the coder prompt template — no skill chain invocati
 Steps: Context load -> Dependency check (R17) -> Follow Build Guidance -> For each behavior: write failing test (RED) -> run test (confirm FAIL) -> write minimal implementation (GREEN) -> run test (confirm PASS) -> refactor -> Real testing (R18) -> Output `T-XXX-ready-for-review.md` with TDD Evidence table and `ReviewCommit:<SHA>` (R11).
 ```
 
+Also add to R2 or R6 language: "Test files MUST be committed independently before implementation files. Mixed test+implementation commits are blocked by the commit-order-guard hook."
+
 #### 5e. Section 3.4 QA Auditor → QA Tester (lines 100-113)
 
 **Current:**
@@ -327,7 +402,7 @@ QA Tester uses the unified `qa-tester-prompt.md` template. No skill chain invoca
 
 **2 test cycles, sequential** (C1 must PASS before C2):
 - **C1 (Test + Break):** Full testing protocol. Write missing tests, run suite, exercise feature, try to break it. Output `T-XXX-cycle-1.md`.
-- **C2 (Re-test bugs, `full` only):** Re-test ONLY bugs found in C1. Verify each fix. Run regression. Output `T-XXX-cycle-2.md`.
+- **C2 (Regression + Edge Cases, `full` only):** Independent second round. Regression from C1 fixes, edge cases C1 didn't cover, integration/stress testing. Output `T-XXX-cycle-2.md`.
 
 Re-run failing cycle after fix. N=1 escalation (R13).
 ```
@@ -369,7 +444,7 @@ For each T-XXX (respecting depends_on):
   4. IF FINDINGS: spawn coder fix (with findings file) → STOP
   5. QA TESTER C1 (test + break): write tests → run suite → exercise feature → try to break → T-XXX-cycle-1.md → STOP
   6. IF C1 FAIL: coder fix → re-run C1 → if still fail ESCALATE (N=1)
-  7. QA TESTER C2 (full only): re-test C1 bugs only → T-XXX-cycle-2.md → STOP
+  7. QA TESTER C2 (full only): independent regression + edge case testing → T-XXX-cycle-2.md → STOP
   8. IF C2 FAIL: coder fix → re-run C2 → if still fail ESCALATE
   9. ON PASS: git add -A && git commit && git push; update progress log
 \```
@@ -394,7 +469,7 @@ For each T-XXX (respecting depends_on):
 
 **Within-task (architect → coder → review → fix → C1 → C2): FOREGROUND (blocking).** Each step waits for prior artifact.
 **Cross-task independent pipelines: BACKGROUND (`run_in_background: true`).** Orchestrator monitors artifacts.
-**Rule:** C1 and C2 are always sequential -- C2 re-tests only C1's bugs.
+**Rule:** C1 and C2 are always sequential -- C1 must PASS before C2 runs. C2 is independent regression/edge-case testing, not a re-run of C1.
 ```
 
 #### 5h. Section 8 Subagent Mapping (lines 188-201)
@@ -467,7 +542,7 @@ REQ-XX: [evidence of testing this requirement]
 
 **Cycle 1** (all modes): Full testing protocol — write missing tests, run suite, exercise feature, try to break it with edge cases.
 
-**Cycle 2** (`full` only): Re-test ONLY bugs from cycle-1. Verify each fix. Run regression suite. Report remaining failures.
+**Cycle 2** (`full` only): Independent second testing round. Regression from C1 fixes, edge cases C1 didn't cover, integration/system-level testing, stress/boundary testing.
 ```
 
 #### 6b. Section 5.1 Mandatory Verification Items (lines 144-175)
@@ -475,7 +550,7 @@ REQ-XX: [evidence of testing this requirement]
 **Keep all 6 items unchanged.** Update item 6 (TDD Compliance, lines 170-174) to add:
 
 ```
-- Commit ordering (test-only commit before implementation) is now checked automatically by post-agent-audit.sh
+- Commit ordering is enforced by `commit-order-guard.sh` PreToolUse hook — code commits are blocked until test-only commit exists. Mixed test+code commits are rejected.
 ```
 
 #### 6c. Section 5.2 Automated Code Review Gates (lines 176-200)
@@ -543,3 +618,61 @@ Grep all modified files + any other files in `~/.claude/` for:
 3. **Stale reference sweep:** Grep all modified files for old terms
 4. **Cross-doc consistency:** Verify loop description matches across SKILL.md (Step 4), vibe-protocol.md §4.1 (Step 5f), and vibe-manual.md (Step 6a)
 5. **Role enforcement:** Confirm QA Tester subagent bypasses role-enforcement.sh (has agent_id)
+
+---
+
+## Codex Review: Gaps, Redundancies, and Incoherence in TDD Enforcement
+
+### Finding 1: CRITICAL — Commit-ordering hook insertion is unreachable
+
+Plan says insert the check after the "ALL GREEN" block in `post-agent-audit.sh` after line 127. But line 127 is `exit 0`, so any inserted code after it will never run.
+
+**Fix:** Replaced entirely. Commit-ordering is now a PreToolUse hook on Bash (`commit-order-guard.sh`) that blocks `git commit` in real-time when code files are staged without a prior test-only commit. This is stronger than a post-audit warn — it prevents the bad commit from ever happening.
+
+### Finding 2: C1/C2 semantics are incoherent
+
+Plan says "C1 must PASS before C2" but also "C2 re-tests ONLY bugs found in C1." If C1 passes (no bugs), there's nothing for C2 to re-test. If C1 fails, C2 can't run.
+
+**Fix:** Fixed. C1 finds bugs → coder fixes → C1 re-runs until PASS → C2 (full only) is independent regression + edge case testing. C2 focuses on: regression from C1 fixes, edge cases C1 didn't cover, integration/system-level testing, stress/boundary testing.
+
+### Finding 3: QA writing tests blurs TDD evidence ownership
+
+QA-written tests are supplemental acceptance/regression tests. They must NOT retroactively satisfy missing coder TDD evidence. If QA finds uncovered requirements, that's a coder failure (P0/P1), not an opportunity to backfill evidence.
+
+**Fix:** Add to `qa-tester-prompt.md`: "Tests you write are QA verification tests. They do NOT count as coder TDD evidence. If the coder's TDD Evidence table is missing coverage for a requirement, that is a P0 FAIL — do not compensate by writing the missing test yourself."
+
+### Finding 4: TDD commit language inconsistency across docs
+
+- coder-prompt.md: requires separate test-only commit before implementation
+- vibe-protocol.md R6: micro-commits "encouraged"
+- vibe-manual.md Section 5.2: allows "same or prior commit"
+
+**Fix:** Align all three to: "Test-only commit before implementation is the expected pattern. Commit-ordering check in post-agent-audit.sh verifies this (warn-only). Mixed commits are acceptable when test and implementation are tightly coupled, but pure test-first commits are preferred."
+
+### Finding 5: Commit-ordering check is heuristic, not proof
+
+Weaknesses: only scans 10 commits, requires task ID in commit message, misses same-commit test+impl, doesn't cover amended/squashed history, ignores non-standard extensions.
+
+**Accepted:** This is intentionally warn-only. The TDD Evidence table in `ready-for-review.md` is the primary enforcement mechanism (checked by pre-QA gates and QA auto-reject). The commit-ordering check is a supplemental signal, not a gate.
+
+### Finding 6: Governance hook bypass gap
+
+`post-agent-audit.sh` skips when `agent_id` is present (subagent-to-subagent). Verify the hook runs on the orchestrator's Agent tool result (no `agent_id`), not inside the subagent.
+
+**Status:** Already correct. The hook is a PostToolUse hook on the `Agent` tool. When the orchestrator spawns a subagent, the orchestrator's tool call has no `agent_id` (it IS the top-level), so the hook runs. The `agent_id` escape hatch only applies when a subagent spawns another subagent. No change needed.
+
+### Finding 7: Stale reference sweep needs teeth
+
+The plan mentions a grep sweep but doesn't make it a hard gate.
+
+**Fix:** Add to verification plan: "Stale reference sweep MUST find zero matches for old terms before committing. If any remain, fix before proceeding."
+
+---
+
+## TODOs from Codex Review
+
+- [x] **TODO-1:** ~~Fix Step 3 — insert commit-ordering check BEFORE `exit 0`~~ → Replaced entirely: commit-ordering is now a PreToolUse hook (`commit-order-guard.sh`) that blocks in real-time, not a post-audit check
+- [x] **TODO-2:** ~~Fix C1/C2 semantics~~ → C2 is now independent regression/edge-case testing, not re-testing C1 bugs. Updated Steps 2, 4, 5, 6
+- [x] **TODO-3:** ~~Add QA evidence ownership clause~~ → Added to qa-tester-prompt.md: QA tests do not satisfy coder TDD evidence
+- [x] **TODO-4:** ~~Align TDD commit language~~ → Strict test-first commits enforced by hook. Mixed commits blocked. Language aligned across coder-prompt, vibe-protocol, vibe-manual
+- [ ] **TODO-5:** Make stale reference sweep a hard verification gate (Step 8)
