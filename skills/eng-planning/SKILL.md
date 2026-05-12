@@ -524,7 +524,7 @@ Spawn **parallel Opus subagents** to produce artifacts. Each subagent reads all 
 
 - **Tier 1:** Produce a **single design doc** (`docs/plans/FEAT-XXX-design.md`). If the feature has no API endpoints, the contract section is inlined in the design doc. If it does have API endpoints, still produce a separate contract (Step 5b).
 - **Tier 2:** Produce a **single design doc + separate API contract IF the feature has API endpoints**. If no API endpoints, contract is inlined. AskUserQuestion before skipping the separate contract: "This feature has no external API endpoints. Inline the contract in the design doc, or produce a separate contract file anyway?"
-- **Tier 3:** **Always produce both** — design doc + separate API contract.
+- **Tier 3:** **Always produce both** — design doc + separate API contract. If the feature has no API endpoints, the contract states "No external API surface introduced" and lists internal interfaces/events if any.
 
 **The design doc MUST include a `Planning Tier: N` header** immediately after the frontmatter, before the Objective section:
 ```markdown
