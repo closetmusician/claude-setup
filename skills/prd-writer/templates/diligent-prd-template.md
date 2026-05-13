@@ -119,6 +119,11 @@ Include illustrative edge-case flows showing business rules in action.
 These are representative, not exhaustive — eng planning will expand
 into the full edge-case matrix.]
 
+
+### Information Architecture
+[Where feature lives. Containment hierarchy. What doesn't change.]
+
+
 ## JTBD-1: [abbreviated]
 
 ### Flow: [Feature] → REQ-001, REQ-002
@@ -144,10 +149,6 @@ Include 3-5 wireframes per feature PRD for major interaction patterns.]
 ## JTBD-2: [abbreviated]
 [...same structure...]
 
-## Cross-Cutting UX
-
-### Information Architecture
-[Where feature lives. Containment hierarchy. What doesn't change.]
 
 ### Component Specs (new components only)
 **ComponentName:**

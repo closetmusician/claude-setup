@@ -11,7 +11,7 @@ Patterns from exemplary PRDs. Includes density rules that cut ~30% without losin
 6. [Engineering Estimation](#engineering)
 7. [Risk & Skepticism](#risk-and-skepticism)
 8. [Opportunity Sizing](#opportunity-sizing)
-9. [End-User POV (§1-3)](#end-user-pov)
+9. [End-User POV (§1-6)](#end-user-pov)
 10. [Writing Density](#writing-density)
 
 ---
@@ -155,39 +155,49 @@ P0 (MVP) and P1+ tables. Component breakdown. Backend vs. client. Ranges, not po
 
 ---
 
-## 9. End-User POV (§1-3) <a name="end-user-pov"></a>
+## 9. End-User POV (§1-6) <a name="end-user-pov"></a>
 
-**Rule:** Sections 1-3 (Problem Definition, JTBD & Requirements, UX Flows) must be written from the end-user's perspective, stressing user benefits and observable impact. Technical/engineering context belongs in §7 Engineering.
+**Rule:** Sections 1-6 must be written entirely in user-facing language. No exceptions. Implementation detail — libraries, protocols, architecture patterns, data schemas, service internals, algorithms, field mappings — belongs ONLY in §7 Engineering or the TAR. If content cannot be translated to user-facing language or has no direct user/business impact, it does not belong in the PRD.
 
-**The litmus test:** Can a product stakeholder read this sentence and understand why it matters to the user? If no — translate or relocate.
+**The litmus test:** Can a product stakeholder read this sentence and understand why it matters to users? If no — translate to user impact or remove entirely.
 
-### Anti-Pattern: Eng Investigation Notes in Strategic Sections
+### Anti-Pattern: Implementation Detail in §1-6
 
-**Bad (§1 Context & Strategic Drivers):**
-> "BoardDocs MCP computes outcomes client-side — server never validates majority. Vote state lives in DOM radio buttons until serialized. v1 (Redux + SignalR) introduced: vote reducer scoping bug (predicted P1), radios don't trigger save (MAP-17236, P2), premature dirty-state reset. SignalR 2.4.1 lacks token refresh during 4+ hour sessions."
+**Bad (eng detail in §1-6):**
+> "The BFF normalizes the source field on each retrieved_docs entry to a single canonical type: 'chunks, keyword' → 'documents'"
 
-**Good (§1 Context & Strategic Drivers):**
-> "Board members lose votes during long meetings — if a session runs 4+ hours without refresh, unsaved votes silently disappear. 3 customer-reported incidents in Q4 where official vote records didn't match what members selected on screen. Under open-meeting laws, inaccurate vote records create legal liability."
+**Good (user-facing in §1-6):**
+> "Citation pills are color-coded by source type: gray for documents, purple for web results, orange for news articles"
 
-**Where the eng detail goes (§7 Engineering > Technical Context):**
-> "Root cause: client-side vote computation without server validation. Vote state in DOM until serialized; session token expires after 4h (SignalR 2.4.1 limitation). Known bugs: reducer scoping (P1), radio save trigger (MAP-17236, P2), dirty-state reset."
+**Where the eng detail goes (§7 Engineering or the TAR):**
+> "The BFF normalizes the source field on each retrieved_docs entry to a single canonical type before passing to the frontend. Mapping: 'chunks' and 'keyword' → 'documents', 'web_search' → 'web', 'news_search' → 'news'."
 
 ### Pattern: Translate Technical Constraints to User Impact
 
-| Technical reality | User-facing translation (for §1-3) |
+| Technical reality | User-facing translation (for §1-6) |
 |---|---|
 | "SignalR lacks token refresh" | "Sessions expire after 4 hours; users lose unsaved work" |
 | "Client-side computation without server validation" | "Vote results may display incorrectly; no server-side guarantee of accuracy" |
 | "DOM state not serialized on tab close" | "Closing the browser tab loses any in-progress changes" |
 | "Rate limiter at 100 req/min" | "Rapid actions (bulk approvals) may be throttled; user sees 'please wait' after ~100 items" |
 | "Webhook delivery is at-most-once" | "Notifications may occasionally not arrive; user should check dashboard as backup" |
+| "System prompt includes numbered source list from retrieved_docs" | "AI responses include numbered markers linking each claim to its source document" |
+| "BFF filters company_context from retrieved_docs array" | "Internal company context is not shown as a citable source" |
+| "Streaming renderer buffers partial [n] markers until complete" | "Citation markers appear cleanly during streaming — no broken or flickering text" |
+| "Custom remark/rehype plugin detects [n] in AST text nodes" | "Citation markers inside code blocks, links, or images are not treated as citations" |
 
-### §2 Exception: Technical Constraints as Acceptance Criteria
+### §2 Acceptance Criteria: User-Observable Only
 
-Within §2 acceptance criteria, technical constraints are acceptable ONLY when framed as user-observable effects:
+Acceptance criteria describe what the user sees, not how the system works internally.
 
-**OK:** "5. Session expires after 4 hours; user sees 'Please refresh to continue voting' banner with one-click refresh"
-**NOT OK:** "5. SignalR 2.4.1 WebSocket connection drops after token expiry; requires reconnection handler with exponential backoff"
+**OK:** "Session expires after 4 hours; user sees 'Please refresh to continue voting' banner with one-click refresh"
+**OK:** "Citation pills are color-coded: gray for documents, purple for web, orange for news"
+**OK:** "Hovering over a citation pill for 200ms shows a preview with source name and excerpt"
+**NOT OK:** "SignalR 2.4.1 WebSocket connection drops after token expiry; requires reconnection handler"
+**NOT OK:** "The BFF normalizes source field values: 'chunks, keyword' → 'documents'"
+**NOT OK:** "The renderer maintains a look-ahead buffer that flushes after 8 characters"
+
+If the only way to state a criterion precisely is to name an internal mechanism, the criterion describes an engineering constraint — it belongs in §7 or the TAR.
 
 ---
 
@@ -246,7 +256,7 @@ Idle nudge disabled after 3 dismissals. User override in settings.
 ```
 
 ### Rule: Scope Paragraphs Are Tight
-Requirement scope paragraphs explain what + how in 2-3 sentences max. Implementation minutiae (LLM temperature, JSON schema shapes, UI micro-interactions) belong in Engineering sections, not scope paragraphs.
+Requirement scope paragraphs explain what + how in 2-3 sentences max. Implementation detail of any kind — service internals, data pipelines, algorithms, library-specific patterns, field mappings — belongs in §7 Engineering or the TAR. §1-6 scope paragraphs describe WHAT the user gets and WHY it matters.
 
 ### Rule: Out of Scope Is One Line Each
 **Bad:** "Cross-org intelligence — V1 uses org-specific history only. Anonymized cross-org patterns (leveraging Diligent's dataset) is a future exploration pending legal/privacy review."
@@ -259,9 +269,9 @@ Density means fewer words for the same information, not fewer details. The heuri
 **NEVER cut (protected categories):**
 1. **Negative constraints** — "must not", "never", "is blocked until", "does not"
 2. **Failure/error behaviors** — "on failure...", "if invalid...", "rejects with..."
-3. **API contracts** — request/response shapes, event payloads, status codes, error formats
+3. **API contracts (§7 only)** — request/response shapes, event payloads, status codes, error formats. In §1-6, translate to user-observable effects.
 4. **Cross-feature conventions** — lock ID formats, FK naming, shared enum values
-5. **Data model fields** referenced by any in-scope requirement
+5. **Data model fields (§7 only)** — referenced by any in-scope requirement. In §1-6, reference the user-visible outcome, not the field name.
 6. **Performance targets** for specific operations (query budgets, latency thresholds)
 7. **Open architectural questions** flagged for resolution
 8. **Enum value lists** — especially when values are non-sequential (legacy artifact)

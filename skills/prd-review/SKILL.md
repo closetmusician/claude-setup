@@ -25,6 +25,16 @@ A PRD is ready for implementation when an agent can build every requirement with
 a single AskUserQuestion call. Every ambiguity caught here saves a blocked subagent,
 a wrong guess, or a rework cycle during BUILD.
 
+**Abstraction Principle:** A PRD specifies WHAT users experience, not HOW the system
+implements it. Every requirement in §1-6 must pass the stakeholder test: can a product
+stakeholder read this sentence and understand why it matters to users? If it names a
+library, protocol, architecture pattern, data pipeline, regex, or internal service — it
+fails. Translate to user impact or defer to the TAR. Only §7 (Engineering) may contain
+implementation detail.
+
+When applying fixes, ask: would this text change if the team chose a different framework
+or architecture? If yes → it belongs in the TAR, not the PRD.
+
 ---
 
 ## Workflow
@@ -297,7 +307,7 @@ PASS B — ACCEPTANCE CRITERIA AUDIT
 Walk every P0 and P1 requirement in the PRD. For each:
 1. Grade as BAD / OK / GOOD (cross-check with QA Expert's grades)
 2. If BAD: write a GOOD replacement
-3. If OK: identify what's missing to reach GOOD
+3. If OK: identify what's missing to reach GOOD at the PRD abstraction level. If the only way to reach GOOD is to specify implementation mechanism (algorithms, data schemas, internal service behavior), mark as 'GOOD-enough for PRD; implementation detail deferred to TAR.' A requirement is GOOD for a PRD when a product stakeholder can understand it and a developer can derive the test — not when it specifies HOW to build it.
 Compute: N% GOOD, M% OK, P% BAD before fixes.
 
 PASS C — SHADOW PATH TRACING
@@ -353,12 +363,14 @@ exactly one disposition:
 | Applied | SPECIFIABLE fix — proposed text is unambiguous | Ready to apply to PRD |
 | Captured | REQUIRES_DECISION — PM must choose | Add to Decision Table |
 | Dismissed | False positive or out of scope | Note reason, no action |
+| TAR-DEFERRED | Finding is valid but proposed fix contains implementation detail | Write user-facing behavior into PRD; flag implementation detail for TAR |
 
 Rules:
 - Do NOT cherry-pick. Every finding from every reviewer must appear with a disposition.
 - For "Applied" findings: include the exact proposed text and the target REQ-ID/section.
 - For "Captured" findings: state the decision question + concrete harm if deferred.
 - For "Dismissed" findings: state the reason concisely.
+- For 'TAR-DEFERRED' findings: write the user-observable behavior as the PRD fix. Note the implementation detail as 'For TAR: [detail]' — this goes into the TAR, not the PRD.
 
 Output format:
 
@@ -381,6 +393,11 @@ Proposed text: [exact text to add or replace]
 ## Dismissed
 | Finding | Reason |
 |---|---|
+...
+
+## TAR-Deferred (implementation detail for TAR, not PRD)
+| Finding | User-Facing PRD Text | Implementation Detail for TAR |
+|---|---|---|
 ...
 
 ## AC Quality

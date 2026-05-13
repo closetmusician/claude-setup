@@ -41,6 +41,27 @@ For each finding, classify as:
 - SPECIFIABLE: You can propose the missing text
 - REQUIRES_DECISION: The PM must make a product call
 
+ABSTRACTION GUARDRAIL — MANDATORY
+Your proposed spec text must describe WHAT the system does from the user's
+perspective, not HOW it implements it internally. Before writing any "Proposed fix":
+
+Litmus test: Would this text change if the team chose a different framework,
+library, or internal architecture? If yes → it belongs in the TAR, not the PRD.
+
+If your finding requires specifying an algorithm, regex, plugin architecture,
+data pipeline, internal field mapping, or service communication:
+1. Mark it as TAR-LEVEL (not SPECIFIABLE)
+2. Write ONLY the user-observable behavior for the PRD
+3. Note the implementation detail separately as "TAR context: [detail]"
+
+Examples:
+- BAD for PRD: "The renderer maintains a look-ahead buffer that flushes after 8 characters"
+- GOOD for PRD: "Citation markers appear cleanly during streaming — no broken or flickering text"
+- BAD for PRD: "The BFF normalizes source field values: 'chunks, keyword' → 'documents'"
+- GOOD for PRD: "Citation pills are color-coded by source type: documents, web, news"
+- BAD for PRD: "detected via a custom remark/rehype plugin that visits text nodes in the AST"
+- GOOD for PRD: "Citation markers inside code blocks, links, or images are not treated as citations"
+
 Return structured markdown with dimension scores and findings list.
 ```
 
@@ -100,6 +121,27 @@ IF DEFERRED, WHAT HAPPENS: [concrete harm to users]
 
 Rate each pass 0-10. For scores below 8, explain what a 10 looks like.
 Classify findings as SPECIFIABLE or REQUIRES_DECISION.
+
+ABSTRACTION GUARDRAIL — MANDATORY
+Your proposed spec text must describe WHAT the system does from the user's
+perspective, not HOW it implements it internally. Before writing any "Proposed fix":
+
+Litmus test: Would this text change if the team chose a different framework,
+library, or internal architecture? If yes → it belongs in the TAR, not the PRD.
+
+If your finding requires specifying an algorithm, regex, plugin architecture,
+data pipeline, internal field mapping, or service communication:
+1. Mark it as TAR-LEVEL (not SPECIFIABLE)
+2. Write ONLY the user-observable behavior for the PRD
+3. Note the implementation detail separately as "TAR context: [detail]"
+
+Examples:
+- BAD for PRD: "The renderer maintains a look-ahead buffer that flushes after 8 characters"
+- GOOD for PRD: "Citation markers appear cleanly during streaming — no broken or flickering text"
+- BAD for PRD: "The BFF normalizes source field values: 'chunks, keyword' → 'documents'"
+- GOOD for PRD: "Citation pills are color-coded by source type: documents, web, news"
+- BAD for PRD: "detected via a custom remark/rehype plugin that visits text nodes in the AST"
+- GOOD for PRD: "Citation markers inside code blocks, links, or images are not treated as citations"
 ```
 
 ---
@@ -149,11 +191,32 @@ PASS 4: HIDDEN ASSUMPTIONS
 - What does it assume about scale? (10 users or 10,000?)
 - Are there implicit ordering dependencies between requirements?
 
-For SPECIFIABLE findings: propose the exact text to add to the PRD.
+For SPECIFIABLE findings: propose the exact USER-FACING text to add to the PRD. Implementation-level fixes (algorithms, data schemas, service internals) are classified as TAR-LEVEL, not SPECIFIABLE — write only the observable behavior for the PRD.
 Include the requirement ID and where in the requirement the text should go.
 
 For REQUIRES_DECISION findings: state the question the PM must answer and
 what breaks if they don't.
+
+ABSTRACTION GUARDRAIL — MANDATORY
+Your proposed spec text must describe WHAT the system does from the user's
+perspective, not HOW it implements it internally. Before writing any "Proposed fix":
+
+Litmus test: Would this text change if the team chose a different framework,
+library, or internal architecture? If yes → it belongs in the TAR, not the PRD.
+
+If your finding requires specifying an algorithm, regex, plugin architecture,
+data pipeline, internal field mapping, or service communication:
+1. Mark it as TAR-LEVEL (not SPECIFIABLE)
+2. Write ONLY the user-observable behavior for the PRD
+3. Note the implementation detail separately as "TAR context: [detail]"
+
+Examples:
+- BAD for PRD: "The renderer maintains a look-ahead buffer that flushes after 8 characters"
+- GOOD for PRD: "Citation markers appear cleanly during streaming — no broken or flickering text"
+- BAD for PRD: "The BFF normalizes source field values: 'chunks, keyword' → 'documents'"
+- GOOD for PRD: "Citation pills are color-coded by source type: documents, web, news"
+- BAD for PRD: "detected via a custom remark/rehype plugin that visits text nodes in the AST"
+- GOOD for PRD: "Citation markers inside code blocks, links, or images are not treated as citations"
 ```
 
 ---
@@ -204,6 +267,27 @@ For each feature/requirement in the PRD:
 
 Classify findings as SPECIFIABLE (propose persona-specific requirement text)
 or REQUIRES_DECISION (PM must choose between persona needs).
+
+ABSTRACTION GUARDRAIL — MANDATORY
+Your proposed spec text must describe WHAT the system does from the user's
+perspective, not HOW it implements it internally. Before writing any "Proposed fix":
+
+Litmus test: Would this text change if the team chose a different framework,
+library, or internal architecture? If yes → it belongs in the TAR, not the PRD.
+
+If your finding requires specifying an algorithm, regex, plugin architecture,
+data pipeline, internal field mapping, or service communication:
+1. Mark it as TAR-LEVEL (not SPECIFIABLE)
+2. Write ONLY the user-observable behavior for the PRD
+3. Note the implementation detail separately as "TAR context: [detail]"
+
+Examples:
+- BAD for PRD: "The renderer maintains a look-ahead buffer that flushes after 8 characters"
+- GOOD for PRD: "Citation markers appear cleanly during streaming — no broken or flickering text"
+- BAD for PRD: "The BFF normalizes source field values: 'chunks, keyword' → 'documents'"
+- GOOD for PRD: "Citation pills are color-coded by source type: documents, web, news"
+- BAD for PRD: "detected via a custom remark/rehype plugin that visits text nodes in the AST"
+- GOOD for PRD: "Citation markers inside code blocks, links, or images are not treated as citations"
 ```
 
 ---
@@ -230,8 +314,8 @@ write different tests.
   Example: "page loads quickly"
 
 GOOD — Falsifiable. Maps to exactly one test case. Concrete values.
-  Example: "exports validateToken(token: string): Promise<AuthResult> that
-  returns AuthResult.invalid() when token.exp < Date.now()"
+  Example: "expired tokens are rejected with an 'invalid token' error — the
+  user sees 'Session expired, please log in again'"
   Example: "returns 422 with body {error: 'email_taken'} when email exists"
   Example: "first contentful paint < 1.8s on 4G connection"
 
@@ -245,7 +329,8 @@ SCENARIO: [Feature name]
 An agent implementing this PRD would [specific wrong behavior] because the
 spec says "[quote from PRD]" but doesn't specify [missing detail].
 Two competent engineers would build different things here.
-PROPOSED SPEC ADDITION: [exact text to add to the PRD]
+PROPOSED SPEC ADDITION: [user-facing behavior text for the PRD]
+TAR CONTEXT (if implementation detail is needed): [technical detail for TAR]
 
 FEASIBILITY ASSESSMENT
 
@@ -259,4 +344,25 @@ For the PRD as a whole:
 5. Are engineering estimates realistic given the scope?
 
 Classify all findings as SPECIFIABLE or REQUIRES_DECISION.
+
+ABSTRACTION GUARDRAIL — MANDATORY
+Your proposed spec text must describe WHAT the system does from the user's
+perspective, not HOW it implements it internally. Before writing any "Proposed fix":
+
+Litmus test: Would this text change if the team chose a different framework,
+library, or internal architecture? If yes → it belongs in the TAR, not the PRD.
+
+If your finding requires specifying an algorithm, regex, plugin architecture,
+data pipeline, internal field mapping, or service communication:
+1. Mark it as TAR-LEVEL (not SPECIFIABLE)
+2. Write ONLY the user-observable behavior for the PRD
+3. Note the implementation detail separately as "TAR context: [detail]"
+
+Examples:
+- BAD for PRD: "The renderer maintains a look-ahead buffer that flushes after 8 characters"
+- GOOD for PRD: "Citation markers appear cleanly during streaming — no broken or flickering text"
+- BAD for PRD: "The BFF normalizes source field values: 'chunks, keyword' → 'documents'"
+- GOOD for PRD: "Citation pills are color-coded by source type: documents, web, news"
+- BAD for PRD: "detected via a custom remark/rehype plugin that visits text nodes in the AST"
+- GOOD for PRD: "Citation markers inside code blocks, links, or images are not treated as citations"
 ```

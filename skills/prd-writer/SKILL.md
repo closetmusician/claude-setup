@@ -35,23 +35,23 @@ Same as v1, plus three density rules:
 6. **Implementation-ready requirements.** Each P0/P1 gets numbered acceptance criteria mapping to test cases.
 7. **Hypotheses tied to measurable KPIs.** Each feature gets a KPI table (qual primary for early-stage, quant for mature).
 
-### End-User POV Rule
+### End-User POV Rule (Hard Enforcement)
 
-**§1-3 must be written entirely from the end-user's perspective, stressing user benefits and observable impact.** Technical/engineering details belong in §7 Engineering only. §2 requirements may reference technical constraints sparingly — ONLY when they directly affect observable user behavior.
+**§1-6 must be written entirely in user-facing language. No exceptions.**
 
-**The test:** If a sentence names a library, protocol, architecture pattern, or internal system and a product stakeholder couldn't explain why it matters to the user — it fails. Translate to user impact or move to §7.
+Implementation detail — libraries, protocols, architecture patterns, data schemas, service internals, algorithms, regex patterns, field mappings — belongs ONLY in §7 Engineering or in the TAR. If content cannot be translated to user-facing language or has no direct user/business impact, it does not belong in the PRD.
 
-**Bad (eng word salad in §1 Context):**
-> "BoardDocs MCP computes outcomes client-side — server never validates majority. Vote state lives in DOM radio buttons until serialized. v1 (Redux + SignalR) introduced: vote reducer scoping bug (predicted P1), radios don't trigger save (MAP-17236, P2), premature dirty-state reset."
+**The test:** Can a product stakeholder read this sentence and understand why it matters to users? If no — translate to user impact or remove entirely. There is no "sparingly OK" exception for §2 acceptance criteria.
 
-**Good (user-impact translation in §1 Context):**
-> "Board members lose votes during long meetings — if a session runs 4+ hours, unsaved votes silently disappear. 3 customer-reported incidents in Q4 where official vote records didn't match what members selected on screen."
+**Acceptance criteria rule:** Each acceptance criterion describes observable system behavior in user terms. Concrete values (field lengths, timeouts, colors) are fine when they describe what the user sees. Internal values (array indices, token budgets, buffer sizes, data field names) fail the test.
 
-**Where the eng detail goes:** §7.2 Data Model or a "Technical Context" note within §7 Engineering. The raw investigation context (architecture, protocols, bug IDs) lives there for the dev team.
+**Bad (eng detail in §1-6):**
+> "The BFF normalizes the source field on each retrieved_docs entry to a single canonical type: 'chunks, keyword' → 'documents'"
 
-**§2 exception:** Numbered behaviors in requirements may include technical constraints when they produce observable user effects:
-- OK: "Session expires after 4 hours; user sees 'Please refresh to continue voting' banner"
-- NOT OK: "SignalR 2.4.1 lacks token refresh; requires WebSocket reconnection handler"
+**Good (user-facing in §1-6):**
+> "Citation pills are color-coded by source type: gray for documents, purple for web results, orange for news articles"
+
+**Where the eng detail goes:** §7 Engineering or the TAR.
 
 ### Density Rules
 
@@ -121,25 +121,42 @@ Assess what the user brought (raw notes, brief, verbal description, custom templ
 
 **Follow-up rule:** After each round, review answers. If any answer is too vague to write a requirement against (e.g., "improve engagement" for M3, or "everyone" for M7), use another `AskUserQuestion` to push for specifics before moving to the next round.
 
-#### Round 1: Strategic Context (AskUserQuestion — 4 questions)
+#### Round 1: Context & Users (AskUserQuestion — 3 questions)
 
 | Q# | Header | Question | Options |
 |----|--------|----------|---------|
-| M1 | Urgency | "What's driving the timeline? What happens if this ships 6 months late?" | Deadline (hard date), Escalation (customer/exec pressure), Competitive window, No urgency — quality-driven |
-| M2 | Prior art | "Has this been tried before — internally, by competitors, or as user workarounds? What happened?" | Yes — failed (describe), Yes — partial success, Competitors do it (describe), Never attempted |
-| M3 | Metrics | "What's the north star metric? What must NOT degrade?" | *(open-ended — all options are illustrative, user will use "Other")* Revenue/conversion, Engagement/retention, Operational efficiency, User satisfaction (NPS/CSAT) |
-| M4 | Scope | "What's explicitly OUT of scope? What's the most likely scope creep risk?" | *(open-ended — user describes boundaries)* Well-defined boundaries, Still fuzzy — help me define, V1 only — list what to defer, No constraints yet |
+| M1 | Users | "Who exactly uses this — role, context, frequency? What do they already know?" | *(open-ended)* Single persona, Multiple personas (describe primary), Broad audience, Internal team |
+| M2 | Current state | "How is this job done today? What's the specific moment of friction or failure?" | *(open-ended)* Manual workaround exists, Competitor tool used, Not done at all, Partially automated |
+| M3 | Scope | "What's in scope vs. explicitly out? What's the most likely scope creep risk?" | *(open-ended)* Well-defined boundaries, Still fuzzy — help me define, V1 only — list what to defer, No constraints yet |
 
-#### Round 2: Users & Delivery (AskUserQuestion — 4 questions)
+#### Round 2: Feature Behavior & Design (AskUserQuestion — 4 questions)
 
 | Q# | Header | Question | Options |
 |----|--------|----------|---------|
-| M5 | KPI approach | "Mature product (quant: analytics, A/B tests) or early-stage (qual: interviews, beta feedback)?" | Quantitative (analytics/A/B), Qualitative (interviews/beta), Mixed — both available, Too early to tell |
-| M6 | Delivery | "What's the delivery context? This calibrates P0/P1/P2 priority." | Product launch, Demo/sprint (< 3 weeks), Internal tool |
-| M7 | Users | "Who exactly uses this — role, context, frequency? What do they know/not know?" | *(open-ended — user describes persona)* Single persona, Multiple personas (describe primary), Broad audience, Internal team |
-| M8 | Workflow | "How is this job done today? What's the specific moment of friction or failure?" | *(open-ended)* Manual workaround exists, Competitor tool used, Not done at all, Partially automated |
+| M4 | Happy path | "Walk me through the ideal experience: what triggers it, what does the user see at each step, what's the end state?" | *(open-ended)* Simple interaction (1-2 steps), Multi-step workflow, Background process with status, Real-time/streaming |
+| M5 | Design | "What should this look like? Any existing patterns to follow, design references, or specific UX expectations?" | *(open-ended)* Follow existing patterns (describe), Have references/mockups, No strong opinion — propose something, Specific requirements (describe) |
+| M6 | States | "What does loading, empty, success, and error look like to the user?" | *(open-ended)* Standard patterns fine, Specific requirements (describe), Need streaming/progress states, Haven't considered — help me think through |
+| M7 | Priority | "What's the 80/20? What must this absolutely nail vs. nice-to-have polish?" | *(open-ended)* Core behavior is clear (describe), Need help prioritizing, Everything feels P0, Performance/speed is the key |
 
-**Delivery context calibration** (apply after M6 answer):
+#### Round 3: Edge Cases & Unhappy Paths (AskUserQuestion — 2 questions)
+
+| Q# | Header | Question | Options |
+|----|--------|----------|---------|
+| M8 | Failure modes | "What happens on bad input, partial failure, timeout, or concurrent access? What are the 2-3 most likely failure modes?" | *(open-ended)* Known failure modes exist, Haven't considered yet — help me think through, Low-risk — simple CRUD, Complex — multiple failure paths |
+| M9 | Recovery | "When something goes wrong, what's the user's recovery path? Can they retry, undo, or is data lost?" | *(open-ended)* Retry is sufficient, Need undo/rollback, Data loss is possible — need safeguards, Depends on failure type (describe) |
+
+#### Ambiguity Probe (AskUserQuestion — after Round 3)
+
+Review all collected context (Step 1 + M1-M9 answers). Use `AskUserQuestion` to surface any terms, behaviors, or scope edges where two engineers could reasonably interpret the spec differently. Propose your interpretation as options and ask the user to confirm or correct. Frame as: "I want to make sure we're aligned on these points before drafting."
+
+**Lean into ambiguity.** Don't limit yourself to 2-3 items — surface every point where the AC could go two ways. Better to over-clarify now than produce vague requirements. Common ambiguity sources: state transitions, permission boundaries, error message content, default values, sort/filter behavior, empty states, concurrent access, "what counts as X."
+
+#### Conditional Questions (AskUserQuestion — when relevant)
+
+After the ambiguity probe, if any of these topics are relevant but unaddressed, batch the most relevant 2-4 into one `AskUserQuestion` call:
+Timeline/urgency | Prior art (what's been tried) | North star metric | KPI approach (qual vs quant) | Delivery context (launch vs demo vs internal) | Dependencies on other teams/systems | Data sensitivity / compliance | Accessibility requirements | Cross-team coordination | Pricing/release constraints
+
+**Delivery context calibration** (apply when delivery context is known):
 
 | Context | P0 emphasis | P1 emphasis | Deprioritize |
 |---------|------------|------------|-------------|
@@ -147,25 +164,9 @@ Assess what the user brought (raw notes, brief, verbal description, custom templ
 | Demo/sprint (<3 weeks) | Core happy path, perceived quality, progress feedback | Broad format support, visual polish | Governance, persistence, data retention |
 | Internal tool | Core functionality, correctness | Error handling | Polish, onboarding |
 
-#### Round 3: Edge Cases & Dependencies (AskUserQuestion — 2 questions)
-
-| Q# | Header | Question | Options |
-|----|--------|----------|---------|
-| M9 | Edge cases | "What happens on bad input, partial failure, timeout, concurrent access? Probe the 2-3 most likely failure modes." | *(open-ended)* Known failure modes exist, Haven't considered yet — help me think through, Low-risk — simple CRUD, Complex — multiple failure paths |
-| M10 | Dependencies | "What other teams, systems, data sources, API contracts, or shared databases constrain the design?" | None — self-contained, Internal dependencies (describe), External API/service, Cross-team coordination needed |
-
-#### Ambiguity Probe (AskUserQuestion — after Round 3)
-
-Review all collected context (Step 1 + M1-M10 answers). Use `AskUserQuestion` to surface any terms, behaviors, or scope edges where two engineers could reasonably interpret the spec differently. Propose your interpretation as options and ask the user to confirm or correct. Frame as: "I want to make sure we're aligned on these points before drafting."
-
-#### Conditional Questions (AskUserQuestion — when relevant)
-
-After the ambiguity probe, if any of these topics are relevant but unaddressed, batch them into one `AskUserQuestion` call (pick the most relevant 2-4):
-Personas/RACI | UX detail level (flows / IA / wireframes) | tech stack constraints | effort expectations / deadlines | cross-team coordination | pricing/release constraints | data sensitivity / compliance | accessibility requirements
-
 #### Completion Criteria
 
-Complete when: all M1-M10 answered or confirmed via `AskUserQuestion`, ambiguity probe resolved, and each answer is concrete enough that two engineers would make the same implementation decision.
+Complete when: all M1-M9 answered or confirmed via `AskUserQuestion`, ambiguity probe resolved, and each answer is concrete enough that two engineers would make the same implementation decision.
 
 **No deferred questions.** Every open question must be resolved via `AskUserQuestion` during this step and incorporated directly into the PRD. Never output an "Open Questions" section — that's a failure to do your job. If a question truly can't be answered yet, flag it as a `[Data gap: recommend X research]` inline where the answer would go, not in a separate section.
 
