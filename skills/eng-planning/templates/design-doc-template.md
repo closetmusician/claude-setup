@@ -5,11 +5,44 @@
 ## Producer Instructions (DO NOT EMIT — these guide the subagent only)
 
 - Include spec-registry frontmatter and ALL artifact sections below.
-- **Vertical Slice Mandate:** Every T-XXX must be a vertical slice (thinnest end-to-end implementation touching ALL layers). BANNED: horizontal layer planning. Single-layer tickets require `HORIZONTAL-JUSTIFIED: [reason]`. T-XXX = Jira Story; sub-tasks live in Build Guidance.
+- **Vertical Slice Mandate:** Every S-XXX must be a vertical slice (thinnest end-to-end implementation touching ALL layers). BANNED: horizontal layer planning. Single-layer tickets require `HORIZONTAL-JUSTIFIED: [reason]`. S-XXX = Jira Story; sub-tasks live in Build Guidance.
 - **Story Consolidation:** Start with one story per JTBD. Split ONLY when: different architectural layers with no overlap, independent testability AND value, different risk profiles, or fan-out dependency. Keep as sub-tasks when: investigation+fix pairs (tag `INVESTIGATION-FIRST`), same file/handler, same user flow, or prerequisite chain with no fan-out. Fragmentation smell: story count > N + ceil(N/2) where N = JTBD count requires justification.
-- **Jira Mapping:** FEAT-XXX = Epic. T-XXX = Story (independently deliverable, reviewable, testable). Sub-tasks = phases within Build Guidance (not separate T-XXX entries).
+- **Jira Mapping:** FEAT-XXX = Epic. S-XXX = Story (independently deliverable, reviewable, testable). Sub-tasks = phases within Build Guidance (not separate S-XXX entries).
 - **DAG Optimization:** Maximize concurrent agent execution. Minimize `blocked_by` edges — only true data/API dependencies. Additive non-overlapping modifications to the same file CAN be parallelized.
 - **Language Rule:** Requirements tables use PRD user-facing language with parent PRD JTBD/ID cited. No variable names, config fields, or implementation details in requirements — those go in Build Guidance only.
+
+### STORY AND TASK NUMBERING CONVENTION
+
+Stories and tasks within this design doc use **spec-local IDs** — stable references that downstream agents, the orchestrator, and the Requirements traceability table all use to cross-reference.
+
+- **Stories:** `S-XXX` where XXX is a short mnemonic (e.g., `S-CP`, `S-AG`, `S-RN`) or a sequential number (e.g., `S-001`, `S-002`).
+- **Tasks (sub-tasks within a story):** `T-{story}-{N}` where `{story}` is the story mnemonic and `{N}` is a sequential number starting at 1. Examples: `T-CP-1`, `T-CP-2`, `T-AG-1`, `T-AG-2`.
+- Every numbered sub-task in Build Guidance MUST carry its `T-XXX-N` ID prefix so it can be referenced from the Requirements table's Tasks column.
+
+### STORY DECOMPOSITION METHOD (follow in order):
+
+1. **INVENTORY:** One row per PRD JTBD → layers touched (DB/API/BE/FE/Infra/Config), estimated file count from explorer report, external deps.
+
+2. **DEFAULT:** One S-XXX per JTBD. Each story = vertical slice delivering that JTBD end-to-end. This is your starting point — deviate only with justification.
+
+3. **SPLIT only if:**
+   - Size smell: >15 file modifications in Build Guidance
+   - Layer isolation: a layer subset ships independently with user value
+   - Risk isolation: uncertain part (new dep, unfamiliar pattern) separated from routine
+   - Fan-out: multiple stories need a subset of this story's output
+   - Each split result must still be a vertical slice (2+ layers) unless HORIZONTAL-JUSTIFIED.
+
+4. **MERGE back if:**
+   - Two stories share the same handler/component + test file
+   - One story has no independent user value without the other
+
+5. **FOUNDATIONAL EXTRACTION:** Shared migrations/types needed by 2+ stories → max 1-2 S-000 stories (HORIZONTAL-JUSTIFIED: foundational types for N slices). If you need 3+, you're slicing wrong.
+
+6. **FRAGMENTATION CHECK:** story_count > N + ceil(N/2) where N = JTBD count. If triggered, justify each extra story or merge back.
+
+7. **DAG EDGES:** Depends On = data/API/component creation dependency ONLY. "Nice to do first" is not a dependency.
+
+8. **REQUIREMENTS TABLE BACKFILL (mandatory second pass):** After ALL stories and their numbered tasks are fully defined, go BACK to the Requirements tables and fill in the Jira Story and Tasks columns. Every row must reference a concrete `S-XXX` and one or more `T-XXX-N` IDs — NEVER leave these as "TBD". This is a second pass over the document, not a first-draft placeholder. If a requirement maps to multiple tasks, list all of them comma-separated.
 
 ---
 
@@ -35,21 +68,23 @@ schemas: [<relevant-schema-paths>]
 
 ### P0 (Must Have)
 
-| ID | Requirement | PRD Source |
-|----|-------------|------------|
-| [ID from PRD] | [User-facing description matching PRD language — no variable names, no config fields] | [PRD JTBD-N / PRD requirement ID] |
+| ID | Requirement | PRD Source | Jira Story | Tasks |
+|----|-------------|------------|------------|-------|
+| [ID] | [User-facing description matching PRD language — no variable names, no config fields] | [PRD JTBD-N / PRD requirement ID] | [S-XXX: Name] | [T-XXX-1, T-XXX-2, ...] |
+
+<!-- BACKFILL RULE: Jira Story and Tasks columns MUST reference concrete S-XXX and T-XXX-N IDs defined in the Jira Stories section below. NEVER leave as "TBD". Write stories first, then backfill this table. -->
 
 ### P1 (Should Have)
 
-| ID | Requirement | PRD Source |
-|----|-------------|------------|
-| [ID from PRD] | [User-facing description matching PRD language] | [PRD JTBD-N / PRD requirement ID] |
+| ID | Requirement | PRD Source | Jira Story | Tasks |
+|----|-------------|------------|------------|-------|
+| [ID] | [User-facing description matching PRD language] | [PRD JTBD-N / PRD requirement ID] | [S-XXX: Name] | [T-XXX-1, T-XXX-2, ...] |
 
 ### P2 (Nice to Have)
 
-| ID | Requirement | PRD Source |
-|----|-------------|------------|
-| [ID from PRD] | [User-facing description matching PRD language] | [PRD JTBD-N / PRD requirement ID] |
+| ID | Requirement | PRD Source | Jira Story | Tasks |
+|----|-------------|------------|------------|-------|
+| [ID] | [User-facing description matching PRD language] | [PRD JTBD-N / PRD requirement ID] | [S-XXX: Name] | [T-XXX-1, T-XXX-2, ...] |
 
 ### Non-Goals
 - [explicitly out of scope]
@@ -80,16 +115,6 @@ schemas: [<relevant-schema-paths>]
 ### Security Model
 [Auth, data access boundaries, PII handling, audit requirements]
 
-## Design Decisions
-
-### DD-NNN: [Decision Title]
-**Issue:** [What needed deciding — 1-2 sentences]
-**Decision:** [What was decided — specific and concrete]
-**Alternatives Considered:** [Brief description of rejected options]
-**Rationale:** [Why this option won — concrete tradeoffs]
-
-[... repeat for each decision ...]
-
 ## Interfaces
 
 ### API Endpoints
@@ -107,43 +132,40 @@ schemas: [<relevant-schema-paths>]
 
 ---
 
-## Tasks
+## Jira Stories
 
-### T-XXX: [Task Title]
+### S-XXX: [Story Title]
 **Priority:** P0 | P1 | P2
 **Layers:** [DB, API, FE] | [DB, API] | HORIZONTAL-JUSTIFIED: [reason]
-**Depends On:** - (none) | T-XXX, T-YYY
-**Blocks:** T-XXX, T-YYY | - (none)
-**Spec Reference:** `T-XXX @ docs/plans/FEAT-XXX-design.md#t-xxx`
+**Depends On:** — (none) | S-XXX, S-YYY
+**Blocks:** S-XXX, S-YYY | — (none)
+**Spec Reference:** `S-XXX @ docs/plans/FEAT-XXX-design.md#s-xxx`
 
-**User sees:** [What the end user currently experiences — the visible bug, missing feature, or broken behavior. Write this so someone who has never opened the codebase understands the problem.]
+**Objective:** [Single sentence — the user-visible capability this slice delivers]
 
-**Why this happens:** [1-3 sentences explaining the root cause as cause-and-effect. Use concrete nouns ("the chat area", "the streaming response") and active voice. A smart CS senior unfamiliar with this codebase should follow the logic.]
-
-**Objective:** [single sentence — the user-visible behavior this slice delivers AFTER the fix]
+**Context:** [1-2 sentences — why this matters, what user problem it solves. For bugfixes: what the user currently experiences and the root cause.]
 
 **Requirements:**
 - [specific bullets — must span ALL listed layers]
-**Sub-tasks:** *(optional — use for complex stories with distinct phases)*
-1. [Phase/step description — e.g., "Investigate guardrail config to identify false-positive trigger"]
-2. [Phase/step description — e.g., "Apply CDK fix based on investigation findings"]
-3. [Phase/step description — e.g., "Verify fix on dev/staging with test messages"]
+**Sub-tasks:** *(optional — for complex stories with distinct phases)*
+1. **T-{story}-1:** [Phase description]
+2. **T-{story}-2:** [Phase description]
 **Build Guidance:**
-- Use existing `ClassName` pattern from `src/path/`
-- [SPECIFIC patterns, classes, utilities — NOT generic principles]
-- [Each instruction explains WHAT you're doing and WHY, not just WHERE to look]
+- [SPECIFIC patterns, classes, utilities from codebase — NOT generic principles]
+- [Each instruction: WHAT you're doing, WHY, then the specific code location]
+- **Design decision:** [Inline rationale for non-obvious choices — replaces standalone DD-NNN sections]
 **Acceptance Criteria:**
 - [ ] [criterion — MUST include at least one cross-layer AC if multi-layer]
 **Edge Cases:**
-- [frame as user scenarios: "User does X while Y is happening → expected behavior"]
+- [User scenarios: "User does X while Y → expected behavior"]
 **Test Plan:**
-- Unit: [per-layer unit tests]
-- Integration: [cross-layer wiring test — proves the slice connects end-to-end]
-- Slice Done Gate: [the single integration assertion that proves this vertical slice works]
+- Unit: [per-layer tests]
+- Integration: [cross-layer wiring]
+- Slice Done Gate: [single integration assertion proving the vertical slice works]
 
 ---
 
-### T-XXX: [Next Task]
+### S-XXX: [Next Story]
 [... same template ...]
 
 ## Execution DAG (Parallel Agent Optimization)
@@ -164,7 +186,7 @@ The task graph is a DAG optimized for maximum parallel execution by independent 
 
 | Task | Creates/Modifies | Conflicts With |
 |------|-----------------|---------------|
-| T-XXX | [files] | [conflicting tasks or —] |
+| S-XXX | [files] | [conflicting tasks or —] |
 
 ### Agent Assignment Rules
 - Each batch launches N agents simultaneously (one per task in the batch)
@@ -257,8 +279,18 @@ PLANNED COVERAGE: X paths
 
 Flag any "Silent? Yes" entries as **P0** — silent failures in production are unacceptable.
 
+## Appendix: Design Decision Index
+
+Decisions are documented inline in Architecture and story specs where they apply.
+This table provides a quick-reference index.
+
+| ID | Decision | Rationale | Where Documented |
+|----|----------|-----------|-----------------|
+| DD-1 | [decision title] | [1-line rationale] | Architecture § [section] |
+| DD-2 | [decision title] | [1-line rationale] | S-XXX Build Guidance |
+
 ## Definition of Done
-- [ ] All T-XXX tasks pass 2 QA cycles each
+- [ ] All S-XXX stories pass 2 QA cycles each
 - [ ] All slice integration tests pass end-to-end
 - [ ] All tests pass (`make test`)
 - [ ] Lint passes (`make lint`)

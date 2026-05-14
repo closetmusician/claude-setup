@@ -13,7 +13,7 @@ The engineering planner reads an approved PRD, explores the codebase, surfaces m
 
 **Two-level design workflow:**
 - **eng-planning** (this skill) — Feature-level planning. Spans ARCHITECTURE_APPROVED to FEATURE_SPECS_APPROVED. Produces a **feature design doc** (always) plus a separate **API contract** (when API boundaries exist or Tier 3 requires it). Runs once per feature or group of features.
-- **code-architect** — Task-level design. Runs per T-XXX during orchestration. Reads the task mini-spec produced here and outputs file-level design (which files to create/modify, which patterns to follow). Much narrower scope.
+- **code-architect** — Task-level design. Runs per S-XXX during orchestration. Reads the task mini-spec produced here and outputs file-level design (which files to create/modify, which patterns to follow). Much narrower scope.
 
 **Core principle:** Your only tools are Agent (to spawn explorer/reviewer), Read/Glob/Grep (to understand code), Write (to produce docs/ artifacts), AskUserQuestion (to get decisions), and Bash (read-only commands, dependency checks, and `docs/.eng-planning/` cleanup). If you are about to Edit/Write a .py/.ts/.js file, you have violated your role.
 
@@ -77,12 +77,12 @@ LANGUAGE STANDARD: All output must be understandable by a smart CS senior unfami
 
 ## Vertical Slice Mandate (Tracer Bullets)
 
-**Every T-XXX must be a vertical slice.** Full rules, Jira hierarchy mapping, story consolidation heuristics, and decomposition examples live in `~/.claude/skills/eng-planning/templates/design-doc-template.md` — the Step 5a subagent reads them there. The main agent enforces the principle; the template carries the details.
+**Every S-XXX must be a vertical slice.** Full rules, Jira hierarchy mapping, story consolidation heuristics, and decomposition examples live in `~/.claude/skills/eng-planning/templates/design-doc-template.md` — the Step 5a subagent reads them there. The main agent enforces the principle; the template carries the details.
 
 **Key invariants (always loaded for red-flag detection):**
 - BANNED: horizontal layer planning (all schemas → all APIs → all UI)
 - Single-layer tickets require `HORIZONTAL-JUSTIFIED: [reason]`
-- T-XXX = Jira Story. Sub-tasks live in Build Guidance, not as separate T-XXX entries.
+- S-XXX = Jira Story. Sub-tasks live in Build Guidance, not as separate S-XXX entries.
 - Fragmentation smell test: story count > N + ceil(N/2) where N = JTBD count requires justification.
 
 ## VIBE Level Detection
@@ -143,7 +143,7 @@ Signals extracted from the PRD:
 - Multiple features need coordinated design (shared data models, API boundaries)
 
 **Do NOT use when:**
-- You are the coder subagent implementing a T-XXX task
+- You are the coder subagent implementing a S-XXX task
 - Task-level file design is needed (use code-architect instead)
 - PRD is not yet approved (use prd-writer or prd-review first)
 - Simple config/script changes that need no architecture
@@ -171,7 +171,7 @@ Signals extracted from the PRD:
 - NEVER proceed with unverified dependencies — STOP and escalate
 - NEVER use `git stash` or modify working tree state
 - NEVER make design decisions without surfacing them to the user first
-- NEVER produce task mini-specs without ALL required fields (Priority, Depends On, Objective, Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan)
+- NEVER produce story mini-specs without ALL required fields (Priority, Layers, Depends On, Blocks, Spec Reference, Objective, Context, Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan)
 
 If you catch yourself about to write code: STOP. You are the planner, not the builder.
 
@@ -470,7 +470,7 @@ For each decision:
 
 **Present ALL decisions upfront via AskUserQuestion, one at a time.** Do not batch. Wait for each answer before asking the next. Record every decision with its rationale.
 
-**→ After each decision, append to `docs/.eng-planning/design-decisions.md`.** This file accumulates all decisions so Phase D can read them from disk rather than relying on conversation context.
+**→ After each decision, append to `docs/.eng-planning/design-decisions.md`.** This file accumulates all decisions so Phase D can read them from disk. The Step 5a subagent inlines each decision into the relevant Architecture section or story Build Guidance (with `**Design decision:**` prefix), and appends a 1-line summary to the Appendix: Design Decision Index table.
 
 **→ Checkpoint (after all decisions recorded):** Update `progress.json` — `last_completed_step: 3`, remove `3` from `remaining_steps`.
 
@@ -545,9 +545,24 @@ Read the following files from disk before producing your artifact:
 
 Write your complete artifact to [OUTPUT_PATH] using the Write tool.
 
-CRITICAL: Follow the Vertical Slice Mandate (defined in SKILL.md).
-Every T-XXX must be a vertical slice with Layers, Slice Done Gate,
-cross-layer ACs, Execution DAG, and File Conflict Matrix.
+CRITICAL: Follow the Vertical Slice Mandate and Story Decomposition Method
+(defined in the template). Every S-XXX must be a vertical slice with Layers,
+Slice Done Gate, cross-layer ACs, Execution DAG, and File Conflict Matrix.
+Inline design decisions into Architecture or Build Guidance (with
+**Design decision:** prefix) and append 1-line summary to the
+Appendix: Design Decision Index table.
+
+CRITICAL: Task and Story ID numbering.
+- Stories use S-XXX IDs (e.g., S-CP, S-AG, S-RN or S-001, S-002).
+- Sub-tasks within stories use T-{story}-{N} IDs (e.g., T-CP-1, T-CP-2).
+- Every numbered sub-task in Build Guidance MUST carry its T-XXX-N ID prefix.
+
+CRITICAL: Requirements table backfill (MANDATORY second pass).
+After writing ALL stories and their numbered tasks, go BACK to the
+Requirements tables and fill in the Jira Story and Tasks columns with
+concrete S-XXX and T-XXX-N IDs. NEVER leave these as "TBD" or blank.
+This is the single most common artifact defect — verify before finishing.
+
 Do NOT return the artifact content — write to disk only.
 ```
 
@@ -563,17 +578,18 @@ Do NOT return the artifact content — write to disk only.
 
 **Mini-Spec Rules (non-negotiable):**
 
-1. Every T-XXX MUST have ALL fields: Priority, **Layers**, Depends On, Blocks, Spec Reference, Objective, Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan (with Slice Done Gate).
-2. **Vertical Slice Enforcement:** Every T-XXX must list 2+ layers in the `Layers` field UNLESS tagged `HORIZONTAL-JUSTIFIED: [reason]`. Single-layer tickets without justification are rejected.
+1. Every S-XXX MUST have ALL fields: Priority, **Layers**, Depends On, Blocks, Spec Reference, Objective, **Context**, Requirements, Build Guidance, Acceptance Criteria, Edge Cases, Test Plan (with Slice Done Gate).
+2. **Vertical Slice Enforcement:** Every S-XXX must list 2+ layers in the `Layers` field UNLESS tagged `HORIZONTAL-JUSTIFIED: [reason]`. Single-layer tickets without justification are rejected.
 3. **Layers field** must accurately reflect which architectural layers the ticket touches. Valid layers: `DB`, `API`, `BE` (non-API backend), `FE`, `Infra`, `Config`.
-4. **Spec Reference** must use format: `T-XXX @ docs/plans/FEAT-XXX-design.md#t-xxx` — gives the consuming agent the exact file path and anchor to read its full spec.
-5. **Acceptance Criteria** must include at least ONE cross-layer assertion for multi-layer tickets (e.g., "POST /api/x returns 201 AND UI shows confirmation").
-6. **Slice Done Gate** (in Test Plan) is mandatory — the single integration test that proves the vertical slice wires together across all listed layers.
-7. Build Guidance must be SPECIFIC — name the exact patterns, classes, and utilities from the codebase to use. NOT generic principles like "keep it DRY" or "follow SOLID".
-8. `Depends On` / `Blocks` are authoritative — the orchestrator uses them to build the DAG and determine concurrency batches. Never create false dependencies.
-9. **DAG optimization:** Minimize blocking edges. Two tasks that touch the same file additively (e.g., both add a new route to `routes.py`) CAN be parallelized if the additions are non-overlapping — note this in the File Conflict Matrix with "(additive, safe to parallel)".
-10. **Story-Level Granularity:** Each T-XXX = one Jira Story. Apply the Story-Level Consolidation rules in `design-doc-template.md`. Start with one story per JTBD, split only with justification. Run the fragmentation smell test.
-11. **Sub-tasks within stories:** Complex stories document internal phases as an ordered list in Build Guidance under a `**Sub-tasks:**` heading. These are NOT separate T-XXX entries.
+4. **Spec Reference** must use format: `S-XXX @ docs/plans/FEAT-XXX-design.md#s-xxx` — gives the consuming agent the exact file path and anchor to read its full spec.
+5. **Sub-task numbering:** Every numbered sub-task in Build Guidance must carry a `T-{story}-{N}` ID prefix (e.g., `T-CP-1`, `T-AG-2`). These IDs are referenced in the Requirements table's Tasks column.
+6. **Acceptance Criteria** must include at least ONE cross-layer assertion for multi-layer tickets (e.g., "POST /api/x returns 201 AND UI shows confirmation").
+7. **Slice Done Gate** (in Test Plan) is mandatory — the single integration test that proves the vertical slice wires together across all listed layers.
+8. Build Guidance must be SPECIFIC — name the exact patterns, classes, and utilities from the codebase to use. NOT generic principles like "keep it DRY" or "follow SOLID".
+9. `Depends On` / `Blocks` are authoritative — the orchestrator uses them to build the DAG and determine concurrency batches. Never create false dependencies.
+10. **DAG optimization:** Minimize blocking edges. Two tasks that touch the same file additively (e.g., both add a new route to `routes.py`) CAN be parallelized if the additions are non-overlapping — note this in the File Conflict Matrix with "(additive, safe to parallel)".
+10. **Story-Level Granularity:** Each S-XXX = one Jira Story. Apply the Story-Level Consolidation rules in `design-doc-template.md`. Start with one story per JTBD, split only with justification. Run the fragmentation smell test.
+11. **Sub-tasks within stories:** Complex stories document internal phases as an ordered list in Build Guidance under a `**Sub-tasks:**` heading. These are NOT separate S-XXX entries.
 
 **After 5a subagent completes:** Verify the artifact exists:
 ```bash
@@ -902,7 +918,7 @@ POST-REVIEW SPOT-CHECK: [Clean | N regressions found and fixed]
 
 NEXT STEPS:
 - Update .claude/phase.json to FEATURE_SPECS_APPROVED
-- Orchestrator can begin spawning coder subagents for T-XXX tasks
+- Orchestrator can begin spawning coder subagents for S-XXX tasks
 ```
 
 ## Spec-Registry Frontmatter
@@ -935,7 +951,7 @@ If you catch yourself:
 - Producing a FEAT design doc without all required sections → STOP, complete it
 - Running implementation tests or modifying test files → STOP, that is coder work
 - **Decomposing by horizontal layer** (all schemas → all APIs → all UI) → STOP, re-slice vertically
-- Producing a T-XXX with only 1 layer and no `HORIZONTAL-JUSTIFIED` tag → STOP, add justification or re-slice
+- Producing a S-XXX with only 1 layer and no `HORIZONTAL-JUSTIFIED` tag → STOP, add justification or re-slice
 - Creating artificial `Depends On` edges between tasks that don't truly depend on each other → STOP, maximize parallelism
 - Producing a mini-spec without `Layers` field or `Slice Done Gate` → STOP, add them
 
