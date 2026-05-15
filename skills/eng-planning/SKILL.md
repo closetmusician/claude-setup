@@ -109,15 +109,15 @@ The planning pipeline scales its depth and ceremony based on the complexity of t
 |--------|---------------------|-------------------|----------------------|
 | **Scope** | Minor features, single-repo, <3 requirements | Moderate features, moderate risk | Large-scale, multi-repo, high-risk, >8 requirements |
 | **Explorer** | Single Sonnet, no multi-repo split | Multi-repo split IF feature requires it | Full multi-repo split |
-| **Step 7.5 (Pre-approval traceability)** | SKIP | Full 3-agent pipeline | Full 3-agent pipeline |
+| **Step 7.5 (Pre-approval traceability)** | 2 Sonnet agents (no synthesis subagent) | Full 3-agent pipeline | Full 3-agent pipeline |
 | **Step 7.6 (Quality synthesis)** | SKIP | Opus subagent | Opus subagent |
-| **Step 9 (Eng review)** | Simplified: single Sonnet, PRD + architecture only | Full template, 1 review iteration max | Full template, 2 iterations max |
+| **Step 9 (Eng review)** | 2 independent Sonnet (structure + completeness) | Full template, 1 review iteration max | Full template, 2 iterations max |
 | **Step 10 (Auto-fix)** | 0 re-reviews (fix specifiable, report rest) | 1 iteration max | 2 iterations max |
-| **Step 12 (Final traceability)** | Simplified: 1-2 Sonnet agents, simplified matrix | Full 3-agent pipeline | Full 3-agent pipeline |
+| **Step 12 (Final traceability)** | 2 Sonnet + 1 Opus (same 3-agent shape, lighter prompts) | Full 3-agent pipeline | Full 3-agent pipeline |
 | **Artifacts** | Single design doc (contract inline if no API) | Design doc + contract if API exists | Both artifacts always |
 | **Step 2.4 (WebSearch)** | Best-effort (skip unless new dependency/framework) | Targeted search (ask before skipping) | Full |
 
-**Non-negotiable across ALL tiers:** Vertical slice mandate, DAG optimization, design decisions (Step 3), dependency verification (Step 4), codepath coverage (Step 6), DAG validation (Step 7), Step 12.5 (post-review spot-check), Step 13 (cleanup). These never scale down.
+**Non-negotiable across ALL tiers:** Vertical slice mandate, DAG optimization, design decisions (Step 3), dependency verification (Step 4), codepath coverage (Step 6), DAG validation (Step 7), pre-approval traceability (Step 7.5), Step 12.5 (post-review spot-check), Step 13 (cleanup). These never scale down.
 
 ### Tier Detection Heuristics (Step 0.5)
 
@@ -373,7 +373,7 @@ If the user passed `--tier 1|2|3` (e.g., `/eng-planning --tier 1 docs/prd/FEAT-0
 
 After tier is confirmed, update `remaining_steps` in `progress.json`:
 
-- **Tier 1:** `[1, 2, 3, 5, 6, 7, 8, 9, 11, 12, 12.5, 13]` (skip 7.5, 7.6, 10)
+- **Tier 1:** `[1, 2, 3, 5, 6, 7, 7.5, 8, 9, 11, 12, 12.5, 13]` (skip 7.6, 10)
 - **Tier 2:** `[1, 2, 3, 5, 6, 7, 7.5, 7.6, 8, 9, 10, 11, 12, 12.5, 13]` (full, but reduced ceremony within steps)
 - **Tier 3:** `[1, 2, 3, 5, 6, 7, 7.5, 7.6, 8, 9, 10, 11, 12, 12.5, 13]` (full pipeline)
 
@@ -679,9 +679,16 @@ Using the explorer report (`docs/.eng-planning/explorer-report.md`), verify the 
 
 ## Step 7.5: PRD Traceability Self-Check
 
-**Tier-Conditional:** **Tier 1 — SKIP this step entirely.** Tier 1 traceability is handled by a simplified check at Step 12 instead. **Tier 2 and Tier 3 — execute fully.**
-
 **Purpose:** Before presenting artifacts for approval, verify 1:1 mapping between PRD requirements/acceptance criteria and engineering tasks/acceptance criteria. Catch gaps before the approval gate.
+
+### Tier-Conditional Pre-Approval Traceability
+
+- **Tier 1 (2-agent Sonnet):** Spawn **2 parallel Sonnet agents** — one forward tracer (PRD→eng), one reverse tracer (eng→PRD). Each writes to `docs/.eng-planning/traceability/forward-trace.md` and `reverse-trace.md` respectively. The main agent reads both and merges into `docs/.eng-planning/traceability/traceability-matrix.md` with VERDICT: PASS or FAIL. No synthesis subagent — the main agent does the merge for Tier 1.
+  - Forward tracer prompt: "Read the PRD at [PRD_PATH] and the design doc at [ARTIFACT_PATHS]. For each PRD requirement/JTBD, verify it maps to at least one S-XXX story with matching acceptance criteria. Write forward trace to [TRACE_DIR]/forward-trace.md with each requirement's coverage status."
+  - Reverse tracer prompt: "Read the PRD at [PRD_PATH] and the design doc at [ARTIFACT_PATHS]. For each S-XXX story, verify it traces back to a PRD requirement/JTBD. Flag any orphan stories. Write reverse trace to [TRACE_DIR]/reverse-trace.md."
+  - If FAIL: fix gaps, re-run both agents (max 1 iteration).
+
+- **Tier 2 and Tier 3 (full 3-agent pipeline):**
 
 1. **Read the template** — Read `~/.claude/skills/eng-planning/templates/traceability-pipeline.md`
 2. **Fill placeholders:**
@@ -748,24 +755,40 @@ Artifacts were already written to disk in Step 5. Present what was written and g
 
 ### Tier-Conditional Review Depth
 
-- **Tier 1 (Simplified Review):** Do NOT use the full `review-prompt.md` template. Instead, spawn a **single Sonnet subagent** with this focused prompt:
-  ```
-  You are reviewing engineering planning artifacts for a lightweight feature.
-  Read the PRD at [PRD_PATH] and the design doc at [ARTIFACT_PATHS].
-  
-  Check ONLY:
-  1. Does every PRD requirement map to at least one task?
-  2. Are task dependencies correct (no cycles, no phantoms)?
-  3. Does the architecture section make sense for this scope?
-  4. Are acceptance criteria testable and specific?
-  5. Any obvious gaps, contradictions, or missing edge cases?
-  
-  For each finding: [SEVERITY: P0|P1|P2] [file:section] — description
-  Category: SPECIFIABLE | REQUIRES_DECISION
-  
-  Write findings to: [REVIEW_FINDINGS_PATH]
-  ```
-  The review writes to `docs/.eng-planning/review-findings.md`. After this, proceed directly to Step 11 (skip Step 10 — no re-review for Tier 1). Fix any SPECIFIABLE findings from the single review pass. Report REQUIRES_DECISION to user.
+- **Tier 1 (2 Independent Sonnet Reviews):** Do NOT use the full `review-prompt.md` template. Spawn **2 independent Sonnet subagents in parallel**, each with a different review lens:
+  - **Agent A (Structure):** Write findings to `docs/.eng-planning/review-findings-structure.md`.
+    ```
+    You are reviewing engineering planning artifacts for structural correctness.
+    Read the PRD at [PRD_PATH] and the design doc at [ARTIFACT_PATHS].
+
+    Check:
+    1. Does every PRD requirement map to at least one story?
+    2. Are story dependencies correct (no cycles, no phantoms)?
+    3. Does the architecture section make sense for this scope?
+    4. Is the Execution DAG valid and optimized?
+
+    For each finding: [SEVERITY: P0|P1|P2] [file:section] — description
+    Category: SPECIFIABLE | REQUIRES_DECISION
+
+    Write findings to: [REVIEW_FINDINGS_PATH]-structure.md
+    ```
+  - **Agent B (Completeness):** Write findings to `docs/.eng-planning/review-findings-completeness.md`.
+    ```
+    You are reviewing engineering planning artifacts for completeness and quality.
+    Read the PRD at [PRD_PATH] and the design doc at [ARTIFACT_PATHS].
+
+    Check:
+    1. Are acceptance criteria testable and specific?
+    2. Does Build Guidance name specific files, classes, and patterns?
+    3. Are edge cases realistic and comprehensive?
+    4. Any obvious gaps, contradictions, or missing requirements?
+
+    For each finding: [SEVERITY: P0|P1|P2] [file:section] — description
+    Category: SPECIFIABLE | REQUIRES_DECISION
+
+    Write findings to: [REVIEW_FINDINGS_PATH]-completeness.md
+    ```
+  After both complete, the main agent merges findings into `docs/.eng-planning/review-findings.md`, deduplicating overlapping items. Proceed directly to Step 11 (skip Step 10 — no re-review for Tier 1). Fix SPECIFIABLE findings from the merged review. Report REQUIRES_DECISION to user.
 
 - **Tier 2:** Use the full `review-prompt.md` template. **Maximum 1 review iteration** in Step 10.
 - **Tier 3:** Use the full `review-prompt.md` template. **Maximum 2 review iterations** in Step 10.
@@ -835,12 +858,12 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
 
 ### Tier-Conditional Traceability
 
-- **Tier 1 (Simplified Traceability):** Instead of the full 3-agent pipeline, spawn **1-2 independent Sonnet agents** to produce a simplified traceability matrix:
-  - **If PRD + design doc combined < 200 lines:** Spawn 1 Sonnet agent that reads both documents and produces a simplified forward+reverse traceability matrix.
-  - **If PRD + design doc combined >= 200 lines:** Spawn 2 Sonnet agents in parallel — one for forward trace (PRD→eng), one for reverse trace (eng→PRD). Merge results.
-  - Agent prompt: "Read the PRD at [path] and the design doc at [path]. For each PRD requirement, verify it maps to at least one engineering task with matching acceptance criteria. For each engineering task, verify it traces back to a PRD requirement. Write a simplified traceability matrix to `docs/.eng-planning/traceability/traceability-matrix.md` with VERDICT: PASS or FAIL and any gaps found."
-  - The agent(s) must be independent — they have NOT seen the planning conversation. This is the verification guarantee.
-  - If FAIL: fix gaps, re-run simplified check (max 1 iteration).
+- **Tier 1 (2 Sonnet + 1 Opus):** Same 3-agent structure as Tier 2/3 but with a lighter template:
+  - **Agent 1 (Sonnet, forward trace):** "Read the PRD at [path] and the design doc at [path]. For each PRD requirement/JTBD, verify it maps to at least one S-XXX story with matching acceptance criteria. Write forward trace to `docs/.eng-planning/traceability/forward-trace.md`."
+  - **Agent 2 (Sonnet, reverse trace):** "Read the PRD at [path] and the design doc at [path]. For each S-XXX story, verify it traces back to a PRD requirement/JTBD. Flag orphan stories and diluted ACs. Write reverse trace to `docs/.eng-planning/traceability/reverse-trace.md`."
+  - Agents 1 and 2 run in **parallel**. Both must be independent — they have NOT seen the planning conversation.
+  - **Agent 3 (Opus, synthesis):** Reads both trace files. Produces the final `docs/.eng-planning/traceability/traceability-matrix.md` with VERDICT: PASS or FAIL, gap classification (DROPPED/DILUTED/ORPHAN), and remediation instructions.
+  - If FAIL: fix gaps, re-run all 3 agents (max 1 iteration).
 
 - **Tier 2 and Tier 3:** Use the shared 3-agent traceability pipeline template.
 
