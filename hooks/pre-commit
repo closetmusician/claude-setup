@@ -50,7 +50,7 @@ done <<< "$STAGED_FILES"
 
 # ─── 2. Content checks ───────────────────────────────────────────────────────
 # Work only on added lines (+) from the staged diff; skip diff headers (+++).
-ADDED=$(git diff --cached --unified=0 2>/dev/null | grep -E '^\+' | grep -v '^\+\+\+' || true)
+ADDED=$(git diff --cached --unified=0 2>/dev/null | grep -E '^\+' | grep -Fv '+++' || true)
 
 # Returns 0 if $ADDED contains a match for the given ERE pattern AND the
 # matching line does not look like an env-var / placeholder reference.
@@ -58,11 +58,11 @@ content_has_secret() {
   local pattern="$1"
   echo "$ADDED" | grep -qiE "$pattern" && \
     echo "$ADDED" | grep -iE "$pattern" | \
-      grep -qviE '(os\.environ|process\.env|ENV\[|getenv|\$\{[A-Z_]+\}|\$[A-Z_][A-Z0-9_]*\b|your[-_]?(key|secret|token|password)|placeholder|example|changeme|<[^>]+>|REPLACE_ME|TODO)'
+      grep -qviE '(os\.environ|process\.env|ENV\[|getenv|\$\{|\$[A-Z_][A-Z0-9_]*|your[-_]?(key|secret|token|password)|placeholder|example|changeme|<[^>]+>|REPLACE_ME|TODO)'
 }
 
-# Private key headers
-if echo "$ADDED" | grep -qE '-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'; then
+# Private key headers (use -- to prevent leading dashes being parsed as flags)
+if echo "$ADDED" | grep -qE -- '[-]{5}BEGIN.{0,20}PRIVATE KEY[-]{5}'; then
   block "Private key material detected in staged content (-----BEGIN ... PRIVATE KEY-----)"
 fi
 
@@ -72,7 +72,7 @@ if echo "$ADDED" | grep -qE 'AKIA[0-9A-Z]{16}'; then
 fi
 
 # AWS secret access key pattern (often follows 40-char base62 string next to "aws_secret")
-if content_has_secret 'aws_secret_access_key\s*[=:]\s*[A-Za-z0-9+/]{40}'; then
+if content_has_secret 'aws_secret_access_key[[:space:]]*[=:][[:space:]]*[A-Za-z0-9+/]{40}'; then
   block "AWS secret access key detected in staged content"
 fi
 
@@ -96,18 +96,18 @@ fi
 # Hardcoded credentials in key=value assignments
 # Matches: password = "hunter2", api_key: 'abc123xyz', secret_key="...", etc.
 # Min 12 chars for the value to avoid false positives on short test strings.
-CRED_PATTERN='(password|passwd|api_key|apikey|api_secret|apisecret|auth_token|access_token|secret_key|private_key|client_secret|client_id|app_secret|db_password|database_password)\s*[=:]\s*["\x27]?[A-Za-z0-9+/=_@!#%^&*-]{12,}["\x27]?'
+CRED_PATTERN='(password|passwd|api_key|apikey|api_secret|apisecret|auth_token|access_token|secret_key|private_key|client_secret|client_id|app_secret|db_password|database_password)[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9+/=_@!#%^&*-]{12,}'
 if content_has_secret "$CRED_PATTERN"; then
   block "Potential hardcoded credential detected (password/secret/key/token = <value>)"
   # Show offending lines with values masked
   echo "$ADDED" | grep -iE "$CRED_PATTERN" | \
-    grep -viE '(os\.environ|process\.env|ENV\[|getenv|\$\{[A-Z_]+\}|\$[A-Z_][A-Z0-9_]*\b|your[-_]?(key|secret|token|password)|placeholder|example|changeme|<[^>]+>|REPLACE_ME|TODO)' | \
+    grep -viE '(os\.environ|process\.env|ENV\[|getenv|\$\{|\$[A-Z_][A-Z0-9_]*|your[-_]?(key|secret|token|password)|placeholder|example|changeme|<[^>]+>|REPLACE_ME|TODO)' | \
     head -5 | \
-    perl -pe 's/([=:]\s*["\x27]?)[^\s"'\'',;}\]]{8,}/$1[REDACTED]/gi' >&2 || true
+    perl -pe 's/([=:][[:space:]]*)[^\s,;}\]]{8,}/$1[REDACTED]/gi' >&2 || true
 fi
 
 # Database URLs with embedded credentials (user:pass@host)
-DB_URL_PATTERN='(postgres|postgresql|mysql|mongodb|redis|amqp|mssql)://[^:\s]+:[^@\s]+@'
+DB_URL_PATTERN='(postgres|postgresql|mysql|mongodb|redis|amqp|mssql)://[^:[:space:]]+:[^@[:space:]]+@'
 if content_has_secret "$DB_URL_PATTERN"; then
   block "Database URL with embedded credentials detected (proto://user:pass@host)"
 fi
