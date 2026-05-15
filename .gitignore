@@ -25,6 +25,11 @@ plugins/installed_plugins.json.bak
 plugins/known_marketplaces.json
 plugins/data/
 
+# Environment files (secrets)
+.env
+.env.*
+*.env
+
 # macOS junk
 .DS_Store
 
