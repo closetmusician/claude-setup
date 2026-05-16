@@ -1,0 +1,24 @@
+# Please fill in the following fields and ensure accuracy of all data in this file
+#
+# Minimum required config example: https://github.com/DiligentCorp/platform-ownership/blob/main/docs/ForUsers/servcieFileTemplateMinimum.yaml
+#
+# Full config example: https://github.com/DiligentCorp/platform-ownership/blob/main/docs/ForUsers/serviceFileTemplateFull.yaml
+#
+# Allowed values for config fields: https://github.com/DiligentCorp/platform-ownership/blob/main/docs/ForUsers/allowedYamlValues.md
+
+owner: rd-team-sre
+entityTag: diligent-base-template
+primaryParentEntityTag: internal-dev-tools
+description: Template meant to be used as a starting point for new repositories
+github:
+  organization: DiligentCorp
+  repository: diligent-base-template
+dateVerified: "2025-05-28"
+opsgenie:
+  opsgenieScheduleId: "63fdff3f-3ebd-49d0-931e-2f4ea124d8bd"
+  opsgenieTeamName: "DIL-SRE"
+msTeamsChannels:
+  - name: "General"
+    teamName: "DIL-SRE"
+    description: "This channel is used for general questions for the sre team."
+    notificationsEnabled: false
