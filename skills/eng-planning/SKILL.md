@@ -572,9 +572,40 @@ Do NOT return the artifact content — write to disk only.
 
 **This is the primary artifact.** One file per feature containing architecture, design decisions, and task mini-specs.
 
-1. **Read the template** — Read `~/.claude/skills/eng-planning/templates/design-doc-template.md`
-2. **Include in the subagent prompt** — The template defines all required sections (spec-registry frontmatter, architecture, design decisions, task mini-specs with vertical slice fields, execution DAG, file conflict matrix, definition of done)
-3. **The subagent fills the template** using intermediates from disk (see subagent preamble above)
+#### Pre-Flight: Activate Sentinel & Copy Scaffold
+
+Before spawning the subagent, you MUST do these two things:
+
+```bash
+# 1. Activate the design-doc sentinel (hooks enforce template usage)
+touch docs/.eng-planning/.gate-design-doc
+
+# 2. Copy the scaffold template to the output path
+cp ~/.claude/skills/eng-planning/templates/design-doc-scaffold.md docs/plans/FEAT-XXX-design.md
+```
+
+The scaffold contains every required section with `<!-- TODO: Fill -->` markers. This ensures the file structure exists before the subagent runs.
+
+#### Spawn Artifact Subagent
+
+1. **Read the template** — Read `~/.claude/skills/eng-planning/templates/design-doc-template.md` (the Producer Instructions guide the subagent)
+2. **Include in the subagent prompt** — The subagent MUST receive: (a) the Producer Instructions from the template, (b) the scaffold file path to read as its structural skeleton, (c) all required sections defined in the template
+3. **The subagent fills the scaffold** — It reads the scaffold at the output path, reads intermediates from disk (see subagent preamble above), and writes the complete filled version to the same path. Every `<!-- TODO: Fill -->` marker must be replaced with real content. No sections may be removed.
+
+#### Post-Production Gate
+
+After the subagent completes, run the structural validation script:
+
+```bash
+~/.claude/skills/eng-planning/scripts/validate-design-doc.sh docs/plans/FEAT-XXX-design.md
+```
+
+If the script exits non-zero, it lists specific missing sections. Fix them (re-run subagent with explicit instructions about missing sections) and re-validate. Do NOT proceed to Step 5b until validation passes.
+
+```bash
+# Remove the sentinel after validation passes
+rm -f docs/.eng-planning/.gate-design-doc
+```
 
 **Mini-Spec Rules (non-negotiable):**
 
@@ -681,6 +712,13 @@ Using the explorer report (`docs/.eng-planning/explorer-report.md`), verify the 
 
 **Purpose:** Before presenting artifacts for approval, verify 1:1 mapping between PRD requirements/acceptance criteria and engineering tasks/acceptance criteria. Catch gaps before the approval gate.
 
+#### Pre-Flight: Activate Sentinel
+
+```bash
+# Activate the traceability sentinel (hooks enforce template usage)
+touch docs/.eng-planning/.gate-traceability
+```
+
 ### Tier-Conditional Pre-Approval Traceability
 
 - **Tier 1 (2-agent Sonnet):** Spawn **2 parallel Sonnet agents** — one forward tracer (PRD→eng), one reverse tracer (eng→PRD). Each writes to `docs/.eng-planning/traceability/forward-trace.md` and `reverse-trace.md` respectively. The main agent reads both and merges into `docs/.eng-planning/traceability/traceability-matrix.md` with VERDICT: PASS or FAIL. No synthesis subagent — the main agent does the merge for Tier 1.
@@ -703,6 +741,11 @@ Using the explorer report (`docs/.eng-planning/explorer-report.md`), verify the 
 
 **If VERDICT is FAIL:** Fix every gap autonomously using the Gap Resolution Rules in the template. After fixing, **re-run the full pipeline** (all fresh agents — do NOT reuse prior ones). Maximum 2 iterations. If gaps persist after 2 iterations, report remaining gaps when presenting in Step 8. Keep all intermediate files in `docs/.eng-planning/traceability/` — they are the audit trail for Steps 8 and 10.
 
+```bash
+# Remove the traceability sentinel after pipeline completes
+rm -f docs/.eng-planning/.gate-traceability
+```
+
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 7.5`, remove `7.5` from `remaining_steps`. Add `traceability_pass: true|false` and `traceability_gaps_remaining: N`.
 
 ## Step 7.6: Quality Synthesis (Opus Subagent)
@@ -713,6 +756,13 @@ Using the explorer report (`docs/.eng-planning/explorer-report.md`), verify the 
 
 **Model:** opus (mandatory for all tiers that execute this step — this is a holistic reasoning task)
 
+#### Pre-Flight: Activate Sentinel
+
+```bash
+# Activate the quality synthesis sentinel (hooks enforce template usage)
+touch docs/.eng-planning/.gate-quality
+```
+
 Spawn **one Opus subagent** that reads all artifacts from disk with no conversation history.
 
 1. **Read the template** — Read `~/.claude/skills/eng-planning/templates/quality-synthesis-prompt.md`
@@ -720,6 +770,11 @@ Spawn **one Opus subagent** that reads all artifacts from disk with no conversat
 3. **Spawn via Agent tool** — Use `subagent_type: "general-purpose"`, `model: "opus"`. Subagent writes findings to disk.
 
 **After subagent completes:** Read `docs/.eng-planning/quality-synthesis.md`. Fix all SPECIFIABLE findings autonomously by editing the artifacts. Present REQUIRES_DECISION findings to the user via AskUserQuestion before proceeding to Step 8.
+
+```bash
+# Remove the quality synthesis sentinel after step completes
+rm -f docs/.eng-planning/.gate-quality
+```
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 7.6`, remove `7.6` from `remaining_steps`.
 
@@ -869,8 +924,9 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
 
 **For Tier 2 and Tier 3, proceed with the standard flow:**
 
-1. **Clean prior traceability state (Step 7.5 artifacts are superseded) and re-run the pipeline:**
+1. **Activate sentinel and clean prior traceability state (Step 7.5 artifacts are superseded):**
    ```bash
+   touch docs/.eng-planning/.gate-traceability
    rm -rf docs/.eng-planning/traceability/
    mkdir -p docs/.eng-planning/traceability/
    ```
@@ -883,6 +939,11 @@ Confirm all artifacts have been written to disk. Do NOT clean up intermediate fi
    - Do NOT re-enter the full review loop (Steps 9-10) — only fix traceability gaps
    - Maximum 1 fix iteration with full pipeline re-run
    - If gaps persist after 1 iteration: report status as `DONE_WITH_CONCERNS` and list remaining traceability gaps
+
+```bash
+# Remove the traceability sentinel after final gate completes
+rm -f docs/.eng-planning/.gate-traceability
+```
 
 **→ Checkpoint:** Update `progress.json` — `last_completed_step: 12`, remove `12` from `remaining_steps`.
 
