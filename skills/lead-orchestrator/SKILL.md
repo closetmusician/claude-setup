@@ -94,25 +94,33 @@ When needed:
 
 ```
 1.  Task assigned → [Architect Gate]
-2.  Spawn CODER → wait for T-XXX-ready-for-review.md
-2a. touch $STATE/.gate-pre-qa                     ← SENTINEL ON
-3.  Pre-QA Gates (TDD evidence, test suite, commit ordering)
-3a. validate-artifact.sh qa/FEAT-XXX/T-XXX-ready-for-review.md
-3b. rm $STATE/.gate-pre-qa                        ← SENTINEL OFF
-4.  Spawn GARRY-REVIEW → wait for review findings
-4a. validate-artifact.sh qa/FEAT-XXX/T-XXX-review-findings.md
-5.  If P0/P1 findings → Spawn CODER fix → wait for updated artifact
-6.  touch $STATE/.gate-qa-c1                      ← SENTINEL ON
-6a. Spawn QA TESTER C1 (test + break) → wait for T-XXX-cycle-1.md
-6b. validate-artifact.sh qa/FEAT-XXX/T-XXX-cycle-1.md
-6c. rm $STATE/.gate-qa-c1                         ← SENTINEL OFF
-7.  If FAIL → Spawn CODER fix → re-run C1 → if still FAIL: ESCALATE (N=1)
-8.  Spawn QA TESTER C2 (regression + edge cases, full only) → wait for T-XXX-cycle-2.md
-8a. validate-artifact.sh qa/FEAT-XXX/T-XXX-cycle-2.md
-9.  touch $STATE/.gate-spec-diff                  ← SENTINEL ON
-9a. Spec-diff verification (cite file:line evidence per requirement)
-9b. rm $STATE/.gate-spec-diff                     ← SENTINEL OFF
-10. COMPLETE
+2.  Spawn QA-TEST-WRITER → wait for T-XXX-acceptance-tests.md
+2a. touch $STATE/.gate-pre-coder                  ← SENTINEL ON
+3.  Pre-Coder Gates (verify acceptance tests committed and RED)
+3a. validate-artifact.sh qa/FEAT-XXX/T-XXX-acceptance-tests.md
+3b. Run test suite — exit code != 0 required (tests must be failing)
+3c. rm $STATE/.gate-pre-coder                     ← SENTINEL OFF
+4.  Spawn CODER → wait for T-XXX-ready-for-review.md
+4a. touch $STATE/.gate-pre-qa                     ← SENTINEL ON
+5.  Pre-QA Gates (TDD evidence, test suite, commit ordering)
+5a. validate-artifact.sh qa/FEAT-XXX/T-XXX-ready-for-review.md
+5b. verify-tdd-evidence.sh qa/FEAT-XXX/T-XXX-ready-for-review.md
+5c. Run test suite — exit code 0 required (acceptance + unit tests GREEN)
+5d. rm $STATE/.gate-pre-qa                        ← SENTINEL OFF
+6.  Spawn GARRY-REVIEW → wait for review findings
+6a. validate-artifact.sh qa/FEAT-XXX/T-XXX-review-findings.md
+7.  If P0/P1 findings → Spawn CODER fix → wait for updated artifact
+8.  touch $STATE/.gate-qa-c1                      ← SENTINEL ON
+8a. Spawn QA TESTER C1 (test + break) → wait for T-XXX-cycle-1.md
+8b. validate-artifact.sh qa/FEAT-XXX/T-XXX-cycle-1.md
+8c. rm $STATE/.gate-qa-c1                         ← SENTINEL OFF
+9.  If FAIL → Spawn CODER fix → re-run C1 → if still FAIL: ESCALATE (N=1)
+10. Spawn QA TESTER C2 (regression + edge cases, full only) → wait for T-XXX-cycle-2.md
+10a. validate-artifact.sh qa/FEAT-XXX/T-XXX-cycle-2.md
+11. touch $STATE/.gate-spec-diff                  ← SENTINEL ON
+11a. Spec-diff verification (cite file:line evidence per requirement)
+11b. rm $STATE/.gate-spec-diff                    ← SENTINEL OFF
+12. COMPLETE
 ```
 
 Where `$STATE` = `~/.claude/scripts/governance/state`
@@ -120,6 +128,34 @@ Where `$STATE` = `~/.claude/scripts/governance/state`
 **STOP boundaries are mandatory.** Wait for artifact before proceeding.
 
 **No artifact = No proceed.** If subagent returns without artifact, treat as fix cycle failure — re-spawn once, then escalate. This rule applies to the sequential loop, not parallel E2E spawning.
+
+### Pre-Coder Gates
+
+**Sentinel activation** (immediately after QA test-writer returns artifact):
+```bash
+touch ~/.claude/scripts/governance/state/.gate-pre-coder
+```
+
+The `orchestrator-step-gate.sh` hook will BLOCK any Coder spawns while this sentinel exists. You MUST complete all steps below to clear it.
+
+Before spawning the Coder, the orchestrator MUST:
+1. Read `qa/FEAT-XXX/T-XXX-acceptance-tests.md`
+2. Run structural validation:
+   ```bash
+   ~/.claude/skills/lead-orchestrator/scripts/validate-artifact.sh qa/FEAT-XXX/T-XXX-acceptance-tests.md
+   ```
+   If FAIL: re-spawn QA test-writer with the specific deviations listed.
+3. **Verify tests are genuinely RED:**
+   ```bash
+   make test  # or project equivalent — exit code MUST be non-zero
+   ```
+   If tests pass: do NOT spawn Coder. Re-spawn QA test-writer — acceptance tests must fail before implementation exists. Include the passing test output so the test-writer can strengthen them.
+4. Log the RED commit SHA from `T-XXX-acceptance-tests.md` — inject into coder prompt so the Coder knows which commit is the RED baseline.
+
+**Sentinel deactivation** (all checks passed):
+```bash
+rm -f ~/.claude/scripts/governance/state/.gate-pre-coder
+```
 
 ### Pre-QA Gates
 
@@ -194,6 +230,7 @@ Before marking T-XXX complete, verify in `qa/FEAT-XXX/`:
 
 | Artifact | Created By |
 |----------|-----------|
+| `T-XXX-acceptance-tests.md` | QA Test Writer |
 | `T-XXX-ready-for-review.md` | Coder |
 | `T-XXX-review-findings.md` | Garry-Review |
 | `T-XXX-cycle-1.md` | QA Tester (Cycle 1) |
@@ -254,6 +291,8 @@ The `post-agent-audit.sh` hook then checks the subagent OUTPUT for evidence matc
 | `{SPEC_PATH}` | Path to relevant spec — MUST be `docs/*.md` format | `docs/pm-reporting.md` |
 | `{REQUIREMENT_MAP_JSON}` | Valid JSON object (see example below) | See below |
 | `{ESCALATION_CONDITIONS}` | Task-specific escalation triggers | `Auth fails after retry` |
+| `{ACCEPTANCE_TESTS_RED_SHA}` | RED commit SHA from `T-XXX-acceptance-tests.md` (coder prompt only) | `a1b2c3d` |
+| `{ARCH_DESIGN_PATH}` | Architect output path if gate was run, else `N/A` (test-writer prompt only) | `qa/FEAT-001/T-001-arch.md` |
 | `T-XXX` | Task identifier | `T-001` |
 | `FEAT-XXX` | Feature identifier | `FEAT-001` |
 
@@ -283,6 +322,7 @@ If the task has no formal spec, you MUST still provide a `docs/*.md` reference �
 
 | Subagent | Template | Type |
 |----------|----------|------|
+| QA Test Writer | `templates/qa-test-writer-prompt.md` | (default) |
 | Coder | `templates/coder-prompt.md` | (default) |
 | Architect | `templates/architect-prompt.md` | `general-purpose` |
 | Garry-Review | Inline prompt (`GOVERNANCE_EXEMPT`) | `general-purpose` |
@@ -362,6 +402,7 @@ If you catch yourself doing any of these, you've confused your role. Return to o
 
 | Sentinel | When Set | When Cleared | What It Blocks |
 |----------|----------|--------------|----------------|
+| `.gate-pre-coder` | QA test-writer returns `acceptance-tests.md` | Tests validated + tests confirmed RED (failing) | Coder spawns |
 | `.gate-pre-qa` | Coder returns `ready-for-review.md` | TDD evidence verified + test suite passes + validate-artifact passes | QA Tester and Garry-Review spawns |
 | `.gate-qa-c1` | Before spawning QA Tester C1 | `cycle-1.md` artifact produced and validated | QA Tester C2 spawns |
 | `.gate-spec-diff` | After QA passes | All requirements have `file:line` evidence | Task completion |
@@ -376,6 +417,7 @@ If you catch yourself doing any of these, you've confused your role. Return to o
 ```
 
 **Checks per artifact type:**
+- `*acceptance-tests*`: `## Tests Written` section, `RED Commit:<SHA>`, failing test output evidence
 - `*ready-for-review*`: `## TDD Evidence` with table rows or `TDD-EXEMPT`, `ReviewCommit:<SHA>`
 - `*review-findings*`: P0/P1/P2 severity or explicit "no findings", summary section header
 - `*cycle-1*` / `*cycle-2*`: PASS/FAIL/PASS_WITH_CONCERNS verdict, test output section, task reference
@@ -398,6 +440,7 @@ Write `logs/build-{timestamp}.md`:
 # FEAT-XXX Orchestration Log
 
 ## T-101: [Task Name]
+- [ ] QA Test Writer spawned / acceptance-tests.md (RED commit: <sha>)
 - [ ] Coder spawned / ready-for-review.md
 - [ ] Garry-Review spawned / review-findings.md
 - [ ] Coder fix (if P0/P1 findings)

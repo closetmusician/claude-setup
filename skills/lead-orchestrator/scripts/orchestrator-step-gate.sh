@@ -50,8 +50,14 @@ block_and_exit() {
 # ─── Detect what the orchestrator is trying to spawn ───
 # We identify the subagent role by prompt content patterns
 
+IS_CODER_SPAWN=false
 IS_QA_SPAWN=false
 IS_GARRY_SPAWN=false
+
+# Coder detection: references coder subagent role or TDD protocol patterns
+if echo "$PROMPT" | grep -qiE '(CODER subagent|TDD Protocol|ready-for-review|acceptance.*tests.*RED)'; then
+  IS_CODER_SPAWN=true
+fi
 
 # QA Tester detection: references cycle-1/cycle-2, QA testing patterns
 if echo "$PROMPT" | grep -qiE '(qa.*tester|cycle-1|cycle-2|qa.*cycle|test.*break)'; then
@@ -64,6 +70,15 @@ if echo "$PROMPT" | grep -qiE '(garry.*review|code.*review.*architecture|review.
   # Garry review is GOVERNANCE_EXEMPT, so it won't reach here
   # But if someone forgets the exempt marker:
   IS_GARRY_SPAWN=true
+fi
+
+# ─── GATE: .gate-pre-coder ───
+# When .gate-pre-coder exists, QA test-writer just finished but Pre-Coder checks
+# haven't been verified yet. Block Coder spawns until gate is cleared.
+if [[ -f "${STATE_DIR}/.gate-pre-coder" ]]; then
+  if [[ "$IS_CODER_SPAWN" == "true" ]]; then
+    block_and_exit "Pre-Coder gate active. You MUST verify acceptance tests are committed and RED (failing) BEFORE spawning Coder. Clear gate with: rm ${STATE_DIR}/.gate-pre-coder"
+  fi
 fi
 
 # ─── GATE: .gate-pre-qa ───

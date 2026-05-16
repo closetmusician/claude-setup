@@ -47,6 +47,35 @@ validate_content() {
   local content="$1"
 
   case "$BASENAME" in
+    *acceptance-tests*)
+      # Must have RED Commit SHA
+      if ! echo "$content" | grep -qE 'RED Commit:[[:space:]]*[0-9a-f]{7,40}'; then
+        ERRORS+=("Missing 'RED Commit: <SHA>' (7-40 hex chars required)")
+      fi
+      # Must have Tests Written section
+      if ! echo "$content" | grep -q '## Tests Written'; then
+        ERRORS+=("Missing '## Tests Written' section")
+      fi
+      # Must have evidence tests are failing (RED) — not import/syntax errors
+      if ! echo "$content" | grep -qiE '(FAILED|ERROR|failed [0-9]|[0-9]+ failed|assertion.*error|assert.*fail)'; then
+        ERRORS+=("No failing test evidence in artifact — acceptance tests must be RED (failing) before coder starts. Paste the failing test output under '## Test Run Output'.")
+      fi
+      # RED commit must exist in git and touch only test files
+      RED_SHA=$(echo "$content" | grep -oE 'RED Commit:[[:space:]]*[0-9a-f]{7,40}' | head -1 | sed 's/RED Commit:[[:space:]]*//')
+      if [[ -n "$RED_SHA" ]]; then
+        if ! git cat-file -e "${RED_SHA}^{commit}" 2>/dev/null; then
+          ERRORS+=("RED Commit $RED_SHA does not exist in git history")
+        else
+          NON_TEST=$(git diff-tree --no-commit-id --name-only -r "$RED_SHA" 2>/dev/null \
+            | grep -vE '(^test|_test\.|_spec\.|/tests/|/spec/|/__tests__/|conftest\.py|jest\.config|vitest\.config|pytest\.ini|\.pytest\.ini)' || true)
+          if [[ -n "$NON_TEST" ]]; then
+            NON_TEST_LIST=$(echo "$NON_TEST" | tr '\n' ', ' | sed 's/,$//')
+            ERRORS+=("RED Commit $RED_SHA touches non-test files: ${NON_TEST_LIST}. Acceptance test commit must be test-files-only.")
+          fi
+        fi
+      fi
+      ;;
+
     *ready-for-review*)
       # Must have TDD Evidence section with table rows OR TDD-EXEMPT declarations
       if ! echo "$content" | grep -q '## TDD Evidence'; then

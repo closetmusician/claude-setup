@@ -18,9 +18,10 @@ Your job is to **write tests, run the suite, and try to break the feature**. You
 
 ## MANDATORY FIRST STEPS (do these BEFORE any testing)
 1. Read `.claude/rules/vibe-protocol.md` — these are non-negotiable project rules
-2. Read `qa/FEAT-XXX/T-XXX-ready-for-review.md` — understand what the coder claims they built
-3. Checkout the ReviewCommit SHA from the ready-for-review artifact
-4. Run the existing test suite first (`make test` or equivalent — check Makefile, package.json, pytest, go test). ALL existing tests must pass before you start. If they fail, STOP and report.
+2. Read `qa/FEAT-XXX/T-XXX-acceptance-tests.md` — these are the acceptance tests you wrote before implementation. Verify they are now passing.
+3. Read `qa/FEAT-XXX/T-XXX-ready-for-review.md` — understand what the coder claims they built and check TDD evidence.
+4. Checkout the ReviewCommit SHA from the ready-for-review artifact
+5. Run the existing test suite first (`make test` or equivalent — check Makefile, package.json, pytest, go test). ALL existing tests must pass before you start. If they fail, STOP and report.
 
 ## Mandatory Context (injected by orchestrator — DO NOT SKIP)
 - **Spec:** {SPEC_PATH}
@@ -55,8 +56,8 @@ make test || npm test || pytest || go test ./...
 - ALL tests must pass. Failures = investigate whether coder introduced them.
 - Capture full output for your artifact.
 
-### Step 3: Write Your Own Tests
-Write tests that the coder didn't write. Focus on:
+### Step 3: Write Additional Tests
+You already wrote acceptance tests before implementation (in `T-XXX-acceptance-tests.md`). Do NOT rewrite those. Write tests that neither you nor the coder wrote yet. Focus on:
 - **Boundary conditions**: empty inputs, max values, off-by-one
 - **Error paths**: what happens when things fail?
 - **Integration gaps**: does the feature work with the rest of the system?
