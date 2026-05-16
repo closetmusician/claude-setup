@@ -44,15 +44,22 @@ Read `.claude/phase.json` for `"vibe_level"` (default `"full"` if absent):
 
 ---
 
-## Governance Activation
+## Governance Activation (Fail-Closed)
 
-Before spawning any subagent, activate governance enforcement:
+Before spawning any subagent, verify governance enforcement is active:
 
 ```bash
-touch ~/.claude/scripts/governance/state/.active
+STATE_DIR="$HOME/.claude/scripts/governance/state"
+mkdir -p "$STATE_DIR"
+if [[ ! -f "$STATE_DIR/.active" ]]; then
+  touch "$STATE_DIR/.active"
+  echo "WARN: Governance was inactive — auto-activated. Check for stale state."
+fi
 ```
 
-This enables the pre-agent-gate (validates prompt structure), post-agent-audit (checks evidence coverage), and role-enforcement (blocks orchestrator writes) hooks. Without this file, all governance hooks are no-op.
+This is a **fail-closed** gate: if `.active` is missing, the orchestrator activates it automatically and warns. ALL governance hooks (pre-agent-gate, post-agent-audit, validate-artifact, step-gate) depend on this file — without it, enforcement is silently disabled.
+
+**Self-check rule:** If the orchestrator detects stale sentinels (`.gate-pre-qa`, `.gate-qa-c1`, `.gate-spec-diff`) existing before the FIRST task starts, clear them with a warning — they're leftovers from a crashed session.
 
 ## Pre-Spawn Gates (Before ANY Subagent)
 
@@ -132,7 +139,12 @@ Before spawning Garry-Review or QA Tester, the orchestrator MUST:
    If FAIL: re-spawn coder with the specific deviations listed.
 3. Verify `## TDD Evidence` table exists with at least one data row, OR every behavior has a `TDD-EXEMPT` declaration with justification
 4. If missing: re-spawn coder with instruction "TDD Evidence table is missing — add RED/GREEN evidence for each behavior before resubmitting"
-5. Run `make test` (or project equivalent — check Makefile, package.json, pytest, go test in that order). If exit code != 0, do NOT spawn QA. Re-spawn coder with the failing test output and instruction to fix.
+5. **Verify TDD evidence against git** (mechanical verification):
+   ```bash
+   ~/.claude/skills/lead-orchestrator/scripts/verify-tdd-evidence.sh qa/FEAT-XXX/T-XXX-ready-for-review.md
+   ```
+   Verifies: RED commit SHAs exist, RED commits touch ONLY test files, GREEN commits exist, RED precedes GREEN in git history. If FAIL: re-spawn coder with the specific violations listed.
+6. Run `make test` (or project equivalent — check Makefile, package.json, pytest, go test in that order). If exit code != 0, do NOT spawn QA. Re-spawn coder with the failing test output and instruction to fix.
 
 **Sentinel deactivation** (all checks passed):
 ```bash
@@ -372,7 +384,8 @@ If you catch yourself doing any of these, you've confused your role. Return to o
 
 | Script | Matcher | Purpose |
 |--------|---------|---------|
-| `scripts/validate-artifact.sh` | Write (on `qa/` paths) | Blocks malformed QA artifacts from landing |
+| `scripts/validate-artifact.sh` | Write (on `qa/` paths) | Blocks malformed QA artifacts from landing; rejects broad TDD-EXEMPT on impl files |
+| `scripts/verify-tdd-evidence.sh` | Explicit (Pre-QA) | Verifies TDD evidence SHAs against git: RED is test-only, GREEN exists, ordering correct |
 | `scripts/orchestrator-step-gate.sh` | Agent | Blocks out-of-order subagent spawns when sentinels active |
 
 ---

@@ -59,6 +59,22 @@ validate_content() {
         if [[ "$HAS_TABLE_ROW" -lt 2 ]] && [[ "$HAS_EXEMPT" -eq 0 ]]; then
           ERRORS+=("TDD Evidence section has no data rows and no TDD-EXEMPT declarations")
         fi
+
+        # Reject broad TDD-EXEMPT when implementation files were modified
+        if [[ "$HAS_EXEMPT" -gt 0 ]] && [[ "$HAS_TABLE_ROW" -lt 2 ]]; then
+          # All behaviors are TDD-EXEMPT — verify no impl files changed
+          REVIEW_SHA=$(echo "$content" | grep -oE 'ReviewCommit:[[:space:]]*[0-9a-f]{7,40}' | head -1 | sed 's/ReviewCommit:[[:space:]]*//')
+          if [[ -n "$REVIEW_SHA" ]]; then
+            IMPL_FILES=$(git diff-tree --no-commit-id --name-only -r "$REVIEW_SHA" 2>/dev/null \
+              | grep -E '\.(py|ts|js|go|rs|java|rb)$' \
+              | grep -vE '(tests?/|__tests__/|_test\.go$|\.spec\.|\.test\.)' \
+              | grep -E '(src/|lib/|app/|pkg/|internal/|cmd/)' || true)
+            if [[ -n "$IMPL_FILES" ]]; then
+              IMPL_LIST=$(echo "$IMPL_FILES" | tr '\n' ', ' | sed 's/,$//')
+              ERRORS+=("TDD-EXEMPT declared but implementation files modified: ${IMPL_LIST}. Exemption only valid for config/docs/migrations/types/generated code.")
+            fi
+          fi
+        fi
       fi
 
       # Must have ReviewCommit SHA
