@@ -86,16 +86,29 @@ When needed:
 ## The Orchestration Loop
 
 ```
-1. Task assigned → [Architect Gate]
-2. Spawn CODER → wait for T-XXX-ready-for-review.md
-3. Pre-QA Gates (TDD evidence, test suite, commit ordering)
-4. Spawn GARRY-REVIEW → wait for review findings
-5. If P0/P1 findings → Spawn CODER fix → wait for updated artifact
-6. Spawn QA TESTER C1 (test + break) → wait for T-XXX-cycle-1.md
-7. If FAIL → Spawn CODER fix → re-run C1 → if still FAIL: ESCALATE (N=1)
-8. Spawn QA TESTER C2 (regression + edge cases, full only) → wait for T-XXX-cycle-2.md
-9. COMPLETE
+1.  Task assigned → [Architect Gate]
+2.  Spawn CODER → wait for T-XXX-ready-for-review.md
+2a. touch $STATE/.gate-pre-qa                     ← SENTINEL ON
+3.  Pre-QA Gates (TDD evidence, test suite, commit ordering)
+3a. validate-artifact.sh qa/FEAT-XXX/T-XXX-ready-for-review.md
+3b. rm $STATE/.gate-pre-qa                        ← SENTINEL OFF
+4.  Spawn GARRY-REVIEW → wait for review findings
+4a. validate-artifact.sh qa/FEAT-XXX/T-XXX-review-findings.md
+5.  If P0/P1 findings → Spawn CODER fix → wait for updated artifact
+6.  touch $STATE/.gate-qa-c1                      ← SENTINEL ON
+6a. Spawn QA TESTER C1 (test + break) → wait for T-XXX-cycle-1.md
+6b. validate-artifact.sh qa/FEAT-XXX/T-XXX-cycle-1.md
+6c. rm $STATE/.gate-qa-c1                         ← SENTINEL OFF
+7.  If FAIL → Spawn CODER fix → re-run C1 → if still FAIL: ESCALATE (N=1)
+8.  Spawn QA TESTER C2 (regression + edge cases, full only) → wait for T-XXX-cycle-2.md
+8a. validate-artifact.sh qa/FEAT-XXX/T-XXX-cycle-2.md
+9.  touch $STATE/.gate-spec-diff                  ← SENTINEL ON
+9a. Spec-diff verification (cite file:line evidence per requirement)
+9b. rm $STATE/.gate-spec-diff                     ← SENTINEL OFF
+10. COMPLETE
 ```
+
+Where `$STATE` = `~/.claude/scripts/governance/state`
 
 **STOP boundaries are mandatory.** Wait for artifact before proceeding.
 
@@ -103,11 +116,28 @@ When needed:
 
 ### Pre-QA Gates
 
+**Sentinel activation** (immediately after coder returns artifact):
+```bash
+touch ~/.claude/scripts/governance/state/.gate-pre-qa
+```
+
+The `orchestrator-step-gate.sh` hook will BLOCK any QA or review subagent spawns while this sentinel exists. You MUST complete all steps below to clear it.
+
 Before spawning Garry-Review or QA Tester, the orchestrator MUST:
 1. Read `qa/FEAT-XXX/T-XXX-ready-for-review.md`
-2. Verify `## TDD Evidence` table exists with at least one data row, OR every behavior has a `TDD-EXEMPT` declaration with justification
-3. If missing: re-spawn coder with instruction "TDD Evidence table is missing — add RED/GREEN evidence for each behavior before resubmitting"
-4. Run `make test` (or project equivalent — check Makefile, package.json, pytest, go test in that order). If exit code != 0, do NOT spawn QA. Re-spawn coder with the failing test output and instruction to fix.
+2. Run structural validation:
+   ```bash
+   ~/.claude/skills/lead-orchestrator/scripts/validate-artifact.sh qa/FEAT-XXX/T-XXX-ready-for-review.md
+   ```
+   If FAIL: re-spawn coder with the specific deviations listed.
+3. Verify `## TDD Evidence` table exists with at least one data row, OR every behavior has a `TDD-EXEMPT` declaration with justification
+4. If missing: re-spawn coder with instruction "TDD Evidence table is missing — add RED/GREEN evidence for each behavior before resubmitting"
+5. Run `make test` (or project equivalent — check Makefile, package.json, pytest, go test in that order). If exit code != 0, do NOT spawn QA. Re-spawn coder with the failing test output and instruction to fix.
+
+**Sentinel deactivation** (all checks passed):
+```bash
+rm -f ~/.claude/scripts/governance/state/.gate-pre-qa
+```
 
 Commit ordering is enforced by the `commit-order-guard.sh` PreToolUse hook — code commits are blocked until a test-only commit exists. No manual verification needed.
 
@@ -159,6 +189,11 @@ Before marking T-XXX complete, verify in `qa/FEAT-XXX/`:
 
 ### Spec-Diff Verification (Mandatory)
 
+**Sentinel activation** (after QA passes, before marking task complete):
+```bash
+touch ~/.claude/scripts/governance/state/.gate-spec-diff
+```
+
 Before marking ANY task complete:
 1. Enumerate every requirement from the original spec/task description
 2. For each requirement, cite `file:line` evidence (use Grep/Read to verify)
@@ -167,6 +202,11 @@ Before marking ANY task complete:
 5. Missing evidence = NOT complete
 
 At `light` level: brief inline check. At `full` level: document in QA artifact.
+
+**Sentinel deactivation** (all requirements have file:line evidence):
+```bash
+rm -f ~/.claude/scripts/governance/state/.gate-spec-diff
+```
 
 ---
 
@@ -303,6 +343,39 @@ If you catch yourself doing any of these, you've confused your role. Return to o
 - **Proceeding without artifact** → wait for it
 - **Running Bash on implementation code** → Bash is for lifecycle only
 - **"Just this once" / "Quick fix" / "I already know"** → spawn the subagent anyway. Subagent isolation prevents context pollution.
+
+## Sentinel & Validation Reference
+
+### Sentinels (in `~/.claude/scripts/governance/state/`)
+
+| Sentinel | When Set | When Cleared | What It Blocks |
+|----------|----------|--------------|----------------|
+| `.gate-pre-qa` | Coder returns `ready-for-review.md` | TDD evidence verified + test suite passes + validate-artifact passes | QA Tester and Garry-Review spawns |
+| `.gate-qa-c1` | Before spawning QA Tester C1 | `cycle-1.md` artifact produced and validated | QA Tester C2 spawns |
+| `.gate-spec-diff` | After QA passes | All requirements have `file:line` evidence | Task completion |
+
+### Validation Script
+
+```bash
+# Explicit invocation (after subagent returns):
+~/.claude/skills/lead-orchestrator/scripts/validate-artifact.sh <path>
+
+# Also fires automatically as PreToolUse Write hook on qa/ paths
+```
+
+**Checks per artifact type:**
+- `*ready-for-review*`: `## TDD Evidence` with table rows or `TDD-EXEMPT`, `ReviewCommit:<SHA>`
+- `*review-findings*`: P0/P1/P2 severity or explicit "no findings", summary section header
+- `*cycle-1*` / `*cycle-2*`: PASS/FAIL/PASS_WITH_CONCERNS verdict, test output section, task reference
+
+### Hook Scripts
+
+| Script | Matcher | Purpose |
+|--------|---------|---------|
+| `scripts/validate-artifact.sh` | Write (on `qa/` paths) | Blocks malformed QA artifacts from landing |
+| `scripts/orchestrator-step-gate.sh` | Agent | Blocks out-of-order subagent spawns when sentinels active |
+
+---
 
 ## Orchestration Log
 
