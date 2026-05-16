@@ -180,6 +180,29 @@ fix_permissions() {
     ok "Script permissions set"
 }
 
+# --- Install git hooks ---
+install_git_hooks() {
+    info "Installing git hooks..."
+
+    local hooks_src="$CLAUDE_DIR/hooks"
+    local hooks_dst="$CLAUDE_DIR/.git/hooks"
+
+    if [[ ! -d "$CLAUDE_DIR/.git" ]]; then
+        warn "Not a git repo, skipping hook installation"
+        return
+    fi
+
+    mkdir -p "$hooks_dst"
+
+    if [[ -f "$hooks_src/pre-commit" ]]; then
+        cp "$hooks_src/pre-commit" "$hooks_dst/pre-commit"
+        chmod +x "$hooks_dst/pre-commit"
+        ok "Pre-commit hook installed (blocks .env, credentials, secrets)"
+    else
+        warn "hooks/pre-commit not found, skipping"
+    fi
+}
+
 # --- Print summary ---
 print_summary() {
     echo ""
@@ -225,6 +248,7 @@ main() {
     create_personal_stubs
     install_deps
     fix_permissions
+    install_git_hooks
     print_summary
 }
 
