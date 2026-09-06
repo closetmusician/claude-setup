@@ -27,9 +27,9 @@
       "Bash(~/.claude/skills/gong-connect/bin/gong *)",
       "Bash(~/.claude/skills/tableau-connect/bin/tableau *)",
       "Bash(agent-browser *)",
-      "Edit(/Users/yklin/.claude/**)",
-      "Write(/Users/yklin/.claude/**)",
-      "Read(/Users/yklin/.claude/**)",
+      "Edit(__HOME__/.claude/**)",
+      "Write(__HOME__/.claude/**)",
+      "Read(__HOME__/.claude/**)",
       "mcp__plugin_episodic-memory_episodic-memory__search",
       "mcp__plugin_episodic-memory_episodic-memory__read"
     ],
@@ -76,36 +76,36 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
+            "command": "__HOME__/.claude/scripts/spine-tap.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/pre-agent-gate.sh"
+            "command": "__HOME__/.claude/scripts/governance/pre-agent-gate.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/constraint-wording-lint.sh",
+            "command": "__HOME__/.claude/scripts/governance/constraint-wording-lint.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/manifest-bind.sh"
+            "command": "__HOME__/.claude/scripts/governance/manifest-bind.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/skills/eng-planning/scripts/eng-planning-agent-gate.sh"
+            "command": "__HOME__/.claude/skills/eng-planning/scripts/eng-planning-agent-gate.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/skills/lead-orchestrator/scripts/orchestrator-step-gate.sh"
+            "command": "__HOME__/.claude/skills/lead-orchestrator/scripts/orchestrator-step-gate.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/skills/prd-writer/scripts/prd-writer-agent-gate.sh"
+            "command": "__HOME__/.claude/skills/prd-writer/scripts/prd-writer-agent-gate.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/multi-agent-auq-gate.sh"
+            "command": "__HOME__/.claude/scripts/governance/multi-agent-auq-gate.sh"
           },
           {
             "type": "command",
@@ -119,7 +119,7 @@
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/codex-cli-guard.sh"
+            "command": "__HOME__/.claude/scripts/codex-cli-guard.sh"
           }
         ]
       },
@@ -128,32 +128,32 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/role-enforcement.sh"
+            "command": "__HOME__/.claude/scripts/governance/role-enforcement.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/remote-destructive-hook.sh"
+            "command": "__HOME__/.claude/scripts/remote-destructive-hook.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/external-comms-hook.sh"
+            "command": "__HOME__/.claude/scripts/external-comms-hook.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/incident-freeze-enforcer.sh"
+            "command": "__HOME__/.claude/scripts/incident-freeze-enforcer.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/skill-routing-guard.sh"
+            "command": "__HOME__/.claude/scripts/skill-routing-guard.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/commit-staged-audit.sh",
+            "command": "__HOME__/.claude/scripts/commit-staged-audit.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/git-safety-hook.sh"
+            "command": "__HOME__/.claude/scripts/git-safety-hook.sh"
           },
           {
             "type": "command",
@@ -161,11 +161,11 @@
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/commit-order-guard.sh"
+            "command": "__HOME__/.claude/scripts/governance/commit-order-guard.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+            "command": "__HOME__/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
           }
         ]
       },
@@ -174,23 +174,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/role-enforcement.sh"
+            "command": "__HOME__/.claude/scripts/governance/role-enforcement.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/skills/eng-planning/scripts/eng-planning-write-gate.sh"
+            "command": "__HOME__/.claude/skills/eng-planning/scripts/eng-planning-write-gate.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/skills/lead-orchestrator/scripts/validate-artifact.sh"
+            "command": "__HOME__/.claude/skills/lead-orchestrator/scripts/validate-artifact.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/skills/prd-writer/scripts/prd-writer-write-gate.sh"
+            "command": "__HOME__/.claude/skills/prd-writer/scripts/prd-writer-write-gate.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+            "command": "__HOME__/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
           }
         ]
       },
@@ -199,11 +199,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/role-enforcement.sh"
+            "command": "__HOME__/.claude/scripts/governance/role-enforcement.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+            "command": "__HOME__/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
           }
         ]
       },
@@ -212,15 +212,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
+            "command": "__HOME__/.claude/scripts/spine-tap.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/task-spec-gate.sh"
+            "command": "__HOME__/.claude/scripts/task-spec-gate.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/multi-agent-auq-gate.sh"
+            "command": "__HOME__/.claude/scripts/governance/multi-agent-auq-gate.sh"
           },
           {
             "type": "command",
@@ -229,7 +229,7 @@
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/codex-cli-guard.sh"
+            "command": "__HOME__/.claude/scripts/codex-cli-guard.sh"
           }
         ]
       },
@@ -238,7 +238,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/orchestrator-context-guard.sh"
+            "command": "__HOME__/.claude/scripts/orchestrator-context-guard.sh"
           }
         ]
       },
@@ -247,7 +247,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/orchestrator-context-guard.sh"
+            "command": "__HOME__/.claude/scripts/orchestrator-context-guard.sh"
           }
         ]
       },
@@ -256,7 +256,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/orchestrator-context-guard.sh"
+            "command": "__HOME__/.claude/scripts/orchestrator-context-guard.sh"
           }
         ]
       },
@@ -265,7 +265,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/episodic-plan-path-gate.sh"
+            "command": "__HOME__/.claude/scripts/governance/episodic-plan-path-gate.sh"
           }
         ]
       },
@@ -274,7 +274,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/autonomous-push-guard.sh"
+            "command": "__HOME__/.claude/scripts/autonomous-push-guard.sh"
           }
         ]
       }
@@ -285,11 +285,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
+            "command": "__HOME__/.claude/scripts/spine-tap.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/post-agent-audit.sh"
+            "command": "__HOME__/.claude/scripts/governance/post-agent-audit.sh"
           },
           {
             "type": "command",
@@ -303,7 +303,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/activate-on-orchestrator.sh"
+            "command": "__HOME__/.claude/scripts/governance/activate-on-orchestrator.sh"
           }
         ]
       },
@@ -312,15 +312,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
+            "command": "__HOME__/.claude/scripts/spine-tap.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/incident-freeze-detector.sh"
+            "command": "__HOME__/.claude/scripts/incident-freeze-detector.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/evidence-ledger.sh"
+            "command": "__HOME__/.claude/scripts/evidence-ledger.sh"
           }
         ]
       },
@@ -329,7 +329,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
+            "command": "__HOME__/.claude/scripts/spine-tap.sh"
           }
         ]
       },
@@ -338,11 +338,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/evidence-ledger.sh"
+            "command": "__HOME__/.claude/scripts/evidence-ledger.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/harness-change-flag.sh"
+            "command": "__HOME__/.claude/scripts/harness-change-flag.sh"
           }
         ]
       },
@@ -351,11 +351,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/evidence-ledger.sh"
+            "command": "__HOME__/.claude/scripts/evidence-ledger.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/harness-change-flag.sh"
+            "command": "__HOME__/.claude/scripts/harness-change-flag.sh"
           }
         ]
       },
@@ -364,7 +364,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/auq-witness.sh"
+            "command": "__HOME__/.claude/scripts/governance/auq-witness.sh"
           }
         ]
       },
@@ -373,7 +373,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/autonomous-secret-scan.sh"
+            "command": "__HOME__/.claude/scripts/autonomous-secret-scan.sh"
           }
         ]
       },
@@ -382,7 +382,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/autonomous-secret-scan.sh"
+            "command": "__HOME__/.claude/scripts/autonomous-secret-scan.sh"
           }
         ]
       }
@@ -393,19 +393,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/notify.sh 'Task finished'"
+            "command": "__HOME__/.claude/scripts/notify.sh 'Task finished'"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/auto-journal.sh"
+            "command": "__HOME__/.claude/scripts/auto-journal.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/completion-claim-guard.sh"
+            "command": "__HOME__/.claude/scripts/completion-claim-guard.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/completion-gate-sentinel-check.sh",
+            "command": "__HOME__/.claude/scripts/governance/completion-gate-sentinel-check.sh",
             "timeout": 10000
           },
           {
@@ -415,19 +415,19 @@
           },
           {
             "type": "command",
-            "command": "bash /Users/yklin/.claude/scripts/analysis-reflex.sh"
+            "command": "bash __HOME__/.claude/scripts/analysis-reflex.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/harness-selfcheck.sh"
+            "command": "__HOME__/.claude/scripts/harness-selfcheck.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/harness-selfcheck-autonomous.sh"
+            "command": "__HOME__/.claude/scripts/harness-selfcheck-autonomous.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/heartbeat-stop-warn.sh"
+            "command": "__HOME__/.claude/scripts/heartbeat-stop-warn.sh"
           }
         ]
       }
@@ -438,11 +438,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/governance-cleanup.sh"
+            "command": "__HOME__/.claude/scripts/governance/governance-cleanup.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/pm-send-synthesize-hook.sh"
+            "command": "__HOME__/.claude/scripts/pm-send-synthesize-hook.sh"
           }
         ]
       }
@@ -453,7 +453,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/notify.sh 'Needs your input' Basso"
+            "command": "__HOME__/.claude/scripts/notify.sh 'Needs your input' Basso"
           }
         ]
       }
@@ -464,7 +464,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/session-start.sh"
+            "command": "__HOME__/.claude/scripts/session-start.sh"
           }
         ]
       }
@@ -475,15 +475,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/correction-capture.sh"
+            "command": "__HOME__/.claude/scripts/correction-capture.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/skill-retrieve.sh"
+            "command": "__HOME__/.claude/scripts/skill-retrieve.sh"
           },
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/codex-cli-nudge.sh"
+            "command": "__HOME__/.claude/scripts/codex-cli-nudge.sh"
           }
         ]
       }
@@ -491,7 +491,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/Users/yklin/.claude/scripts/statusline.sh"
+    "command": "__HOME__/.claude/scripts/statusline.sh"
   },
   "enabledPlugins": {
     "superpowers@superpowers-marketplace": false,

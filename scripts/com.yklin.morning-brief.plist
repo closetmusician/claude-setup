@@ -4,12 +4,12 @@
   <key>Label</key><string>com.yklin.morning-brief</string>
   <key>ProgramArguments</key><array>
     <string>/bin/bash</string>
-    <string>/Users/yklin/.claude/scripts/morning-brief.sh</string>
+    <string>$HOME/.claude/scripts/morning-brief.sh</string>
   </array>
   <key>StartCalendarInterval</key><dict>
     <key>Hour</key><integer>7</integer>
     <key>Minute</key><integer>57</integer>
   </dict>
-  <key>StandardOutPath</key><string>/Users/yklin/.claude/state/morning-brief.log</string>
-  <key>StandardErrorPath</key><string>/Users/yklin/.claude/state/morning-brief.log</string>
+  <key>StandardOutPath</key><string>$HOME/.claude/state/morning-brief.log</string>
+  <key>StandardErrorPath</key><string>$HOME/.claude/state/morning-brief.log</string>
 </dict></plist>

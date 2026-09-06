@@ -18,8 +18,8 @@ allowed-tools:
   - Glob
 ---
 <!--
-Intended final target: /Users/yklin/.claude/skills/harness-orientation/SKILL.md
-Draft source: /Users/yklin/.claude/docs/plans/fable-skills/drafts/skills/harness-orientation/SKILL.md
+Intended final target: $HOME/.claude/skills/harness-orientation/SKILL.md
+Draft source: $HOME/.claude/docs/plans/fable-skills/drafts/skills/harness-orientation/SKILL.md
 Draft status: candidate (planning artifact, not installed). Every structural
 count and live-state fact below is a snapshot — verify with the listed probe
 commands before trusting it. See §10.

@@ -38,7 +38,7 @@ first fan-out digs the *why*, not just the *what*.
 `{REGION}` (AMER | EMEA | APAC) · `{WL}` (wins | losses) · `{OUT}` (the run's output root) ·
 `{ROSTERS}` (`{OUT}/research/rosters/`) · `{PATH}` (the agent's own output file) ·
 `{FINANCE_CSV}` (the Finance-clean deal list) · `{FINANCE_XLSX}` (the source workbook) ·
-`{REPO}` (repo root you run tools from, e.g. `/Users/yklin/Code/PM`) ·
+`{REPO}` (repo root you run tools from, e.g. `$HOME/Code/PM`) ·
 `{OUTLIER_CELLS}` (this run's abnormal region×segment cells, filled after the spine returns).
 
 ---
