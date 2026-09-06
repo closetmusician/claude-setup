@@ -88,25 +88,76 @@ It strips heredocs first so the check can't be obfuscated. Like all hooks here, 
 
 ---
 
-## Skills
+## Skills — the crown jewels
 
-Skills are structured prompts in `skills/<name>/SKILL.md` that Claude invokes when a task matches. `rules/skill-routing.md` maps intents to skills. Highlights:
+Skills are structured, reusable prompts in `skills/<name>/SKILL.md`. Each one encodes a repeatable workflow — a review checklist, a debugging protocol, a report pipeline — so Claude follows a proven process instead of improvising. You don't invoke them by hand: `rules/skill-routing.md` maps plain-language intents to skills, and Claude picks the right one when your task matches. You can also read any `SKILL.md` directly to see exactly what it does.
 
-**Development & orchestration** — `lead-orchestrator` (coordinate subagent teams), `investigate` (root-cause debugging), `codebase-mapping`, `harness-orientation`, `handoff`.
+Most skills are short "routers" that pull in heavier `reference/` and `templates/` files on demand — so the prompt Claude loads stays small until the detail is actually needed.
 
-**Code & PR review** — `pr-review-pr` (multi-persona PR review), `garry-review` (engineering-preferences pass), `review` (structural safety), `diff-audit`.
+### Recently updated (the sharpest tools)
 
-**Planning & product** — `eng-planning`, `eng-stories`, `prd-writer`, `prd-review`, `plan-eng-review`, `plan-design-review`, `ceo-review`.
+These got the most work in mid-to-late 2026 and are the most battle-tested:
 
-**Testing & QA** — `qa` / `qa-only` (test a running app like a user), `e2e-test-writer`, `browse` (headless browser automation).
+- **`winloss-analysis`** *(updated Aug 2026)* — Produces executive-grade "Why We Win" / "Why We Lose" reports for a product line, split by region and segment. Leads with the **root cause** behind every number, not the CRM dropdown value; every figure carries a basis label and a citation. The `SKILL.md` is a thin router; the method lives in `reference/` files (evidence mining, root-cause protocol, quality rubric, insight patterns) with a golden HTML template. Distilled from a real analysis session, so the rigor is baked in.
+- **`teams-channel-research`** *(updated Jul 2026)* — Mines chat channels for customer feedback, deduplicates it, cross-references against a tracker, verifies each thread, runs an adversarial review, and produces a prioritized complaint report. A full pipeline, not a one-shot prompt.
+- **`csm-response`** — Takes a complaint report (from `teams-channel-research` or by hand) and drafts per-issue status updates plus 2–3 actionable workarounds, then posts replies back into the original threads.
+- **`mor-prep`** — Root-causes month-over-month metric moves ("why did bookings/retention move this month?") and builds the review deck.
+- **The connector suite** *(updated Aug 2026)* — one-time bootstraps that wire Claude to your data sources, each auth-aware and re-runnable when a session expires:
+  - `salesforce-connect` — logs the official `sf` CLI into a Salesforce org via browser OAuth (SSO/MFA-safe), then registers the Salesforce MCP server read-only. No secret file — auth lives in the CLI's own store.
+  - `tableau-connect` — registers the official Tableau MCP server; the access token lives in a `chmod 600` file outside the repo, never in git or chat.
+  - `gong-connect` — headless access to your own Gong via a captured web session (full transcripts, call listing, mining) without an admin API key.
+  - `glean-connect` — verifies/installs the Glean CLI and handles OAuth login for enterprise search.
+  - `connect-all` — umbrella command that verifies every source at once and prints a per-source status summary. Owns no auth logic itself; it just calls each connector's own verb.
 
-**Design** — `design-review`, `design-implement`, `design-html`, `design-shotgun`.
+### By purpose
 
-**Shipping** — `ship` (test → review → PR), `pr-briefing`.
+**Development & orchestration**
+- `lead-orchestrator` — coordinates teams of subagents (e.g. a coder plus an independent QA reviewer that re-runs the work before any "done" claim). Modes for feature builds, backlog burn-down, audits, and live debugging.
+- `investigate` — structured root-cause debugging for bugs that span files, are intermittent, or have several plausible causes.
+- `codebase-mapping` — spawns explorer agents to produce architecture docs and feature-to-code maps for an unfamiliar project.
+- `harness-orientation` — orients you (or Claude) to how this whole setup works.
+- `handoff` — compresses a session's state, progress, and open threads into a short handoff note for the next session.
+- `hook-authoring` — helps write and debug Claude Code hooks.
 
-**Connectors** — `atlassian-connect`, `salesforce-connect`, `tableau-connect`, `gong-connect`, `glean-connect`, `connect-all`.
+**Code & PR review**
+- `pr-review-pr` — comprehensive PR-diff review with specialized reviewer personas and a skeptical verifier pass. Can compare competing PRs.
+- `garry-review` — reviews code you just wrote against engineering preferences (DRY, edge cases, tests, naming) before you commit.
+- `review` — focused structural-safety review (SQL, side-effects, LLM calls).
+- `diff-audit` — checks that a rewrite or compression kept everything the original said, comparing semantic unit by unit.
 
-...and more. Run Claude and describe your task — it routes automatically. Browse `skills/` to read any one directly.
+**Planning & product**
+- `eng-planning` — turns an approved PRD into a feature design doc (and an API contract when there are API boundaries).
+- `eng-stories` — decomposes a PRD into ready-to-work epics and stories with behavioral acceptance criteria.
+- `prd-writer` — writes a data-driven PRD from rough notes; enforces testable hypotheses and honest prior-art.
+- `prd-review` — adversarial critique of an existing PRD.
+- `plan-eng-review` / `plan-design-review` — engineering and design/UX critiques of a plan doc.
+- `ceo-review` — founder-mode scope and strategy check ("is this the right thing to build?").
+- `feature-enablement` — generates sales/CS collateral (messaging foundation, battle cards, FAQs, demo scripts) from a feature spec.
+
+**Testing & QA**
+- `qa` / `qa-only` — tests a running web app like a real user and produces a report with a health score; `qa` can also fix bugs on request, `qa-only` never edits code.
+- `e2e-test-writer` — turns PRD requirements into runnable YAML acceptance tests.
+- `browse` — fast persistent headless browser for navigation, screenshots, downloads, and one-off automation.
+
+**Design**
+- `design-review` — visual QA of a live site or component.
+- `design-shotgun` — generates several design variants to explore options.
+- `design-html` — turns a design into a finished HTML page.
+- `design-implement` — implements an approved mock as real front-end components.
+
+**Shipping & ops**
+- `ship` — the deploy workflow: run tests, review the diff, bump the version, update the changelog, commit, push, open a PR.
+- `pr-briefing` — generates a structured review guide for large PRs.
+- `guard` — flips the session into maximum-safety mode.
+- `retro` — builds an engineering retrospective ("what did we ship this week?").
+- `skill-lifecycle` — audits, creates, and archives skills to keep the library healthy.
+
+**Second opinion**
+- `codex` — routes a review, challenge, or question to an external model for an independent take.
+
+**Connectors & integrations** — see the "Recently updated" section above, plus `atlassian-connect` / `atlassian-update` (Jira + Confluence, comment-safe page edits), `jira-update` (rich ticket updates and epic/story creation from design docs), and `o365-doc-edit` (safe Office/SharePoint document editing).
+
+...and more. Run Claude, describe your task in plain language, and it routes automatically.
 
 ---
 
