@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 48-HOUR BURN-IN ONLY (fable-qa-0706). Auto-expiry: 2026-07-08.
+     To unload after burn-in: launchctl unload ~/Library/LaunchAgents/com.yklin.burnin.plist
+     To load (go-live decision by orchestrator): launchctl load ~/Library/LaunchAgents/com.yklin.burnin.plist
+     NOT loaded by default — orchestrator presents the go-live decision to Yu-Kuan first. -->
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.yklin.burnin</string>
+  <key>ProgramArguments</key><array>
+    <string>/bin/bash</string>
+    <string>/Users/yklin/.claude/scripts/burnin-score.sh</string>
+  </array>
+  <key>StartInterval</key><integer>21600</integer>
+  <key>StandardOutPath</key><string>/Users/yklin/.claude/state/burnin/burnin.log</string>
+  <key>StandardErrorPath</key><string>/Users/yklin/.claude/state/burnin/burnin.log</string>
+  <key>RunAtLoad</key><false/>
+</dict></plist>

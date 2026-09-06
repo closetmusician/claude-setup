@@ -1,0 +1,1 @@
+{"ts": "2026-07-07T22:22:02.855Z", "schema": 1, "session_id": "unknown", "event_type": "incident", "source": "incident-freeze-detector.sh", "project": "~global", "payload": {"class": "freeze_triggered", "cause": "destructive_delete_recovery_fail"}, "outcome": "denied"}

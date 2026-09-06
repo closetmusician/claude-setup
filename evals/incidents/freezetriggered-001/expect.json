@@ -1,0 +1,1 @@
+{"hook":"completion-claim-guard.sh","class":"freezetriggered","expect":"block","reason_contains":"freezetriggered","expected_gap":false}

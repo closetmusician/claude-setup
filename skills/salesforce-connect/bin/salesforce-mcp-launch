@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# ABOUTME: Launcher shim for the @salesforce/mcp server, registered as the MCP command.
+# ABOUTME: Prepends Homebrew node@24 to PATH so the server AND every child it spawns resolve
+# ABOUTME: node>=22 — the server's bin uses `#!/usr/bin/env node`, which reads PATH, and
+# ABOUTME: Claude Code launches MCP servers with node@20 first (sf-mcp crashes on node<22).
+# ABOUTME: All args after the shim (e.g. --orgs, --tools) pass straight through to the server.
+set -euo pipefail
+
+NODE24_DIR="${SF_NODE_DIR:-/opt/homebrew/opt/node@24/bin}"
+export PATH="$NODE24_DIR:$PATH"
+
+# exec so the server inherits our PID; its shebang now resolves node@24 from the front of PATH.
+exec "$NODE24_DIR/npx" -y "@salesforce/mcp" "$@"

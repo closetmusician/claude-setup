@@ -1,0 +1,2 @@
+{"type":"user","message":{"content":"Can you finish the task?"}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"Implementation complete. Everything is wired up and working. The task is done."}]}}

@@ -1,0 +1,2710 @@
+#!/usr/bin/env bash
+# ABOUTME: harness — read/control-plane CLI for the telemetry spine (Pillar I).
+# ABOUTME: Provides query, trace, incidents, metrics, doctor subcommands over
+# ABOUTME: the SQLite read-replica of $STATE/state/events.ndjson. Lazy ingest
+# ABOUTME: via byte-offset cursor; replica is a disposable cache. BSD/macOS only.
+# ABOUTME: Implemented: queue(VI-1/VI-2), brief(III-5), eval apply/reject(III-5). Stubs: escalations(VI/VII).
+
+set -euo pipefail
+
+# ── $STATE resolution (AMENDMENT 2026-07-04, gate I-5) ───────────────────────
+# Global durable home: ~/.claude/state (always).
+# Per-project .agents/claude-governance/ is destroyed by governance-cleanup.sh on
+# SessionEnd, so it cannot serve as a durable spine home.
+# HARNESS_STATE_OVERRIDE still works for tests.
+_resolve_state() {
+  printf '%s/.claude/state' "$HOME"
+}
+
+STATE="${HARNESS_STATE_OVERRIDE:-$(_resolve_state)}"
+EVENTS="$STATE/state/events.ndjson"
+DB="$STATE/state/events.db"
+CURSOR="$STATE/state/.events.db.cursor"
+ARCHIVE_DIR="$STATE/state/events-archive"
+
+# ── Usage / help ───────────────────────────────────────────────────────────────
+usage() {
+  cat <<'EOF'
+harness — telemetry spine read-plane CLI (Pillar I)
+
+Usage: harness <subcommand> [options]
+
+Implemented subcommands:
+  query       Filter events with --since, --type, --project, --session,
+              --outcome, --jq <expr>, --limit
+  trace       Ordered spawn→result chain for a session/trace id
+  incidents   De-noised incident census (--since, --severity, --open)
+  metrics     Time series for metric events (name [--since])
+              North-star: metrics trust_incident_rate [--since DUR]
+  doctor      Health check; --rotate compresses log; --rebuild re-ingests
+  recall      Search journal-index + lessons + spine + gbrain (Pillar V)
+              Usage: recall <query> [top_n]
+
+Implemented subcommands (continued):
+  eval run    Run eval corpus + guard suites [--with-patch <diff>]
+  eval ls     List corpus fixtures
+  replay      Golden trace-replay regression guard (Pillar VII)
+              Usage: replay <trace-name> --assert-decisions
+                     replay --all-golden
+
+Implemented subcommands (continued):
+  brief       Morning digest: recent incidents + STAGED PATCHES (Pillar III §Task 5)
+  eval apply  Dry-run: show WOULD-WRITE <target> for a staged patch (no write)
+  eval reject Remove a staged patch from the index
+
+Implemented subcommands (continued):
+  queue       Durable work queue (VI-1/VI-2): ls, add, approve, reject, rm, show, clear-freeze
+
+Stub subcommands (not yet implemented):
+  escalations not yet implemented (Pillar VI/VII)
+
+Options:
+  --help      Show this message
+EOF
+  echo ""
+  echo "STATE resolved as: $STATE"
+  echo "Events: $EVENTS"
+}
+
+# ── Dependency check ──────────────────────────────────────────────────────────
+_require() {
+  command -v "$1" >/dev/null 2>&1 || { echo "harness: required tool '$1' not found" >&2; exit 1; }
+}
+_require sqlite3
+_require python3
+_require jq
+
+# ── Lazy SQLite ingest (incremental by byte-offset cursor) ────────────────────
+# Purpose: Bring events.db up to date with events.ndjson via byte-offset cursor.
+#   Reads cursor file for last-ingested byte offset, tails the new bytes,
+#   shreds each NDJSON line into an INSERT, advances cursor. Creates schema on
+#   first run. Archive .ndjson.zst files ingested once (tracked by name).
+# Usage: _ingest_events
+# Gotchas: Never writes to stdout; DB is a cache, not source of truth.
+_ingest_events() {
+  mkdir -p "$STATE/state" || true
+
+  # Bootstrap DB schema if it doesn't exist or is empty
+  sqlite3 "$DB" "
+    CREATE TABLE IF NOT EXISTS events (
+      ts TEXT,
+      schema_ver INTEGER,
+      session_id TEXT,
+      agent_id TEXT,
+      event_type TEXT,
+      source TEXT,
+      project TEXT,
+      payload TEXT,
+      tool TEXT,
+      skill TEXT,
+      outcome TEXT,
+      evidence_ref TEXT,
+      trace_id TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_ts          ON events(ts);
+    CREATE INDEX IF NOT EXISTS idx_event_type  ON events(event_type);
+    CREATE INDEX IF NOT EXISTS idx_session_id  ON events(session_id);
+    CREATE INDEX IF NOT EXISTS idx_trace_id    ON events(trace_id);
+    CREATE TABLE IF NOT EXISTS ingested_archives (name TEXT PRIMARY KEY);
+  " 2>/dev/null || true
+
+  # Read byte cursor
+  local offset=0
+  if [[ -f "$CURSOR" ]]; then
+    offset="$(cat "$CURSOR" 2>/dev/null || echo 0)"
+    [[ "$offset" =~ ^[0-9]+$ ]] || offset=0
+  fi
+
+  # Check if events file exists and has new content
+  if [[ ! -f "$EVENTS" ]]; then
+    return 0
+  fi
+
+  local eof
+  eof="$(wc -c < "$EVENTS" | tr -d ' ')"
+  if [[ "$eof" -le "$offset" ]]; then
+    return 0  # nothing new
+  fi
+
+  # Shred new bytes into DB via python3
+  local new_offset
+  new_offset="$(python3 - "$EVENTS" "$DB" "$offset" <<'PYEOF'
+import sys, json, sqlite3
+
+events_path = sys.argv[1]
+db_path     = sys.argv[2]
+offset      = int(sys.argv[3])
+
+con = sqlite3.connect(db_path)
+cur = con.cursor()
+inserted = 0
+
+with open(events_path, 'rb') as f:
+    f.seek(offset)
+    new_offset = offset
+    for raw_line in f:
+        new_offset += len(raw_line)
+        line = raw_line.decode('utf-8', errors='replace').strip()
+        if not line:
+            continue
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        cur.execute("""
+            INSERT INTO events
+              (ts, schema_ver, session_id, agent_id, event_type, source, project,
+               payload, tool, skill, outcome, evidence_ref, trace_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            ev.get('ts'),
+            ev.get('schema', ev.get('schema_ver')),
+            ev.get('session_id'),
+            ev.get('agent_id'),
+            ev.get('event_type'),
+            ev.get('source'),
+            ev.get('project'),
+            json.dumps(ev.get('payload', {})),
+            ev.get('tool'),
+            ev.get('skill'),
+            ev.get('outcome'),
+            ev.get('evidence_ref'),
+            ev.get('trace_id'),
+        ))
+        inserted += 1
+
+con.commit()
+con.close()
+print(new_offset)
+PYEOF
+)"
+  # Advance cursor
+  printf '%s' "${new_offset:-$offset}" > "$CURSOR" 2>/dev/null || true
+
+  # Ingest any new archives not yet seen
+  if [[ -d "$ARCHIVE_DIR" ]]; then
+    for arc in "$ARCHIVE_DIR"/*.ndjson.zst; do
+      [[ -f "$arc" ]] || continue
+      local arcname
+      arcname="$(basename "$arc")"
+      local already
+      already="$(sqlite3 "$DB" "SELECT COUNT(*) FROM ingested_archives WHERE name='$(printf '%s' "$arcname" | sed "s/'/''/g")';" 2>/dev/null || echo 0)"
+      if [[ "$already" -eq 0 ]]; then
+        # Decompress and ingest
+        local tmp_arc
+        tmp_arc="$(mktemp /tmp/harness-arc-XXXXXX.ndjson)"
+        zstd -d -q -o "$tmp_arc" "$arc" 2>/dev/null || { rm -f "$tmp_arc"; continue; }
+        python3 - "$tmp_arc" "$DB" 0 <<'PYEOF' >/dev/null 2>&1 || true
+import sys, json, sqlite3
+events_path = sys.argv[1]
+db_path     = sys.argv[2]
+con = sqlite3.connect(db_path)
+cur = con.cursor()
+with open(events_path, 'rb') as f:
+    for raw_line in f:
+        line = raw_line.decode('utf-8', errors='replace').strip()
+        if not line: continue
+        try: ev = json.loads(line)
+        except: continue
+        cur.execute("""INSERT INTO events
+          (ts,schema_ver,session_id,agent_id,event_type,source,project,
+           payload,tool,skill,outcome,evidence_ref,trace_id)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+          (ev.get('ts'),ev.get('schema',ev.get('schema_ver')),ev.get('session_id'),
+           ev.get('agent_id'),ev.get('event_type'),ev.get('source'),ev.get('project'),
+           json.dumps(ev.get('payload',{})),ev.get('tool'),ev.get('skill'),
+           ev.get('outcome'),ev.get('evidence_ref'),ev.get('trace_id')))
+con.commit()
+con.close()
+PYEOF
+        rm -f "$tmp_arc"
+        sqlite3 "$DB" "INSERT OR IGNORE INTO ingested_archives(name) VALUES('$(printf '%s' "$arcname" | sed "s/'/''/g")');" 2>/dev/null || true
+      fi
+    done
+  fi
+}
+
+# ── Duration parser (--since 1h / 7d / 180d / 30m etc.) ─────────────────────
+# Purpose: Convert human duration string to ISO8601 cutoff timestamp.
+# Usage: _since_ts "1h"  # returns RFC3339 string
+# Gotchas: Uses python3 for reliable datetime arithmetic on BSD.
+_since_ts() {
+  local dur="$1"
+  python3 -c "
+import sys, re
+from datetime import datetime, timezone, timedelta
+dur = '$dur'
+m = re.match(r'^(\d+)([smhd])$', dur)
+if not m:
+    sys.stderr.write('harness: invalid --since value: ' + dur + '\n')
+    sys.exit(1)
+n, unit = int(m.group(1)), m.group(2)
+delta = {'s': timedelta(seconds=n), 'm': timedelta(minutes=n),
+         'h': timedelta(hours=n),   'd': timedelta(days=n)}[unit]
+cutoff = datetime.now(timezone.utc) - delta
+print(cutoff.strftime('%Y-%m-%dT%H:%M:%S.000Z'))
+"
+}
+
+# ── harness query ─────────────────────────────────────────────────────────────
+# Purpose: Filter events with SQL WHERE compiled from flags; optional --jq post-filter.
+# Usage: harness query [--since DUR] [--type T] [--project P] [--session S]
+#        [--outcome O] [--jq EXPR] [--limit N]
+# Gotchas: All SQL params passed via printf-escaped substitution; no user input
+#   interpolated directly into SQL strings.
+cmd_query() {
+  local since="" type_filter="" project_filter="" session_filter=""
+  local outcome_filter="" jq_expr="" limit=50
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --since)    since="$2";          shift 2 ;;
+      --type)     type_filter="$2";    shift 2 ;;
+      --project)  project_filter="$2"; shift 2 ;;
+      --session)  session_filter="$2"; shift 2 ;;
+      --outcome)  outcome_filter="$2"; shift 2 ;;
+      --jq)       jq_expr="$2";        shift 2 ;;
+      --limit)    limit="$2";          shift 2 ;;
+      --help) echo "harness query [--since DUR] [--type T] [--project P] [--session S] [--outcome O] [--jq EXPR] [--limit N]" ; return 0 ;;
+      *) echo "harness query: unknown option: $1" >&2; return 1 ;;
+    esac
+  done
+
+  _ingest_events
+
+  # REQ-01: convert human duration to ISO cutoff before SQL bind (fixes MASTER-07)
+  # If value is already an ISO timestamp (contains 'T'), pass through unchanged.
+  local since_ts=""
+  if [[ -n "$since" ]]; then
+    if [[ "$since" == *T* ]]; then
+      since_ts="$since"
+    else
+      since_ts="$(_since_ts "$since")" || { echo "harness query: invalid --since: $since" >&2; return 1; }
+    fi
+  fi
+
+  # Build WHERE clauses using parameterized SQL (via printf-escaped values in python3)
+  # Use python3 to build and execute the query safely
+  python3 - "$DB" "$since_ts" "$type_filter" "$project_filter" "$session_filter" \
+                  "$outcome_filter" "$limit" "$jq_expr" <<'PYEOF'
+import sys, json, sqlite3
+
+db_path        = sys.argv[1]
+since          = sys.argv[2]
+type_filter    = sys.argv[3]
+project_filter = sys.argv[4]
+session_filter = sys.argv[5]
+outcome_filter = sys.argv[6]
+limit          = int(sys.argv[7]) if sys.argv[7].isdigit() else 50
+jq_expr        = sys.argv[8]
+
+if not db_path:
+    sys.exit(0)
+
+try:
+    con = sqlite3.connect(db_path)
+except Exception as e:
+    print(f"harness: cannot open DB: {e}", file=sys.stderr)
+    sys.exit(1)
+
+clauses = []
+params  = []
+
+if since:
+    clauses.append("ts >= ?")
+    params.append(since)
+if type_filter:
+    clauses.append("event_type = ?")
+    params.append(type_filter)
+if project_filter:
+    clauses.append("project = ?")
+    params.append(project_filter)
+if session_filter:
+    clauses.append("session_id = ?")
+    params.append(session_filter)
+if outcome_filter:
+    clauses.append("outcome = ?")
+    params.append(outcome_filter)
+
+where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+sql = f"""
+    SELECT ts, schema_ver, session_id, agent_id, event_type, source, project,
+           payload, tool, skill, outcome, evidence_ref, trace_id
+    FROM events
+    {where}
+    ORDER BY ts DESC
+    LIMIT ?
+"""
+params.append(limit)
+
+cur = con.cursor()
+cur.execute(sql, params)
+rows = cur.fetchall()
+con.close()
+
+cols = ['ts','schema','session_id','agent_id','event_type','source','project',
+        'payload','tool','skill','outcome','evidence_ref','trace_id']
+
+# REQ-02 fix (MASTER-23): only emit raw rows when no --jq; suppress first block when --jq set
+if not jq_expr:
+    for row in rows:
+        obj = {}
+        for k, v in zip(cols, row):
+            if k == 'payload':
+                try: obj[k] = json.loads(v) if v else {}
+                except: obj[k] = v
+            elif v is not None:
+                obj[k] = v
+        print(json.dumps(obj))
+else:
+    # --jq: emit only the projection, not the raw rows
+    import subprocess
+    for row in rows:
+        obj = {}
+        for k, v in zip(cols, row):
+            if k == 'payload':
+                try: obj[k] = json.loads(v) if v else {}
+                except: obj[k] = v
+            elif v is not None:
+                obj[k] = v
+        try:
+            result = subprocess.run(
+                ['jq', '-r', jq_expr],
+                input=json.dumps(obj).encode(),
+                capture_output=True
+            )
+            if result.returncode == 0:
+                sys.stdout.write(result.stdout.decode())
+        except Exception:
+            pass
+PYEOF
+}
+
+# ── harness trace ─────────────────────────────────────────────────────────────
+# Purpose: Reconstruct ordered spawn→result→trust chain for a session/trace id.
+#   Groups by trace_id (fallback session_id), orders by ts, nests agent_result
+#   under its agent_spawn.
+# Usage: harness trace <trace_id|session_id>
+# Gotchas: ID matched against both trace_id and session_id columns.
+cmd_trace() {
+  local id="${1:-}"
+  if [[ -z "$id" ]]; then
+    echo "harness trace: requires a trace_id or session_id argument" >&2
+    return 1
+  fi
+
+  _ingest_events
+
+  python3 - "$DB" "$id" <<'PYEOF'
+import sys, json, sqlite3
+
+db_path = sys.argv[1]
+search_id = sys.argv[2]
+
+try:
+    con = sqlite3.connect(db_path)
+except Exception as e:
+    print(f"harness: cannot open DB: {e}", file=sys.stderr)
+    sys.exit(1)
+
+cur = con.cursor()
+# Match trace_id OR session_id
+cur.execute("""
+    SELECT ts, event_type, session_id, agent_id, trace_id, source, payload, outcome, skill, tool
+    FROM events
+    WHERE trace_id = ? OR session_id = ?
+    ORDER BY ts ASC
+""", (search_id, search_id))
+rows = cur.fetchall()
+con.close()
+
+if not rows:
+    print(f"(no events found for id: {search_id})")
+    sys.exit(0)
+
+# Build ordered tree: nest agent_result under corresponding agent_spawn
+spawns = {}   # agent_id -> row index
+output = []   # list of (indent, row_dict)
+
+for row in rows:
+    ts, etype, session_id, agent_id, trace_id, source, payload_raw, outcome, skill, tool = row
+    try:
+        payload = json.loads(payload_raw) if payload_raw else {}
+    except:
+        payload = {}
+    rd = {
+        'ts': ts, 'event_type': etype, 'session_id': session_id,
+        'agent_id': agent_id, 'trace_id': trace_id, 'source': source,
+        'payload': payload, 'outcome': outcome, 'skill': skill, 'tool': tool
+    }
+
+    if etype == 'agent_spawn':
+        if agent_id:
+            spawns[agent_id] = len(output)
+        output.append((0, rd))
+    elif etype == 'agent_result' and agent_id and agent_id in spawns:
+        # Insert right after its spawn (indented)
+        spawn_idx = spawns[agent_id]
+        # Find next element after spawn_idx at indent 0 to insert before it
+        insert_after = spawn_idx + 1
+        # skip any already-nested items
+        while insert_after < len(output) and output[insert_after][0] > 0:
+            insert_after += 1
+        output.insert(insert_after, (1, rd))
+    else:
+        output.append((0, rd))
+
+# Print tree
+for indent, rd in output:
+    prefix = "  " * indent + ("└─ " if indent > 0 else "")
+    etype = rd['event_type']
+    ts    = rd['ts'] or ''
+    aid   = rd['agent_id'] or ''
+    out   = rd['outcome'] or ''
+    sk    = rd['skill'] or ''
+    tl    = rd['tool'] or ''
+    extras = []
+    if aid:   extras.append(f"agent={aid[:8]}")
+    if out:   extras.append(f"outcome={out}")
+    if sk:    extras.append(f"skill={sk}")
+    if tl:    extras.append(f"tool={tl}")
+    extra_str = " " + " ".join(extras) if extras else ""
+    print(f"{prefix}[{ts}] {etype}{extra_str}")
+
+PYEOF
+}
+
+# ── harness incidents ─────────────────────────────────────────────────────────
+# Purpose: De-noised incident census. Collapses duplicate/retry noise per the
+#   audit's 262→46 ratio. Filters incident + trust_decision(outcome=denied);
+#   excludes probe sessions, self-test fixtures, deduplicates within 60s windows.
+# Usage: harness incidents [--since DUR] [--severity P0|P1|P2] [--open]
+# Gotchas: Uses python3 for the 60s dedup window logic (not doable in pure SQL).
+cmd_incidents() {
+  local since="" severity="" open_only=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --since)    since="$2";    shift 2 ;;
+      --severity) severity="$2"; shift 2 ;;
+      --open)     open_only=1;   shift ;;
+      --help) echo "harness incidents [--since DUR] [--severity P0|P1|P2] [--open]"; return 0 ;;
+      *) echo "harness incidents: unknown option: $1" >&2; return 1 ;;
+    esac
+  done
+
+  _ingest_events
+
+  # REQ-01: convert human duration to ISO cutoff before SQL bind (fixes MASTER-07)
+  # If value is already an ISO timestamp (contains 'T'), pass through unchanged.
+  local since_ts=""
+  if [[ -n "$since" ]]; then
+    if [[ "$since" == *T* ]]; then
+      since_ts="$since"
+    else
+      since_ts="$(_since_ts "$since")" || { echo "harness incidents: invalid --since: $since" >&2; return 1; }
+    fi
+  fi
+
+  python3 - "$DB" "$since_ts" "$severity" "$open_only" <<'PYEOF'
+import sys, json, sqlite3
+from datetime import datetime, timezone
+
+db_path   = sys.argv[1]
+since     = sys.argv[2]
+severity  = sys.argv[3]
+open_only = sys.argv[4] == '1'
+
+try:
+    con = sqlite3.connect(db_path)
+except Exception as e:
+    print(f"harness: cannot open DB: {e}", file=sys.stderr)
+    sys.exit(1)
+
+cur = con.cursor()
+
+# Benign err_class allowlist (noise)
+BENIGN_CLASSES = {'PROBE', 'TEST', 'FIXTURE', 'CANARY', 'synthetic'}
+
+# Fetch candidate rows: incident events + denied trust_decision events
+clauses = ["(event_type = 'incident' OR (event_type = 'trust_decision' AND outcome = 'denied'))"]
+params = []
+
+if since:
+    clauses.append("ts >= ?")
+    params.append(since)
+
+where = "WHERE " + " AND ".join(clauses)
+cur.execute(f"""
+    SELECT ts, event_type, session_id, agent_id, project, outcome, payload, evidence_ref
+    FROM events
+    {where}
+    ORDER BY ts ASC
+""", params)
+rows = cur.fetchall()
+con.close()
+
+# De-noising pass
+# 1. Exclude project~'PROBE' (project containing PROBE)
+# 2. Exclude fixture/self-test sessions (payload has is_fixture or class in BENIGN)
+# 3. 60s dedup: collapse identical (project, class, detail) within 60s window
+# 4. Severity filter
+# 5. Open filter (outcome != 'ok' / not resolved)
+
+def parse_ts(s):
+    if not s:
+        return None
+    try:
+        s = s.rstrip('Z')
+        if '.' in s:
+            return datetime.fromisoformat(s + '+00:00')
+        return datetime.fromisoformat(s + '.000+00:00')
+    except:
+        return None
+
+real_incidents = []
+seen_dedup = {}  # (project, cls, detail) -> last_ts
+
+for row in rows:
+    ts_str, etype, session_id, agent_id, project, outcome, payload_raw, evidence_ref = row
+    try:
+        payload = json.loads(payload_raw) if payload_raw else {}
+    except:
+        payload = {}
+
+    # Noise filter 1: project contains PROBE (case-insensitive)
+    if project and 'PROBE' in project.upper():
+        continue
+
+    # Noise filter 2: self-test / fixture markers
+    # REQ-02 fix (MASTER-25): trust_decision events use guard/claim_type; incident events use class/detail
+    # fall back through multiple key aliases so detail is never blank
+    cls = (payload.get('class') or payload.get('err_class')
+           or payload.get('guard') or payload.get('claim_type') or '')
+    detail = (payload.get('detail') or payload.get('err_msg_digest')
+              or payload.get('reason') or payload.get('claim')
+              or payload.get('cause') or payload.get('claim_type') or '')
+    if str(cls).upper() in BENIGN_CLASSES:
+        continue
+    if payload.get('is_fixture') or payload.get('is_canary'):
+        continue
+    # Skip canary events explicitly
+    if str(cls) == 'canary' or str(detail).startswith('canary:'):
+        continue
+
+    # Severity filter
+    sev = payload.get('severity', '')
+    if severity and sev and sev != severity:
+        continue
+
+    # 60s dedup window
+    dedup_key = (project or '', str(cls), str(detail)[:80])
+    ts = parse_ts(ts_str)
+    if dedup_key in seen_dedup and ts:
+        last_ts = seen_dedup[dedup_key]
+        if last_ts and (ts - last_ts).total_seconds() < 60:
+            continue  # collapse as duplicate
+    if ts:
+        seen_dedup[dedup_key] = ts
+
+    # Open filter: treat outcome='ok' or evidence_ref set as resolved
+    if open_only and (outcome == 'ok' or evidence_ref):
+        continue
+
+    real_incidents.append({
+        'ts': ts_str, 'event_type': etype, 'session_id': session_id,
+        'project': project, 'class': cls, 'detail': detail,
+        'severity': sev, 'outcome': outcome
+    })
+
+print(f"Real incidents: {len(real_incidents)} (after de-noising from {len(rows)} raw)")
+print()
+for inc in real_incidents:
+    sev_tag  = f"[{inc['severity']}] " if inc['severity'] else ""
+    proj_tag = f"{inc['project']} " if inc['project'] else ""
+    cls_tag  = str(inc['class']) if inc['class'] else inc['event_type']
+    det      = str(inc['detail'])[:60] if inc['detail'] else ''
+    print(f"  {inc['ts'] or '?'} {sev_tag}{proj_tag}{cls_tag}: {det}")
+PYEOF
+}
+
+# ── harness metrics ───────────────────────────────────────────────────────────
+# Purpose: Time series for metric events by name; tabular or TSV output.
+# Usage: harness metrics [name] [--since DUR]
+# Gotchas: If no name given, lists all distinct metric names.
+cmd_metrics() {
+  local name="" since=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --since) since="$2"; shift 2 ;;
+      --help)  echo "harness metrics [name] [--since DUR]"; return 0 ;;
+      --*)     echo "harness metrics: unknown option: $1" >&2; return 1 ;;
+      *)       name="$1"; shift ;;
+    esac
+  done
+
+  _ingest_events
+
+  # REQ-01: convert human duration to ISO cutoff before SQL bind (fixes MASTER-07)
+  # If value is already an ISO timestamp (contains 'T'), pass through unchanged.
+  local since_ts=""
+  if [[ -n "$since" ]]; then
+    if [[ "$since" == *T* ]]; then
+      since_ts="$since"
+    else
+      since_ts="$(_since_ts "$since")" || { echo "harness metrics: invalid --since: $since" >&2; return 1; }
+    fi
+  fi
+
+  python3 - "$DB" "$name" "$since_ts" <<'PYEOF'
+import sys, json, sqlite3
+
+db_path = sys.argv[1]
+name    = sys.argv[2]
+since   = sys.argv[3]
+
+try:
+    con = sqlite3.connect(db_path)
+except Exception as e:
+    print(f"harness: cannot open DB: {e}", file=sys.stderr)
+    sys.exit(1)
+
+cur = con.cursor()
+
+if not name:
+    # List distinct metric names
+    clauses = ["event_type = 'metric'"]
+    params = []
+    if since:
+        clauses.append("ts >= ?")
+        params.append(since)
+    cur.execute(f"SELECT DISTINCT json_extract(payload,'$.name') FROM events WHERE {' AND '.join(clauses)}", params)
+    names = [r[0] for r in cur.fetchall() if r[0]]
+    con.close()
+    if not names:
+        print("(no metric events found)")
+    else:
+        print("Metric names:")
+        for n in sorted(names):
+            print(f"  {n}")
+    sys.exit(0)
+
+# ── Computed metric: trust_incident_rate (north-star, II.5) ─────────────────
+# Purpose: ratio of de-noised incidents per 100 session_starts.
+# Computed from spine events; not stored as individual metric rows.
+if name == 'trust_incident_rate':
+    since_clause = ""
+    since_params = []
+    if since:
+        since_clause = "AND ts >= ?"
+        since_params = [since]
+
+    # Count session_start events
+    cur.execute(f"""
+        SELECT COUNT(*) FROM events
+        WHERE event_type = 'session_start' {since_clause}
+    """, since_params)
+    session_count = (cur.fetchone() or [0])[0] or 0
+
+    # Count de-noised incidents: incident + trust_decision(denied), exclude noise
+    cur.execute(f"""
+        SELECT COUNT(*) FROM events
+        WHERE (event_type = 'incident'
+               OR (event_type = 'trust_decision' AND outcome = 'denied'))
+              AND (project IS NULL OR UPPER(project) NOT LIKE '%PROBE%')
+              AND (payload IS NULL OR (
+                    json_extract(payload,'$.is_fixture') IS NULL
+                    AND json_extract(payload,'$.is_canary') IS NULL
+                    AND UPPER(COALESCE(json_extract(payload,'$.class'),'')) NOT IN ('PROBE','TEST','FIXTURE','CANARY','SYNTHETIC')
+              ))
+              {since_clause}
+    """, since_params)
+    incident_count = (cur.fetchone() or [0])[0] or 0
+
+    con.close()
+    since_label = f" (since {since})" if since else " (all time)"
+    if session_count == 0:
+        ratio_str = "N/A (0 sessions)"
+        ratio_100 = None
+    else:
+        ratio = incident_count / session_count
+        ratio_100 = ratio * 100
+        ratio_str = f"{ratio_100:.2f} incidents per 100 sessions"
+
+    print(f"trust_incident_rate{since_label}")
+    print(f"  sessions  : {session_count}")
+    print(f"  incidents : {incident_count} (de-noised)")
+    print(f"  ratio     : {ratio_str}")
+    sys.exit(0)
+
+clauses = ["event_type = 'metric'", "json_extract(payload,'$.name') = ?"]
+params = [name]
+if since:
+    clauses.append("ts >= ?")
+    params.append(since)
+
+cur.execute(f"""
+    SELECT ts, payload
+    FROM events
+    WHERE {' AND '.join(clauses)}
+    ORDER BY ts ASC
+""", params)
+rows = cur.fetchall()
+con.close()
+
+if not rows:
+    print(f"(no metric events for name='{name}')")
+    sys.exit(0)
+
+# Print header + table
+print(f"{'ts':<35} {'value':<15} {'unit':<12} {'project'}")
+print("-" * 80)
+for ts_str, payload_raw in rows:
+    try:
+        payload = json.loads(payload_raw) if payload_raw else {}
+    except:
+        payload = {}
+    # REQ-02 fix (MASTER-24): many emitters write 'classification' not 'value'/'unit'
+    # fall back to classification/count-series when value is absent
+    val  = payload.get('value', payload.get('classification', ''))
+    unit = payload.get('unit', 'classification' if payload.get('classification') else '')
+    proj = payload.get('project', '')
+    print(f"{ts_str or '?':<35} {str(val):<15} {str(unit):<12} {proj}")
+PYEOF
+}
+
+# ── harness doctor ────────────────────────────────────────────────────────────
+# Purpose: Health check: canary round-trip, schema drift scan, replica freshness,
+#   log size. --rotate: compress >ROTATE_THRESHOLD to archive. --rebuild: drop
+#   DB and re-ingest from offset 0 to prove disposability.
+# Usage: harness doctor [--rotate] [--rebuild]
+# Gotchas: Canary emit is a direct contract-conformant NDJSON append (emit-event.sh
+#   may not exist yet); labeled 'canary' in payload so incidents de-noiser skips it.
+cmd_doctor() {
+  local do_rotate=0 do_rebuild=0
+  local ROTATE_THRESHOLD="${HARNESS_ROTATE_BYTES:-67108864}"  # 64 MB default; overridable for tests
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --rotate)  do_rotate=1;  shift ;;
+      --rebuild) do_rebuild=1; shift ;;
+      --help)    echo "harness doctor [--rotate] [--rebuild]"; return 0 ;;
+      *)         echo "harness doctor: unknown option: $1" >&2; return 1 ;;
+    esac
+  done
+
+  echo "=== harness doctor ==="
+  echo "STATE : $STATE"
+  echo "EVENTS: $EVENTS"
+  echo "DB    : $DB"
+  echo ""
+
+  # Rebuild: drop DB + cursor, re-ingest from 0
+  if [[ "$do_rebuild" -eq 1 ]]; then
+    echo "-- REBUILD: dropping replica and re-ingesting --"
+    local pre_count=0
+    if [[ -f "$DB" ]]; then
+      pre_count="$(sqlite3 "$DB" "SELECT COUNT(*) FROM events;" 2>/dev/null || echo 0)"
+    fi
+    rm -f "$DB" "$CURSOR" 2>/dev/null || true
+    _ingest_events
+    local post_count=0
+    if [[ -f "$DB" ]]; then
+      post_count="$(sqlite3 "$DB" "SELECT COUNT(*) FROM events;" 2>/dev/null || echo 0)"
+    fi
+    echo "  pre-rebuild rows : $pre_count"
+    echo "  post-rebuild rows: $post_count"
+    if [[ "$pre_count" -eq "$post_count" ]]; then
+      echo "  PASS: row count matches (replica is disposable)"
+    else
+      echo "  WARN: row count differs (pre=$pre_count post=$post_count)"
+    fi
+    echo ""
+  fi
+
+  # Rotate: compress if log exceeds threshold
+  if [[ "$do_rotate" -eq 1 ]]; then
+    echo "-- ROTATE check (threshold: $ROTATE_THRESHOLD bytes) --"
+    if [[ -f "$EVENTS" ]]; then
+      local log_size
+      log_size="$(wc -c < "$EVENTS" | tr -d ' ')"
+      echo "  log size: $log_size bytes"
+      if [[ "$log_size" -ge "$ROTATE_THRESHOLD" ]]; then
+        command -v zstd >/dev/null 2>&1 || { echo "  FAIL: zstd not found"; return 1; }
+        mkdir -p "$ARCHIVE_DIR" || true
+        local stamp
+        stamp="$(date -u '+%Y%m%d-%H%M%S')"
+        local arc="$ARCHIVE_DIR/events-${stamp}.ndjson.zst"
+        echo "  Compressing → $arc"
+        zstd -q "$EVENTS" -o "$arc" 2>/dev/null
+        # Truncate live log + reset cursor
+        : > "$EVENTS"
+        printf '0' > "$CURSOR"
+        echo "  PASS: rotated to archive, live log truncated"
+      else
+        echo "  OK: log below threshold, no rotation needed"
+      fi
+    else
+      echo "  INFO: events file does not exist yet"
+    fi
+    echo ""
+  fi
+
+  # Canary round-trip: emit a conformant NDJSON line, read it back
+  echo "-- Canary round-trip --"
+  mkdir -p "$STATE/state" || true
+
+  # Build timestamp via Q2 chain (gdate → python3 → date)
+  local canary_ts
+  if command -v gdate >/dev/null 2>&1; then
+    canary_ts="$(gdate -u '+%Y-%m-%dT%H:%M:%S.%3NZ' 2>/dev/null)" || canary_ts=""
+  fi
+  if [[ -z "$canary_ts" ]]; then
+    canary_ts="$(python3 -c "from datetime import datetime,timezone; print(datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.') + f'{datetime.now(timezone.utc).microsecond//1000:03d}Z')" 2>/dev/null)" || canary_ts=""
+  fi
+  if [[ -z "$canary_ts" ]]; then
+    canary_ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  fi
+
+  local canary_session="harness-doctor-canary-$$"
+  local canary_line
+  canary_line="$(jq -cn \
+    --arg ts "$canary_ts" \
+    --arg session_id "$canary_session" \
+    --arg source "harness-doctor" \
+    --arg project "harness-test" \
+    '{"ts":$ts,"schema":1,"session_id":$session_id,"agent_id":null,
+      "event_type":"metric","source":$source,"project":$project,
+      "payload":{"name":"canary","value":1,"is_canary":true},"tool":null,
+      "skill":null,"outcome":null,"evidence_ref":null,"trace_id":null}')"
+
+  printf '%s\n' "$canary_line" >> "$EVENTS" 2>/dev/null || {
+    echo "  FAIL: could not append to $EVENTS"
+  }
+
+  # Force re-ingest and check
+  _ingest_events
+  local canary_found
+  canary_found="$(sqlite3 "$DB" "SELECT COUNT(*) FROM events WHERE session_id='$(printf '%s' "$canary_session" | sed "s/'/''/g")' AND event_type='metric';" 2>/dev/null || echo 0)"
+  if [[ "${canary_found:-0}" -ge 1 ]]; then
+    echo "  PASS: canary written and read back (session=$canary_session)"
+  else
+    echo "  FAIL: canary not found in replica after ingest"
+  fi
+  echo ""
+
+  # Schema drift scan: count lines missing required fields
+  echo "-- Schema drift scan --"
+  if [[ -f "$EVENTS" ]]; then
+    local total_lines drift_count
+    total_lines="$(wc -l < "$EVENTS" | tr -d ' ')"
+    drift_count="$(python3 - "$EVENTS" <<'PYEOF'
+import sys, json
+REQUIRED = {'ts','schema','session_id','agent_id','event_type','source','project','payload'}
+drift = 0
+with open(sys.argv[1], 'r', errors='replace') as f:
+    for line in f:
+        line = line.strip()
+        if not line: continue
+        try:
+            ev = json.loads(line)
+        except:
+            drift += 1
+            continue
+        if not REQUIRED.issubset(set(ev.keys())):
+            drift += 1
+print(drift)
+PYEOF
+)"
+    echo "  Total lines  : $total_lines"
+    echo "  Schema errors: $drift_count"
+    if [[ "${drift_count:-0}" -eq 0 ]]; then
+      echo "  PASS: no schema drift"
+    else
+      echo "  WARN: $drift_count lines missing required fields"
+    fi
+  else
+    echo "  INFO: events file does not exist yet"
+  fi
+  echo ""
+
+  # Replica freshness: cursor vs EOF gap
+  echo "-- Replica freshness --"
+  if [[ -f "$EVENTS" ]]; then
+    local eof cursor_pos gap
+    eof="$(wc -c < "$EVENTS" | tr -d ' ')"
+    cursor_pos=0
+    if [[ -f "$CURSOR" ]]; then
+      cursor_pos="$(cat "$CURSOR" 2>/dev/null || echo 0)"
+    fi
+    gap="$(( eof - cursor_pos ))"
+    echo "  EOF    : $eof bytes"
+    echo "  Cursor : $cursor_pos bytes"
+    echo "  Gap    : $gap bytes"
+    if [[ "$gap" -le 0 ]]; then
+      echo "  PASS: replica is fully up to date"
+    elif [[ "$gap" -lt 4096 ]]; then
+      echo "  OK: minor gap (< 4 KB), run any query to sync"
+    else
+      echo "  WARN: large gap ($gap bytes), replica may be stale"
+    fi
+  else
+    echo "  INFO: events file does not exist yet"
+  fi
+  echo ""
+
+  # DB row count
+  if [[ -f "$DB" ]]; then
+    local row_count
+    row_count="$(sqlite3 "$DB" "SELECT COUNT(*) FROM events;" 2>/dev/null || echo '?')"
+    echo "-- DB summary --"
+    echo "  Total rows in replica: $row_count"
+    echo ""
+  fi
+
+  echo "=== doctor done ==="
+}
+
+# ── harness recall ────────────────────────────────────────────────────────────
+# Purpose: Federated memory recall across spine events, lessons.md, journal FTS,
+#   and gbrain. Returns top_n ranked result blocks; emits a recall_query event.
+#   Sources are fail-open: a broken source is skipped without error.
+# Usage: harness recall <query> [top_n]
+# Gotchas: With no query argument, exits 3 (stub behaviour preserved for compat).
+#   All user input passed via --arg to jq or as SQLite bound parameters.
+#   NEVER interpolate query strings into SQL or jq filter bodies.
+#   Episodic-memory source intentionally excluded: 32-63K token blowup risk
+#   per call (entire conversation archive is loaded into context).
+#   Override env vars for testing:
+#     HARNESS_JOURNAL_INDEX_DB   — path to journal-index.db
+#     HARNESS_LESSONS_PATH       — path to lessons.md
+#     HARNESS_RECALL_CORRUPT_FTS=1 — simulate mid-query corruption: skips
+#                                    all federation results but still runs FTS
+#                                    probe for empty_for_known_topic detection
+cmd_recall() {
+  local query="${1:-}"
+  local top_n="${2:-5}"
+
+  # With no query, preserve stub exit-3 for backward compat (fable-B suite)
+  if [[ -z "$query" ]]; then
+    echo "harness recall: not yet implemented (Pillar V)"
+    exit 3
+  fi
+
+  # ── Path resolution (env-overridable for tests) ──────────────────────────
+  local journal_db="${HARNESS_JOURNAL_INDEX_DB:-$HOME/.claude/state/journal-index.db}"
+  local lessons_path="${HARNESS_LESSONS_PATH:-$HOME/.claude/memory/lessons.md}"
+  local corrupt_fts="${HARNESS_RECALL_CORRUPT_FTS:-0}"
+
+  # ── Temp work dir (cleaned up on exit) ───────────────────────────────────
+  local recall_tmp
+  recall_tmp="$(mktemp -d /tmp/harness-recall-XXXXXX)"
+  trap 'rm -rf "$recall_tmp"' RETURN
+
+  # Hits file: each line is JSON object {"score":N,"source":"S","ts":"T","content":"C"}
+  # Using JSON per-line avoids any delimiter collision with arbitrary content.
+  local hits_file="$recall_tmp/hits.ndjson"
+  touch "$hits_file"
+
+  # Python helper: write a JSON hit line; escape-safe via json.dumps
+  local _append_hit_py="$recall_tmp/append_hit.py"
+  cat > "$_append_hit_py" <<'PYEOF'
+import sys, json
+score, source, ts, content = int(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
+line = json.dumps({"score": score, "source": source, "ts": ts, "content": content})
+sys.stdout.write(line + "\n")
+PYEOF
+
+  # ── Source A: Spine events (session_start + correction, last 30d) ─────────
+  # Uses parameterized sqlite3 via python3; all user input bound, never spliced.
+  if [[ "$corrupt_fts" != "1" ]]; then
+    _ingest_events 2>/dev/null || true
+    if [[ -f "$DB" ]]; then
+      local spine_since
+      spine_since="$(_since_ts 30d 2>/dev/null)" || spine_since=""
+      if [[ -n "$spine_since" ]]; then
+        local spine_py="$recall_tmp/spine.py"
+        cat > "$spine_py" <<'PYEOF'
+import sys, json, sqlite3
+db_path, query, since, hits_file = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+try:
+    con = sqlite3.connect(db_path)
+    cur = con.cursor()
+    cur.execute("""
+        SELECT ts, payload FROM events
+        WHERE (event_type = 'session_start' OR event_type = 'correction')
+          AND ts >= ?
+        ORDER BY ts DESC
+        LIMIT 100
+    """, (since,))
+    rows = cur.fetchall()
+    con.close()
+    q_lower = query.lower()
+    with open(hits_file, 'a') as hf:
+        for ts, payload_raw in rows:
+            try:
+                payload = json.loads(payload_raw) if payload_raw else {}
+            except Exception:
+                payload = {}
+            text = json.dumps(payload).lower()
+            if q_lower in text:
+                snippet = json.dumps(payload)[:200]
+                ts_val = ts or ''
+                hf.write(json.dumps({"score": 1, "source": "spine",
+                                     "ts": ts_val, "content": snippet}) + "\n")
+except Exception:
+    pass
+PYEOF
+        python3 "$spine_py" "$DB" "$query" "$spine_since" "$hits_file" 2>/dev/null || true
+      fi
+    fi
+  fi
+
+  # ── Source B: lessons.md (grep -i -m 5, stale-aware) ────────────────────
+  # Lessons hits get score=2 (+1 boost over other sources).
+  # V7 down-rank: lines carrying <!-- stale: --> markers are skipped in the primary
+  # pass. If the primary pass yields zero hits, stale lines are included at score=0
+  # (below all other sources) so the caller still gets a result rather than nothing.
+  if [[ "$corrupt_fts" != "1" ]] && [[ -f "$lessons_path" ]]; then
+    local lessons_py="$recall_tmp/lessons.py"
+    cat > "$lessons_py" <<'PYEOF'
+import sys, json, subprocess
+
+lessons_path, query, hits_file = sys.argv[1], sys.argv[2], sys.argv[3]
+STALE_MARKER = "<!-- stale:"
+
+try:
+    result = subprocess.run(
+        ["grep", "-i", "-m", "10", "-F", query, lessons_path],
+        capture_output=True, text=True
+    )
+    all_matching = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+
+    # Primary pass: fresh (non-stale) lines only — score=2 (distilled boost)
+    fresh_lines = [l for l in all_matching if STALE_MARKER not in l]
+
+    # Fallback pass: if primary is empty, allow stale lines at score=0 (last resort)
+    if fresh_lines:
+        use_lines = fresh_lines[:5]
+        score = 2
+    else:
+        use_lines = [l for l in all_matching if STALE_MARKER in l][:5]
+        score = 0  # stale entries rank below all other sources
+
+    with open(hits_file, 'a') as hf:
+        for line in use_lines:
+            hf.write(json.dumps({"score": score, "source": "lessons",
+                                 "ts": "lessons", "content": line}) + "\n")
+except Exception:
+    pass
+PYEOF
+    python3 "$lessons_py" "$lessons_path" "$query" "$hits_file" 2>/dev/null || true
+  fi
+
+  # ── Source C: journal FTS (parameterized sqlite3 query) ──────────────────
+  # FTS5 external-content table. Porter stemmer. Query bound via ?, never spliced.
+  if [[ "$corrupt_fts" != "1" ]] && [[ -f "$journal_db" ]]; then
+    local journal_py="$recall_tmp/journal.py"
+    cat > "$journal_py" <<'PYEOF'
+import sys, json, sqlite3
+db_path, query, hits_file = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    con = sqlite3.connect(db_path)
+    cur = con.cursor()
+    # FTS5 AND semantics: split on whitespace and join individual quoted terms so
+    # each word is matched independently (Porter-stemmed). This means "leak secret"
+    # finds entries containing both stems regardless of order or adjacency.
+    # Wrapping the whole query in double-quotes would be phrase search (adjacent
+    # only), which misses stemmed variants like "leaked" for query term "leak".
+    terms = query.replace('"', '').split()
+    safe_q = ' '.join('"' + t + '"' for t in terms) if terms else '""'
+    cur.execute("""
+        SELECT e.ts, e.content
+        FROM fts
+        JOIN entries e ON e.rowid = fts.rowid
+        WHERE fts MATCH ?
+        ORDER BY rank
+        LIMIT 20
+    """, (safe_q,))
+    rows = cur.fetchall()
+    con.close()
+    with open(hits_file, 'a') as hf:
+        for ts, content in rows:
+            snippet = (content or '')[:300].replace('\n', ' ')
+            hf.write(json.dumps({"score": 1, "source": "journal",
+                                 "ts": ts or '', "content": snippet}) + "\n")
+except Exception:
+    pass
+PYEOF
+    python3 "$journal_py" "$journal_db" "$query" "$hits_file" 2>/dev/null || true
+  fi
+
+  # ── Source D: gbrain (fail-open if absent, 10s timeout) ──────────────────
+  # Episodic-memory NOT included: 32-63K token blowup per invocation.
+  if [[ "$corrupt_fts" != "1" ]] && command -v gbrain >/dev/null 2>&1; then
+    local gbrain_py="$recall_tmp/gbrain.py"
+    cat > "$gbrain_py" <<'PYEOF'
+import sys, json, subprocess
+query, hits_file = sys.argv[1], sys.argv[2]
+try:
+    result = subprocess.run(
+        ["gbrain", "query", query],
+        capture_output=True, text=True, timeout=10
+    )
+    lines = result.stdout.splitlines()[:5]
+    with open(hits_file, 'a') as hf:
+        for line in lines:
+            line = line.strip()
+            if line:
+                hf.write(json.dumps({"score": 1, "source": "gbrain",
+                                     "ts": "gbrain", "content": line}) + "\n")
+except Exception:
+    pass
+PYEOF
+    python3 "$gbrain_py" "$query" "$hits_file" 2>/dev/null || true
+  fi
+
+  # ── FTS probe: separate from federation, for empty_for_known_topic ───────
+  # Spec: "run the FTS probe separately from the federation result"
+  # empty_for_known_topic = true IFF final hits==0 AND probe finds ≥1 row.
+  local fts_probe_count=0
+  if [[ -f "$journal_db" ]]; then
+    local probe_py="$recall_tmp/probe.py"
+    cat > "$probe_py" <<'PYEOF'
+import sys, sqlite3
+db_path, query = sys.argv[1], sys.argv[2]
+try:
+    con = sqlite3.connect(db_path)
+    cur = con.cursor()
+    # AND semantics: individual quoted terms, same logic as the main journal query.
+    terms = query.replace('"', '').split()
+    safe_q = ' '.join('"' + t + '"' for t in terms) if terms else '""'
+    cur.execute("SELECT COUNT(*) FROM fts WHERE fts MATCH ?", (safe_q,))
+    row = cur.fetchone()
+    con.close()
+    print(row[0] if row else 0)
+except Exception:
+    print(0)
+PYEOF
+    fts_probe_count="$(python3 "$probe_py" "$journal_db" "$query" 2>/dev/null || echo 0)"
+    fts_probe_count="${fts_probe_count:-0}"
+  fi
+
+  # ── Dedup + sort + top_n (single python3 pass over hits file) ────────────
+  # sha256 of first 120 chars of content for dedup key.
+  # Sort: score DESC, ts DESC. Take top_n.
+  local process_py="$recall_tmp/process.py"
+  cat > "$process_py" <<'PYEOF'
+import sys, json, hashlib
+
+hits_file = sys.argv[1]
+top_n = int(sys.argv[2])
+output_file = sys.argv[3]
+
+hits = []
+try:
+    with open(hits_file) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                hits.append(json.loads(line))
+            except Exception:
+                pass
+except Exception:
+    pass
+
+# Dedup by sha256 of first 120 chars of content
+seen = set()
+deduped = []
+for h in hits:
+    content = h.get("content", "")
+    key = content[:120]
+    digest = hashlib.sha256(key.encode("utf-8", errors="replace")).hexdigest()[:16]
+    if digest not in seen:
+        seen.add(digest)
+        deduped.append(h)
+
+# Sort: score DESC, ts DESC (lexicographic — ISO8601 sorts correctly)
+deduped.sort(key=lambda h: (-h.get("score", 0), -(1 if h.get("ts","") > "0" else 0),
+                             h.get("ts", "") if h.get("ts","") > "0" else ""))
+# More accurate ts sort
+def sort_key(h):
+    ts = h.get("ts", "")
+    score = h.get("score", 0)
+    # Higher score first; higher ts (more recent) first within same score
+    return (-score, "" if not ts or ts in ("lessons","gbrain","spine") else ts)
+
+deduped.sort(key=sort_key)
+
+top = deduped[:top_n]
+print(len(top))
+with open(output_file, "w") as f:
+    for h in top:
+        f.write(json.dumps(h) + "\n")
+PYEOF
+
+  local result_file="$recall_tmp/results.ndjson"
+  touch "$result_file"
+  local final_hit_count
+  final_hit_count="$(python3 "$process_py" "$hits_file" "$top_n" "$result_file" 2>/dev/null || echo 0)"
+  final_hit_count="${final_hit_count:-0}"
+  # Validate: ensure it's a number
+  [[ "$final_hit_count" =~ ^[0-9]+$ ]] || final_hit_count=0
+
+  # ── Emit recall_query event ───────────────────────────────────────────────
+  local empty_for_known_topic="false"
+  if [[ "$final_hit_count" -eq 0 && "${fts_probe_count:-0}" -ge 1 ]]; then
+    empty_for_known_topic="true"
+  fi
+
+  local event_payload
+  event_payload="$(jq -cn \
+    --arg q "$query" \
+    --argjson hits "$final_hit_count" \
+    --argjson efkt "$([ "$empty_for_known_topic" = "true" ] && echo "true" || echo "false")" \
+    '{"query":$q,"hits":$hits,"empty_for_known_topic":$efkt}' 2>/dev/null)" || \
+    event_payload="{\"query\":\"recall\",\"hits\":$final_hit_count,\"empty_for_known_topic\":$empty_for_known_topic}"
+
+  # Emit via emit-event.sh if available, else direct append to events.ndjson
+  local emit_lib
+  emit_lib="$HOME/.claude/scripts/lib/emit-event.sh"
+  if [[ -f "$emit_lib" ]]; then
+    # shellcheck source=scripts/lib/emit-event.sh
+    ( STATE="$STATE"; source "$emit_lib" 2>/dev/null && \
+      emit_event "recall_query" "$event_payload" source="harness-recall" 2>/dev/null ) || true
+  else
+    local ts_now
+    ts_now="$(python3 -c "from datetime import datetime,timezone; \
+print(datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.') + \
+str(datetime.now(timezone.utc).microsecond//1000).zfill(3) + 'Z')" 2>/dev/null || \
+      date -u +%Y-%m-%dT%H:%M:%SZ)"
+    local event_line
+    event_line="$(jq -cn \
+      --arg ts "$ts_now" \
+      --arg project "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo '~global')")" \
+      --argjson payload "$event_payload" \
+      '{"ts":$ts,"schema":1,"session_id":"recall","agent_id":null,
+        "event_type":"recall_query","source":"harness-recall","project":$project,
+        "payload":$payload,"tool":null,"skill":null,"outcome":null,
+        "evidence_ref":null,"trace_id":null}' 2>/dev/null)" || true
+    if [[ -n "$event_line" ]]; then
+      mkdir -p "$STATE/state" 2>/dev/null || true
+      printf '%s\n' "$event_line" >> "$EVENTS" 2>/dev/null || true
+    fi
+  fi
+
+  # ── Print results ─────────────────────────────────────────────────────────
+  if [[ "$final_hit_count" -eq 0 ]]; then
+    echo "(no results for query: $query)"
+    return 0
+  fi
+
+  echo "recall: $final_hit_count result(s) for '$query'"
+  echo ""
+  local i=0
+  while IFS= read -r hit_json; do
+    [[ -z "$hit_json" ]] && continue
+    local source ts content
+    source="$(echo "$hit_json" | jq -r '.source // ""' 2>/dev/null || echo '')"
+    ts="$(echo "$hit_json" | jq -r '.ts // ""' 2>/dev/null || echo '')"
+    content="$(echo "$hit_json" | jq -r '.content // ""' 2>/dev/null || echo '')"
+    i=$(( i + 1 ))
+    echo "[$i] [$source] $ts"
+    echo "    ${content:0:300}"
+    echo ""
+  done < "$result_file"
+}
+
+# ── harness queue (VI-2) ─────────────────────────────────────────────────────
+# Purpose: VI-owned subcommand for the durable work queue. Provides add, ls,
+#   approve, reject, rm, show, clear-freeze subverbs per pillar-6-work-economy.md §1.5.
+# Usage: harness queue <subverb> [args]
+# Gotchas: QUEUE_DIR env var overrides the default ~/.claude/queue (used by tests).
+#   All mutations emit queue_event to the spine via emit-event.sh.
+#   clear-freeze is INTERACTIVE-ONLY; refuses when AUTONOMOUS_RUN=1.
+#   source:backlog-auto is hard-rejected by queue-validate.sh.
+
+cmd_queue() {
+  local _Q_LIB_DIR
+  _Q_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  _Q_LIB_DIR="${_Q_LIB_DIR}/../.claude/scripts/lib"
+  # Resolve lib dir relative to this script (bin/ -> .claude/scripts/lib/)
+  local _HARNESS_BIN
+  _HARNESS_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  _Q_LIB_DIR="${_HARNESS_BIN}/../scripts/lib"
+
+  local _VALIDATE="${_Q_LIB_DIR}/queue-validate.sh"
+  local _EMIT="${_Q_LIB_DIR}/emit-event.sh"
+  local _KS="${_Q_LIB_DIR}/kill-switch.sh"
+
+  # Queue storage dir: QUEUE_DIR env override (tests) or global durable home.
+  local QDIR="${QUEUE_DIR:-$HOME/.claude/queue}"
+  mkdir -p "$QDIR" 2>/dev/null || true
+
+  # Inbox dir: INBOX_DIR env override or default.
+  local IDIR="${INBOX_DIR:-${STATE}/loop/inbox}"
+
+  # ── Inline emit helper ──────────────────────────────────────────────────────
+  # Purpose: emit a queue_event to the spine; fail-open if emit lib absent.
+  # Usage: _q_emit <state> <task_id> <source_tag> <intent_trunc>
+  # Gotchas: All fields are JSON-escaped via printf %s; never use inline expansion.
+  _q_emit() {
+    local qstate="$1" task_id="$2" qsource="$3" intent="${4:-}" lane="${5:-null}" reason="${6:-}"
+    # Build payload JSON with jq for safety (avoids escaping edge cases)
+    local payload
+    payload="$(jq -cn \
+      --arg task_id "$task_id" \
+      --arg state "$qstate" \
+      --arg source "$qsource" \
+      --arg intent "$(printf '%s' "$intent" | cut -c1-100)" \
+      --argjson lane "$lane" \
+      --arg reason "$reason" \
+      '{task_id:$task_id, state:$state, source:$source, intent:$intent, lane:$lane,
+        reason:(if $reason == "" then null else $reason end)}')" 2>/dev/null || return 0
+    # Source emit lib and emit; fully fail-open
+    if [[ -f "$_EMIT" ]]; then
+      # shellcheck source=/dev/null
+      (source "$_EMIT" 2>/dev/null && \
+       emit_event "queue_event" "$payload" source="harness-queue" outcome=ok 2>/dev/null) || true
+    fi
+  }
+
+  # ── Generate a unique queue ID ──────────────────────────────────────────────
+  # Format: q-YYYYMMDD-HHMMSS-<slug>
+  # Usage: _q_gen_id <intent>
+  # Gotchas: slug is the first 20 chars of the intent lowercased, non-alnum→dash, deduped dashes.
+  _q_gen_id() {
+    local intent="$1"
+    local ts slug
+    ts="$(date -u '+%Y%m%d-%H%M%S' 2>/dev/null || date '+%Y%m%d-%H%M%S')"
+    slug="$(printf '%s' "$intent" \
+      | tr '[:upper:]' '[:lower:]' \
+      | tr -cs 'a-z0-9' '-' \
+      | sed 's/--*/-/g;s/^-//;s/-$//' \
+      | cut -c1-20 \
+      | sed 's/-$//')"
+    [[ -z "$slug" ]] && slug="task"
+    printf 'q-%s-%s' "$ts" "$slug"
+  }
+
+  # ── Resolve queue file path from id ────────────────────────────────────────
+  _q_file() {
+    local id="$1"
+    # Support partial id match (just the slug or full id)
+    local exact="${QDIR}/${id}.md"
+    if [[ -f "$exact" ]]; then
+      echo "$exact"
+      return 0
+    fi
+    # Try glob match (prefix search)
+    local f
+    for f in "${QDIR}"/q-*"${id}"*.md; do
+      [[ -f "$f" ]] && echo "$f" && return 0
+    done
+    return 1
+  }
+
+  # ── Write queue file from frontmatter fields ────────────────────────────────
+  # Usage: _q_write <filepath> <id> <intent> <source> [<repo>]
+  # Gotchas: acceptance is a template placeholder — caller may add actual criteria.
+  _q_write() {
+    local fpath="$1" id="$2" intent="$3" qsource="$4" repo="${5:-$HOME/.claude}"
+    local ts
+    ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || echo "1970-01-01T00:00:00Z")"
+    cat > "$fpath" <<FRONTMATTER
+---
+id: ${id}
+repo: ${repo}
+intent: ${intent}
+priority: normal
+acceptance:
+  - "verify task intent is satisfied"
+max_minutes: 45
+model: sonnet
+status: enqueued
+created: ${ts}
+source: ${qsource}
+lane: null
+---
+Task added via harness queue add.
+FRONTMATTER
+  }
+
+  # ── Subcommand dispatch ─────────────────────────────────────────────────────
+  local SUBVERB="${1:-ls}"
+  shift 2>/dev/null || true
+
+  case "$SUBVERB" in
+
+    # ── ls: list all tasks grouped by status ─────────────────────────────────
+    ls)
+      local total=0 f
+      local -A by_status=()
+      for f in "${QDIR}"/q-*.md; do
+        [[ -f "$f" ]] || continue
+        local status id intent
+        status="$(grep -E '^status:' "$f" 2>/dev/null | head -1 | sed 's/status:[[:space:]]*//' | tr -d '[:space:]')"
+        id="$(basename "$f" .md)"
+        intent="$(grep -E '^intent:' "$f" 2>/dev/null | head -1 | sed 's/intent:[[:space:]]*//')"
+        by_status[$status]+="  ${id}  ${intent}\n"
+        (( total++ )) || true
+      done
+      if [[ "$total" -eq 0 ]]; then
+        echo "(queue is empty)"
+        return 0
+      fi
+      local s
+      for s in enqueued started staged approved rejected needs-user invalid done; do
+        if [[ -n "${by_status[$s]:-}" ]]; then
+          printf '\n[%s]\n' "$s"
+          printf '%b' "${by_status[$s]}"
+        fi
+      done
+      printf '\nTotal: %d task(s)\n' "$total"
+      ;;
+
+    # ── add: validate + enqueue; or --from-inbox N; or --source override ──────
+    add)
+      local intent="" qsource="explicit" from_inbox="" inbox_n=""
+
+      # Parse flags
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --from-inbox)
+            from_inbox=1
+            inbox_n="${2:-1}"
+            shift 2 2>/dev/null || shift 1 || true
+            ;;
+          --source)
+            qsource="${2:-explicit}"
+            shift 2 2>/dev/null || shift 1 || true
+            ;;
+          --*)
+            echo "harness queue add: unknown option: $1" >&2
+            return 1
+            ;;
+          *)
+            intent="$*"
+            break
+            ;;
+        esac
+      done
+
+      # HARD-REJECT backlog-auto before any file creation
+      if [[ "$qsource" == "backlog-auto" ]]; then
+        echo "REJECTED: source:backlog-auto is FORBIDDEN — backlog items must be promoted by hand." >&2
+        echo "Use: harness queue add \"<task description>\"" >&2
+        return 1
+      fi
+
+      # --from-inbox path: pull proposal N from the loop inbox
+      if [[ -n "$from_inbox" ]]; then
+        qsource="loop-inbox"
+        local inbox_files=()
+        while IFS= read -r -d '' f; do
+          inbox_files+=("$f")
+        done < <(find "$IDIR" -maxdepth 1 -name '*.md' -print0 2>/dev/null | sort -z)
+        local n_files="${#inbox_files[@]}"
+        local idx=$(( inbox_n - 1 ))
+        if [[ "$n_files" -eq 0 ]]; then
+          echo "harness queue add --from-inbox: no proposals in $IDIR" >&2
+          return 1
+        fi
+        if [[ "$idx" -lt 0 || "$idx" -ge "$n_files" ]]; then
+          echo "harness queue add --from-inbox: proposal $inbox_n not found (have $n_files)" >&2
+          return 1
+        fi
+        local inbox_file="${inbox_files[$idx]}"
+        # Extract intent from inbox proposal (first "Intent:" line, or first non-empty line)
+        intent="$(grep -iE '^intent:' "$inbox_file" 2>/dev/null | head -1 \
+          | sed 's/[Ii]ntent:[[:space:]]*//' \
+          | sed 's/[[:space:]]*$//')"
+        if [[ -z "$intent" ]]; then
+          intent="$(grep -v '^[[:space:]]*$' "$inbox_file" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
+        fi
+        [[ -z "$intent" ]] && intent="Inbox proposal $(basename "$inbox_file")"
+      fi
+
+      if [[ -z "$intent" ]]; then
+        echo "harness queue add: intent is required" >&2
+        echo "Usage: harness queue add <task description>" >&2
+        echo "       harness queue add --from-inbox N" >&2
+        return 1
+      fi
+
+      local id
+      id="$(_q_gen_id "$intent")"
+      local fpath="${QDIR}/${id}.md"
+
+      # Write the task file
+      _q_write "$fpath" "$id" "$intent" "$qsource"
+
+      # Validate (hard-reject on invalid; will catch backlog-auto too)
+      if [[ -f "$_VALIDATE" ]]; then
+        local vout
+        vout="$(bash "$_VALIDATE" "$fpath" --quiet 2>&1)"
+        local vrc=$?
+        if [[ "$vrc" -ne 0 ]]; then
+          # Append validation reason to file and mark invalid
+          printf '\nValidation failed: %s\n' "$vout" >> "$fpath" 2>/dev/null || true
+          sed -i '' 's/^status: enqueued/status: invalid/' "$fpath" 2>/dev/null || \
+          sed -i 's/^status: enqueued/status: invalid/' "$fpath" 2>/dev/null || true
+          _q_emit "invalid" "$id" "$qsource" "$intent" "null" "$vout"
+          echo "REJECTED: $vout" >&2
+          return 1
+        fi
+      fi
+
+      echo "Enqueued: $id"
+      _q_emit "enqueued" "$id" "$qsource" "$intent"
+      ;;
+
+    # ── approve: mark enqueued/staged→approved ────────────────────────────────
+    approve)
+      local id="${1:-}"
+      if [[ -z "$id" ]]; then
+        echo "harness queue approve: id required" >&2; return 1
+      fi
+      local fpath
+      fpath="$(_q_file "$id")" || { echo "harness queue approve: task not found: $id" >&2; return 1; }
+      local intent source_tag
+      intent="$(grep -E '^intent:' "$fpath" 2>/dev/null | head -1 | sed 's/intent:[[:space:]]*//')"
+      source_tag="$(grep -E '^source:' "$fpath" 2>/dev/null | head -1 | sed 's/source:[[:space:]]*//' | tr -d '[:space:]')"
+      # Update status
+      sed -i '' 's/^status: .*/status: approved/' "$fpath" 2>/dev/null || \
+      sed -i 's/^status: .*/status: approved/' "$fpath" 2>/dev/null || true
+      local real_id
+      real_id="$(basename "$fpath" .md)"
+      echo "Approved: $real_id"
+      _q_emit "approved" "$real_id" "${source_tag:-explicit}" "$intent"
+      ;;
+
+    # ── reject: mark →rejected ────────────────────────────────────────────────
+    reject)
+      local id="${1:-}"
+      if [[ -z "$id" ]]; then
+        echo "harness queue reject: id required" >&2; return 1
+      fi
+      local fpath
+      fpath="$(_q_file "$id")" || { echo "harness queue reject: task not found: $id" >&2; return 1; }
+      local intent source_tag
+      intent="$(grep -E '^intent:' "$fpath" 2>/dev/null | head -1 | sed 's/intent:[[:space:]]*//')"
+      source_tag="$(grep -E '^source:' "$fpath" 2>/dev/null | head -1 | sed 's/source:[[:space:]]*//' | tr -d '[:space:]')"
+      sed -i '' 's/^status: .*/status: rejected/' "$fpath" 2>/dev/null || \
+      sed -i 's/^status: .*/status: rejected/' "$fpath" 2>/dev/null || true
+      local real_id
+      real_id="$(basename "$fpath" .md)"
+      echo "Rejected: $real_id"
+      _q_emit "rejected" "$real_id" "${source_tag:-explicit}" "$intent"
+      ;;
+
+    # ── rm: remove a pending/invalid task (not started/staged) ───────────────
+    rm)
+      local id="${1:-}"
+      if [[ -z "$id" ]]; then
+        echo "harness queue rm: id required" >&2; return 1
+      fi
+      local fpath
+      fpath="$(_q_file "$id")" || { echo "harness queue rm: task not found: $id" >&2; return 1; }
+      local status
+      status="$(grep -E '^status:' "$fpath" 2>/dev/null | head -1 | sed 's/status:[[:space:]]*//' | tr -d '[:space:]')"
+      if [[ "$status" == "started" || "$status" == "staged" ]]; then
+        echo "harness queue rm: cannot remove task in state '$status' (use reject instead)" >&2
+        return 1
+      fi
+      local real_id
+      real_id="$(basename "$fpath" .md)"
+      rm -f "$fpath" 2>/dev/null || true
+      echo "Removed: $real_id"
+      ;;
+
+    # ── show: print full task content ─────────────────────────────────────────
+    show)
+      local id="${1:-}"
+      if [[ -z "$id" ]]; then
+        echo "harness queue show: id required" >&2; return 1
+      fi
+      local fpath
+      fpath="$(_q_file "$id")" || { echo "harness queue show: task not found: $id" >&2; return 1; }
+      local real_id
+      real_id="$(basename "$fpath" .md)"
+      printf '=== %s ===\n' "$real_id"
+      cat "$fpath"
+      ;;
+
+    # ── clear-freeze: remove .AUTONOMOUS_FREEZE sentinel (interactive-only) ───
+    clear-freeze)
+      # Sources kill-switch.sh and calls kill_switch_clear, which enforces AUTONOMOUS_RUN guard.
+      if [[ -f "$_KS" ]]; then
+        # shellcheck source=/dev/null
+        source "$_KS" 2>/dev/null || true
+        kill_switch_clear
+      else
+        # Fallback: remove sentinel directly (kill-switch lib absent)
+        local sentinel="${STATE}/.AUTONOMOUS_FREEZE"
+        if [[ "${AUTONOMOUS_RUN:-}" == "1" ]]; then
+          echo "clear-freeze REFUSED: autonomous runs cannot un-freeze themselves" >&2
+          return 1
+        fi
+        rm -f "$sentinel" 2>/dev/null || true
+        echo "Kill-switch cleared." >&2
+      fi
+      ;;
+
+    --help|-h|help)
+      cat <<'QUSAGE'
+harness queue — durable work queue (Pillar VI)
+
+Subverbs:
+  ls                        List all tasks, grouped by status
+  add <task>                Validate + enqueue a task (source:explicit)
+  add --from-inbox N        Promote inbox proposal N to queue (source:loop-inbox)
+  add --source <src> <task> Add with explicit source tag (backlog-auto rejected)
+  approve <id>              Mark task approved; emit queue_event{approved}
+  reject <id>               Mark task rejected; emit queue_event{rejected}
+  rm <id>                   Remove pending/invalid task (not started/staged)
+  show <id>                 Print full task + frontmatter
+  clear-freeze              Remove .AUTONOMOUS_FREEZE sentinel (interactive-only)
+
+Source tags: explicit | loop-inbox | flywheel-intake | self-improvement
+FORBIDDEN:   backlog-auto (hard-rejected; user promotes by hand)
+QUSAGE
+      ;;
+
+    *)
+      echo "harness queue: unknown subverb: $SUBVERB" >&2
+      echo "Run 'harness queue help' for usage." >&2
+      return 1
+      ;;
+  esac
+}
+
+# ── Stub subcommands ──────────────────────────────────────────────────────────
+cmd_escalations() { echo "harness escalations: not yet implemented (Pillar VI/VII)"; exit 3; }
+
+# ── harness brief ─────────────────────────────────────────────────────────────
+# Purpose: Morning-brief data source (Pillar III §Task 5). Renders recent incidents
+#   and a STAGED PATCHES section listing pending .proposed artifacts from the flywheel
+#   with their evidence pointer and eval verdict.
+# Usage: harness brief
+# Gotchas: Reads stage-index.ndjson from STAGE_STAGING_DIR or the standard state path.
+#   STAGE_STAGING_DIR env var overrides the staging dir (used by tests).
+#   Fail-open: missing index → shows "(no staged patches)" without error.
+cmd_brief() {
+  # ── Locate the stage index ─────────────────────────────────────────────────
+  # Tests inject STAGE_STAGING_DIR; production uses the state path.
+  local staging_dir=""
+  if [[ -n "${STAGE_STAGING_DIR:-}" ]]; then
+    staging_dir="$STAGE_STAGING_DIR"
+  else
+    staging_dir="$STATE/state/flywheel/staging"
+  fi
+  local stage_index="$STATE/state/flywheel/stage-index.ndjson"
+  # Also check the staging dir itself if state doesn't have the index
+  if [[ ! -f "$stage_index" ]] && [[ -f "${staging_dir}/../stage-index.ndjson" ]]; then
+    stage_index="${staging_dir}/../stage-index.ndjson"
+  fi
+  # Test injection path: look for stage-index.ndjson alongside the staging dir
+  # The STAGE_STATE_DIR env (used by tests) holds the root state dir
+  if [[ ! -f "$stage_index" ]] && [[ -n "${STAGE_STATE_DIR:-}" ]]; then
+    local alt_index="${STAGE_STATE_DIR}/state/flywheel/stage-index.ndjson"
+    [[ -f "$alt_index" ]] && stage_index="$alt_index"
+  fi
+
+  _ingest_events 2>/dev/null || true
+
+  echo "═══════════════════════════════════════════════════════════════"
+  echo "  harness brief — $(date -u '+%Y-%m-%d %H:%M UTC')"
+  echo "═══════════════════════════════════════════════════════════════"
+  echo ""
+
+  # ── RECENT INCIDENTS ─────────────────────────────────────────────────────
+  echo "── RECENT INCIDENTS (last 7d) ─────────────────────────────────────"
+  local incidents_out
+  incidents_out="$(python3 - "$DB" <<'PYEOF' 2>/dev/null || echo '  (could not query incidents)'
+import sys, json, sqlite3
+db_path = sys.argv[1]
+try:
+    con = sqlite3.connect(db_path)
+    cur = con.cursor()
+    cur.execute("""
+        SELECT ts, event_type, payload, outcome
+        FROM events
+        WHERE (event_type = 'incident'
+               OR (event_type = 'trust_decision' AND outcome = 'denied'))
+          AND ts >= datetime('now', '-7 days')
+          AND (project IS NULL OR UPPER(project) NOT LIKE '%PROBE%')
+        ORDER BY ts DESC
+        LIMIT 20
+    """)
+    rows = cur.fetchall()
+    con.close()
+    if not rows:
+        print("  (no incidents in last 7 days)")
+        sys.exit(0)
+    # Deduplicate within 60s windows
+    seen = {}
+    count = 0
+    for ts, etype, payload_raw, outcome in rows:
+        try:
+            payload = json.loads(payload_raw) if payload_raw else {}
+        except:
+            payload = {}
+        cls = payload.get('class', payload.get('err_class', etype))
+        det = str(payload.get('detail', ''))[:60]
+        key = (str(cls), det[:40])
+        if key in seen:
+            continue
+        seen[key] = True
+        count += 1
+        sev = payload.get('severity', '')
+        sev_tag = f"[{sev}] " if sev else ""
+        print(f"  {ts or '?':36s} {sev_tag}{cls}: {det}")
+    if count == 0:
+        print("  (no incidents in last 7 days after de-noising)")
+except Exception as e:
+    print(f"  (query error: {e})")
+PYEOF
+)"
+  echo "$incidents_out"
+  echo ""
+
+  # ── STAGED PATCHES ───────────────────────────────────────────────────────
+  echo "── STAGED PATCHES ─────────────────────────────────────────────────"
+  if [[ ! -f "$stage_index" ]]; then
+    echo "  (no staged patches — stage-index not found at $stage_index)"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════"
+    return 0
+  fi
+
+  local patch_count=0
+  while IFS= read -r entry_line; do
+    [[ -z "$entry_line" ]] && continue
+    local patch_id inc_class inc_detail proposed evidence verdict passed corpus staged_at
+    patch_id="$(printf '%s' "$entry_line" | jq -r '.id // "unknown"' 2>/dev/null)" || patch_id="unknown"
+    inc_class="$(printf '%s' "$entry_line" | jq -r '.class // "unknown"' 2>/dev/null)" || inc_class="unknown"
+    inc_detail="$(printf '%s' "$entry_line" | jq -r '.detail // ""' 2>/dev/null | head -c 80)" || inc_detail=""
+    proposed="$(printf '%s' "$entry_line" | jq -r '.proposed // ""' 2>/dev/null)" || proposed=""
+    evidence="$(printf '%s' "$entry_line" | jq -r '.evidence // ""' 2>/dev/null)" || evidence=""
+    verdict="$(printf '%s' "$entry_line" | jq -r '.verdict // "STAGE-OK"' 2>/dev/null)" || verdict="STAGE-OK"
+    passed="$(printf '%s' "$entry_line" | jq -r '.passed // 0' 2>/dev/null)" || passed=0
+    corpus="$(printf '%s' "$entry_line" | jq -r '.corpus // 0' 2>/dev/null)" || corpus=0
+    staged_at="$(printf '%s' "$entry_line" | jq -r '.staged_at // ""' 2>/dev/null)" || staged_at=""
+
+    # Skip if .proposed file no longer exists (already applied/rejected)
+    if [[ -n "$proposed" ]] && [[ ! -f "$proposed" ]]; then
+      continue
+    fi
+
+    patch_count=$(( patch_count + 1 ))
+    echo ""
+    echo "  [$patch_count] $patch_id"
+    echo "       class   : $inc_class"
+    [[ -n "$inc_detail" ]] && echo "       intent  : $inc_detail"
+    echo "       corpus  : $passed passed, 0 regressions (of $corpus)"
+    echo "       verdict : $verdict"
+    [[ -n "$staged_at" ]] && echo "       staged  : $staged_at"
+    [[ -n "$evidence" ]] && echo "       evidence: $evidence"
+    echo "       approve : harness eval apply $patch_id"
+    echo "       reject  : harness eval reject $patch_id"
+  done < "$stage_index"
+
+  if [[ "$patch_count" -eq 0 ]]; then
+    echo "  (no staged patches pending)"
+  fi
+
+  echo ""
+  echo "═══════════════════════════════════════════════════════════════"
+}
+
+# ── harness eval ──────────────────────────────────────────────────────────────
+# Purpose: Eval corpus runner + stage gate (Pillar III §Task 3). Runs the full
+#   ~/.claude/evals/incidents/ corpus against guards, optionally applying a patch
+#   to a throwaway copy first. Reports STAGE-OK or STAGE-REFUSED with regressions[].
+# Usage: harness eval run [--with-patch <diff>]
+#        harness eval ls
+# Gotchas: --with-patch applies ONLY inside a tempdir copy; never mutates ~/.claude.
+#   Patches touching run-harness-evals.sh, evals/, or eval-corpus/ → exit 3 CORPUS_TAMPER.
+#   Every run emits an eval_run event to the spine (fail-open).
+#   HARNESS_EVAL_CORPUS_DIR overrides the corpus path (used by tests).
+#   HARNESS_EVAL_GUARD_HOME overrides the guard home (used by tests).
+cmd_eval() {
+  local CLAUDE_HOME="$HOME/.claude"
+  local CORPUS_DIR="${HARNESS_EVAL_CORPUS_DIR:-$CLAUDE_HOME/evals/incidents}"
+  local GUARD_HOME="${HARNESS_EVAL_GUARD_HOME:-$CLAUDE_HOME}"
+  local PATCH_FILE=""
+  local SUBVERB="${1:-}"
+
+  # ── _eval_classify: run a guard with stdin, classify the verdict
+  # Purpose: Invoke a guard script, parse its stdout, classify as block/deny/allow.
+  # Usage: _eval_classify <guard_path> <stdin_json>
+  # Gotchas: Guard stderr is discarded (informational only); only stdout is parsed.
+  _eval_classify() {
+    local guard="$1" stdin_json="$2"
+    local outfile
+    outfile="$(mktemp /tmp/harness-eval-guard-XXXXXX.json)"
+    local ec=0
+    printf '%s\n' "$stdin_json" | bash "$guard" >"$outfile" 2>/dev/null || ec=$?
+    local content
+    content="$(cat "$outfile" 2>/dev/null || echo '')"
+    rm -f "$outfile"
+
+    local verdict="allow"
+    if [[ -n "$content" ]]; then
+      local block_val perm_val
+      block_val="$(printf '%s\n' "$content" | python3 -c \
+        "import sys,json
+try:
+  d=json.load(sys.stdin); print(d.get('decision',''))
+except Exception: print('')" 2>/dev/null || echo '')"
+      perm_val="$(printf '%s\n' "$content" | python3 -c \
+        "import sys,json
+try:
+  d=json.load(sys.stdin); print(d.get('hookSpecificOutput',{}).get('permissionDecision',''))
+except Exception: print('')" 2>/dev/null || echo '')"
+      if [[ "$block_val" == "block" ]]; then
+        verdict="block"
+      elif [[ "$perm_val" == "deny" ]]; then
+        verdict="deny"
+      elif [[ "$ec" -eq 2 ]]; then
+        verdict="deny"
+      fi
+    fi
+    printf '%s' "$verdict"
+  }
+
+  # ── _eval_run_corpus: run all fixtures under CORPUS_DIR against guards in GUARD_HOME
+  # Purpose: Iterate all <class>-<nnn> fixture dirs, run each against its declared guard,
+  #   compare verdict to expect.json. Collect pass/fail/gap counts and fixture names.
+  # Usage: _eval_run_corpus <corpus_dir> <guard_home> <label>
+  #   Outputs space-separated result line: "passed=N failed=M gap=K regressions=<json-array>"
+  # Gotchas: expected_gap:true fixtures are counted as KNOWN-GAP, not FAIL/PASS.
+  _eval_run_corpus() {
+    local corpus="$1" ghome="$2" label="$3"
+    local passed=0 failed=0 gap=0
+    local regressions="[]"
+    local failures_json="[]"
+
+    if [[ ! -d "$corpus" ]]; then
+      echo "EVAL-CORPUS: corpus dir not found: $corpus" >&2
+      echo "passed=0 failed=0 gap=0 regressions=[]"
+      return
+    fi
+
+    for fixture_dir in "$corpus"/*/; do
+      [[ -d "$fixture_dir" ]] || continue
+      local fixture_name
+      fixture_name="$(basename "$fixture_dir")"
+
+      local input_f="$fixture_dir/input.json"
+      local expect_f="$fixture_dir/expect.json"
+      if [[ ! -f "$input_f" || ! -f "$expect_f" ]]; then
+        echo "  SKIP $fixture_name: missing input.json or expect.json" >&2
+        continue
+      fi
+
+      # Parse expect fields
+      local hook_rel expect_verdict expected_gap
+      hook_rel="$(python3 -c "import sys,json; d=json.load(open('$expect_f')); print(d.get('hook',''))" 2>/dev/null || echo '')"
+      expect_verdict="$(python3 -c "import sys,json; d=json.load(open('$expect_f')); print(d.get('expect','allow'))" 2>/dev/null || echo 'allow')"
+      expected_gap="$(python3 -c "import sys,json; d=json.load(open('$expect_f')); print('true' if d.get('expected_gap',False) else 'false')" 2>/dev/null || echo 'false')"
+
+      if [[ -z "$hook_rel" ]]; then
+        echo "  SKIP $fixture_name: hook field missing in expect.json" >&2
+        continue
+      fi
+
+      # Hydrate input.json: replace __FIXTURE_DIR__ with abs fixture path
+      local abs_fixture_dir
+      abs_fixture_dir="$(cd "$fixture_dir" && pwd)"
+      local hydrated_input
+      hydrated_input="$(python3 -c "
+import json, sys
+d = json.load(open('$input_f'))
+s = json.dumps(d)
+s = s.replace('__FIXTURE_DIR__', '$abs_fixture_dir')
+print(s)
+" 2>/dev/null || echo '')"
+
+      if [[ -z "$hydrated_input" ]]; then
+        echo "  SKIP $fixture_name: failed to hydrate input.json" >&2
+        continue
+      fi
+
+      # Resolve guard path
+      local guard_path="$ghome/$hook_rel"
+      if [[ ! -x "$guard_path" ]]; then
+        echo "  SKIP $fixture_name: guard not found/not executable: $guard_path" >&2
+        continue
+      fi
+
+      # Run guard and classify
+      local actual_verdict
+      actual_verdict="$(_eval_classify "$guard_path" "$hydrated_input")"
+
+      if [[ "$expected_gap" == "true" ]]; then
+        gap=$(( gap + 1 ))
+        echo "  KNOWN-GAP $fixture_name (expected $expect_verdict got $actual_verdict)"
+      elif [[ "$actual_verdict" == "$expect_verdict" ]]; then
+        passed=$(( passed + 1 ))
+        echo "  PASS $fixture_name ($actual_verdict)"
+      else
+        failed=$(( failed + 1 ))
+        echo "  FAIL $fixture_name (expected $expect_verdict got $actual_verdict)"
+        failures_json="$(python3 -c "
+import json, sys
+arr = json.loads('$failures_json')
+arr.append('$fixture_name')
+print(json.dumps(arr))
+" 2>/dev/null || echo "$failures_json")"
+      fi
+    done
+
+    printf 'passed=%d failed=%d gap=%d regressions=%s\n' "$passed" "$failed" "$gap" "$failures_json"
+  }
+
+  # ── _eval_run_guard_suite: run one guard test suite script
+  # Purpose: Invoke a guard test suite script, capture pass/fail from its output.
+  # Usage: _eval_run_guard_suite <suite_script> <label>
+  # Gotchas: Suite must follow PASS:/FAIL: output convention; exit code is trusted.
+  _eval_run_guard_suite() {
+    local script="$1" label="$2"
+    local ec=0
+    local out
+    out="$(bash "$script" 2>&1)" || ec=$?
+    local suite_pass suite_fail
+    suite_pass="$(printf '%s\n' "$out" | grep -c '^PASS:' 2>/dev/null || true)"
+    suite_fail="$(printf '%s\n' "$out" | grep -c '^FAIL:' 2>/dev/null || true)"
+    suite_pass="${suite_pass:-0}"
+    suite_fail="${suite_fail:-0}"
+    # Strip any whitespace (BSD grep -c may include trailing newlines)
+    suite_pass="$(printf '%s' "$suite_pass" | tr -d '[:space:]')"
+    suite_fail="$(printf '%s' "$suite_fail" | tr -d '[:space:]')"
+    [[ "$suite_pass" =~ ^[0-9]+$ ]] || suite_pass=0
+    [[ "$suite_fail" =~ ^[0-9]+$ ]] || suite_fail=0
+    if [[ "$ec" -ne 0 ]] || [[ "$suite_fail" -gt 0 ]]; then
+      echo "  SUITE-FAIL $label (pass=$suite_pass fail=$suite_fail)"
+      return 1
+    else
+      echo "  SUITE-PASS $label (pass=$suite_pass)"
+      return 0
+    fi
+  }
+
+  # ── _emit_eval_run: emit an eval_run event to the spine
+  # Purpose: Record every corpus run in the telemetry spine for audit traceability.
+  # Usage: _emit_eval_run <corpus_count> <passed> <failed> <regressions_json> <verdict>
+  # Gotchas: Fail-open — if emit-event.sh missing, skip silently.
+  _emit_eval_run() {
+    local corpus_count="$1" passed="$2" failed="$3" regressions="$4" verdict="$5"
+    local emit_lib="$HOME/.claude/scripts/lib/emit-event.sh"
+    if [[ -f "$emit_lib" ]]; then
+      local payload
+      payload="$(jq -cn \
+        --argjson corpus "$corpus_count" \
+        --argjson passed "$passed" \
+        --argjson failed "$failed" \
+        --argjson regressions "$regressions" \
+        --arg verdict "$verdict" \
+        '{corpus:$corpus, passed:$passed, failed:$failed, regressions:$regressions, verdict:$verdict}' 2>/dev/null || echo '{}')"
+      # Source and call; fail-open
+      # shellcheck disable=SC1090
+      ( source "$emit_lib" 2>/dev/null && emit_event "eval_run" "$payload" source="harness-eval" ) 2>/dev/null || true
+    fi
+  }
+
+  # ── _corpus_tamper_check: refuse patches that touch eval runner or corpus files
+  # Purpose: Guard the eval runner from self-patching; exit 3 on CORPUS_TAMPER.
+  # Usage: _corpus_tamper_check <diff_file>
+  # Gotchas: Checks +++ b/ lines in unified diff for protected path prefixes.
+  _corpus_tamper_check() {
+    local diff_file="$1"
+    local protected_patterns=("scripts/run-harness-evals.sh" "evals/" "eval-corpus/")
+    local touched_files
+    touched_files="$(grep -E '^(\+\+\+|---) ' "$diff_file" | grep -v '/dev/null' | sed 's|^[+-][+-][+-] [ab]/||' || echo '')"
+    local p
+    for p in "${protected_patterns[@]}"; do
+      if printf '%s\n' "$touched_files" | grep -q "^$p"; then
+        echo "CORPUS_TAMPER: patch touches protected path '$p' — refusing" >&2
+        exit 3
+      fi
+    done
+  }
+
+  # ── Parse sub-verb and args ──────────────────────────────────────────────────
+  case "${SUBVERB:-}" in
+    run)
+      shift  # consume "run"
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --with-patch)
+            [[ $# -lt 2 ]] && { echo "harness eval run: --with-patch requires a file argument" >&2; exit 1; }
+            PATCH_FILE="$2"; shift 2 ;;
+          --help|-h)
+            echo "harness eval run [--with-patch <diff>]"
+            echo "  Runs eval corpus + guard suites. With --with-patch: applies diff to throwaway copy first."
+            return 0 ;;
+          *) echo "harness eval run: unknown option: $1" >&2; exit 1 ;;
+        esac
+      done
+      ;;
+    ls)
+      echo "Eval corpus fixtures:"
+      if [[ -d "$CORPUS_DIR" ]]; then
+        local count=0
+        for d in "$CORPUS_DIR"/*/; do
+          [[ -d "$d" ]] || continue
+          echo "  $(basename "$d")"
+          count=$(( count + 1 ))
+        done
+        echo "Total: $count fixtures"
+      else
+        echo "  (corpus dir not found: $CORPUS_DIR)"
+      fi
+      return 0
+      ;;
+    apply)
+      # ── harness eval apply <id> [--dry-run] ─────────────────────────────────
+      # Purpose: Show the exact write that WOULD happen for a staged patch (dry-run).
+      #   This is a DRY-RUN ONLY subcommand — actual application is a human/VII-gated action.
+      #   It NEVER writes to the real target file.
+      # Usage: harness eval apply [--dry-run] <patch-id>
+      # Gotchas: --dry-run is implicit (all apply commands are dry-run at this phase).
+      #   STAGE_STAGING_DIR env overrides the staging index path (for tests).
+      shift  # consume "apply"
+      local _apply_dry_run=0
+      local _apply_id=""
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --dry-run) _apply_dry_run=1; shift ;;
+          --help|-h)
+            echo "harness eval apply [--dry-run] <patch-id>"
+            echo "  DRY-RUN: shows WOULD-WRITE <target> without writing anything."
+            echo "  Actual application is a human/VII-gated action."
+            return 0 ;;
+          -*) echo "harness eval apply: unknown option: $1" >&2; exit 1 ;;
+          *) _apply_id="$1"; shift ;;
+        esac
+      done
+      if [[ -z "$_apply_id" ]]; then
+        echo "harness eval apply: patch id required" >&2
+        echo "Usage: harness eval apply [--dry-run] <patch-id>" >&2
+        exit 1
+      fi
+
+      # Locate stage index
+      local _apply_staging_dir="${STAGE_STAGING_DIR:-$STATE/state/flywheel/staging}"
+      local _apply_index="$STATE/state/flywheel/stage-index.ndjson"
+      # Test path: check STAGE_STATE_DIR
+      if [[ ! -f "$_apply_index" ]] && [[ -n "${STAGE_STATE_DIR:-}" ]]; then
+        local _alt="$STAGE_STATE_DIR/state/flywheel/stage-index.ndjson"
+        [[ -f "$_alt" ]] && _apply_index="$_alt"
+      fi
+
+      if [[ ! -f "$_apply_index" ]]; then
+        echo "harness eval apply: stage index not found — no staged patches" >&2
+        echo "  (looked at: $_apply_index)" >&2
+        exit 1
+      fi
+
+      # Find entry for this id
+      local _entry
+      _entry="$(grep "\"id\":\"$_apply_id\"" "$_apply_index" 2>/dev/null | head -1)" || _entry=""
+      if [[ -z "$_entry" ]]; then
+        echo "harness eval apply: patch not found: $_apply_id" >&2
+        echo "  Run 'harness brief' to list available staged patches." >&2
+        exit 1
+      fi
+
+      local _proposed _evidence _inc_class
+      _proposed="$(printf '%s' "$_entry" | jq -r '.proposed // ""' 2>/dev/null)" || _proposed=""
+      _evidence="$(printf '%s' "$_entry" | jq -r '.evidence // ""' 2>/dev/null)" || _evidence=""
+      _inc_class="$(printf '%s' "$_entry" | jq -r '.class // "unknown"' 2>/dev/null)" || _inc_class="unknown"
+
+      echo "harness eval apply — DRY-RUN (no files written)"
+      echo ""
+      echo "Patch ID : $_apply_id"
+      echo "Class    : $_inc_class"
+      echo ""
+      if [[ -n "$_proposed" ]] && [[ -f "$_proposed" ]]; then
+        echo "WOULD-WRITE: $_proposed"
+        echo "  (proposed patch content — $( wc -l < "$_proposed" | tr -d ' ') lines)"
+      else
+        echo "WOULD-WRITE: $_proposed"
+        echo "  (proposed file not found — may have been applied or removed)"
+      fi
+      [[ -n "$_evidence" ]] && echo "Evidence : $_evidence"
+      echo ""
+      echo "To actually apply: this action requires human/VII approval."
+      echo "The dry-run above shows the exact target that WOULD be written."
+      echo ""
+      echo "(DRY-RUN complete — nothing was written)"
+      return 0
+      ;;
+    reject)
+      # ── harness eval reject <id> ────────────────────────────────────────────
+      # Purpose: Remove a staged patch from the index and delete its artifacts.
+      # Usage: harness eval reject <patch-id>
+      # Gotchas: This is the human rejection action — removes .proposed + .evidence.md.
+      shift  # consume "reject"
+      local _reject_id="${1:-}"
+      if [[ -z "$_reject_id" ]]; then
+        echo "harness eval reject: patch id required" >&2
+        exit 1
+      fi
+
+      # Locate stage index
+      local _reject_index="$STATE/state/flywheel/stage-index.ndjson"
+      if [[ ! -f "$_reject_index" ]] && [[ -n "${STAGE_STATE_DIR:-}" ]]; then
+        local _ralt="$STAGE_STATE_DIR/state/flywheel/stage-index.ndjson"
+        [[ -f "$_ralt" ]] && _reject_index="$_ralt"
+      fi
+
+      if [[ ! -f "$_reject_index" ]]; then
+        echo "harness eval reject: stage index not found" >&2
+        exit 1
+      fi
+
+      local _rentry
+      _rentry="$(grep "\"id\":\"$_reject_id\"" "$_reject_index" 2>/dev/null | head -1)" || _rentry=""
+      if [[ -z "$_rentry" ]]; then
+        echo "harness eval reject: patch not found: $_reject_id" >&2
+        exit 1
+      fi
+
+      local _rproposed _revidence
+      _rproposed="$(printf '%s' "$_rentry" | jq -r '.proposed // ""' 2>/dev/null)" || _rproposed=""
+      _revidence="$(printf '%s' "$_rentry" | jq -r '.evidence // ""' 2>/dev/null)" || _revidence=""
+
+      # Remove artifacts
+      [[ -n "$_rproposed" ]] && rm -f "$_rproposed" 2>/dev/null || true
+      [[ -n "$_revidence" ]] && rm -f "$_revidence" 2>/dev/null || true
+
+      # Remove from index
+      local _rtmp
+      _rtmp="$(mktemp /tmp/harness-reject-idx-XXXXXX.ndjson)"
+      grep -v "\"id\":\"$_reject_id\"" "$_reject_index" > "$_rtmp" 2>/dev/null || true
+      mv "$_rtmp" "$_reject_index" 2>/dev/null || true
+
+      echo "harness eval reject: patch $_reject_id rejected and removed from staging."
+      return 0
+      ;;
+    "")
+      echo "harness eval: subverb required (run|ls|apply|reject)" >&2
+      echo "  harness eval run [--with-patch <diff>]"
+      echo "  harness eval ls"
+      echo "  harness eval apply [--dry-run] <patch-id>"
+      echo "  harness eval reject <patch-id>"
+      exit 1
+      ;;
+    *)
+      echo "harness eval: unknown subverb: $SUBVERB" >&2
+      exit 1
+      ;;
+  esac
+
+  # ── EVAL RUN path ───────────────────────────────────────────────────────────
+  local WORK_CORPUS="$CORPUS_DIR"
+  local WORK_GUARD_HOME="$GUARD_HOME"
+  local WORK_DIR=""
+
+  # If --with-patch: copy guard scripts to throwaway tempdir, apply patch there
+  if [[ -n "$PATCH_FILE" ]]; then
+    if [[ ! -f "$PATCH_FILE" ]]; then
+      echo "harness eval run: patch file not found: $PATCH_FILE" >&2
+      exit 1
+    fi
+
+    # CORPUS_TAMPER check before any work
+    _corpus_tamper_check "$PATCH_FILE"
+
+    # Create throwaway working copy
+    WORK_DIR="$(mktemp -d /tmp/harness-eval-work-XXXXXX)"
+    echo "Eval: applying patch to throwaway copy at $WORK_DIR"
+
+    # Copy the guard scripts (scripts/, skills/, governance/) to the work dir
+    # REQ-03 fix (MASTER-05): also copy skills/ so a SKILL.md candidate can be patched + scored
+    cp -r "$GUARD_HOME/scripts" "$WORK_DIR/scripts" 2>/dev/null || true
+    if [[ -d "$GUARD_HOME/scripts/governance" ]]; then
+      mkdir -p "$WORK_DIR/scripts/governance"
+      cp -r "$GUARD_HOME/scripts/governance/." "$WORK_DIR/scripts/governance/" 2>/dev/null || true
+    fi
+    if [[ -d "$GUARD_HOME/skills" ]]; then
+      cp -r "$GUARD_HOME/skills" "$WORK_DIR/skills" 2>/dev/null || true
+    fi
+
+    # Apply patch inside work dir (fail gracefully if patch doesn't apply)
+    local patch_ec=0
+    ( cd "$WORK_DIR" && patch -p1 < "$PATCH_FILE" 2>&1 ) || patch_ec=$?
+    if [[ "$patch_ec" -ne 0 ]]; then
+      echo "EVAL: patch failed to apply (exit $patch_ec) — aborting" >&2
+      rm -rf "$WORK_DIR"
+      exit 1
+    fi
+    chmod -R +x "$WORK_DIR/scripts/" 2>/dev/null || true
+
+    WORK_GUARD_HOME="$WORK_DIR"
+    echo "Eval: patch applied successfully"
+  fi
+
+  # ── Run baseline corpus (or patched corpus) ──────────────────────────────────
+  echo ""
+  echo "── Eval corpus run $(date -u +%Y-%m-%dT%H:%M:%SZ) ──────────────────────────────────"
+  if [[ -n "$PATCH_FILE" ]]; then
+    echo "Mode: patched (diff=$(basename "$PATCH_FILE"))"
+  else
+    echo "Mode: baseline (no patch)"
+  fi
+  echo ""
+
+  # Count fixtures
+  local corpus_count=0
+  for d in "$WORK_CORPUS"/*/; do
+    [[ -d "$d" ]] && corpus_count=$(( corpus_count + 1 ))
+  done
+  echo "Corpus: $corpus_count fixtures in $WORK_CORPUS"
+  echo ""
+
+  # Run fixtures — redirect per-fixture output to stdout; summary line to a temp file
+  echo "── Fixture results ──────────────────────────────────────────────────────"
+  local fixture_summary_file
+  fixture_summary_file="$(mktemp /tmp/harness-eval-summary-XXXXXX.txt)"
+  # Run with stdout to tty, last line (summary) captured separately via process substitution trick:
+  # We write the summary line to the temp file by having _eval_run_corpus write it to fd3.
+  _eval_run_corpus_streaming() {
+    local corpus="$1" ghome="$2"
+    local passed=0 failed=0 gap=0
+    local failures_json="[]"
+
+    if [[ ! -d "$corpus" ]]; then
+      echo "EVAL-CORPUS: corpus dir not found: $corpus" >&2
+      printf 'passed=0 failed=0 gap=0 regressions=[]\n' >&3
+      return
+    fi
+
+    for fixture_dir in "$corpus"/*/; do
+      [[ -d "$fixture_dir" ]] || continue
+      local fixture_name
+      fixture_name="$(basename "$fixture_dir")"
+
+      local input_f="$fixture_dir/input.json"
+      local expect_f="$fixture_dir/expect.json"
+      if [[ ! -f "$input_f" || ! -f "$expect_f" ]]; then
+        echo "  SKIP $fixture_name: missing input.json or expect.json"
+        continue
+      fi
+
+      local hook_rel expect_verdict expected_gap
+      hook_rel="$(python3 -c "import json; d=json.load(open('$expect_f')); print(d.get('hook',''))" 2>/dev/null || echo '')"
+      expect_verdict="$(python3 -c "import json; d=json.load(open('$expect_f')); print(d.get('expect','allow'))" 2>/dev/null || echo 'allow')"
+      expected_gap="$(python3 -c "import json; d=json.load(open('$expect_f')); print('true' if d.get('expected_gap',False) else 'false')" 2>/dev/null || echo 'false')"
+
+      if [[ -z "$hook_rel" ]]; then
+        echo "  SKIP $fixture_name: hook field missing in expect.json"
+        continue
+      fi
+
+      local abs_fixture_dir
+      abs_fixture_dir="$(cd "$fixture_dir" && pwd)"
+      local hydrated_input
+      hydrated_input="$(python3 -c "
+import json
+d = json.load(open('$input_f'))
+s = json.dumps(d)
+s = s.replace('__FIXTURE_DIR__', '$abs_fixture_dir')
+print(s)
+" 2>/dev/null || echo '')"
+
+      if [[ -z "$hydrated_input" ]]; then
+        echo "  SKIP $fixture_name: failed to hydrate input.json"
+        continue
+      fi
+
+      local guard_path="$ghome/$hook_rel"
+      if [[ ! -x "$guard_path" ]]; then
+        echo "  SKIP $fixture_name: guard not found/not executable: $guard_path"
+        continue
+      fi
+
+      local actual_verdict
+      actual_verdict="$(_eval_classify "$guard_path" "$hydrated_input")"
+
+      if [[ "$expected_gap" == "true" ]]; then
+        gap=$(( gap + 1 ))
+        echo "  KNOWN-GAP $fixture_name (expected $expect_verdict got $actual_verdict)"
+      elif [[ "$actual_verdict" == "$expect_verdict" ]]; then
+        passed=$(( passed + 1 ))
+        echo "  PASS $fixture_name ($actual_verdict)"
+      else
+        failed=$(( failed + 1 ))
+        echo "  FAIL $fixture_name (expected $expect_verdict got $actual_verdict)"
+        failures_json="$(python3 -c "
+import json
+arr = json.loads('$failures_json')
+arr.append('$fixture_name')
+print(json.dumps(arr))
+" 2>/dev/null || echo "$failures_json")"
+      fi
+    done
+
+    printf 'passed=%d failed=%d gap=%d regressions=%s\n' "$passed" "$failed" "$gap" "$failures_json" >&3
+  }
+
+  # Open fd3 pointing at the summary file, run corpus with stdout to terminal
+  exec 3>"$fixture_summary_file"
+  _eval_run_corpus_streaming "$WORK_CORPUS" "$WORK_GUARD_HOME"
+  exec 3>&-
+  echo ""
+
+  # Parse summary from file
+  local fixture_summary
+  fixture_summary="$(cat "$fixture_summary_file")"
+  rm -f "$fixture_summary_file"
+
+  local f_passed f_failed f_gap f_regressions
+  f_passed="$(printf '%s\n' "$fixture_summary" | grep -o 'passed=[0-9]*' | cut -d= -f2 || echo 0)"
+  f_failed="$(printf '%s\n' "$fixture_summary" | grep -o 'failed=[0-9]*' | cut -d= -f2 || echo 0)"
+  f_gap="$(printf '%s\n' "$fixture_summary" | grep -o 'gap=[0-9]*' | cut -d= -f2 || echo 0)"
+  f_regressions="$(printf '%s\n' "$fixture_summary" | grep -o 'regressions=.*' | sed 's/regressions=//' || echo '[]')"
+
+  # Run guard suites
+  echo "── Guard suite results ──────────────────────────────────────────────────"
+  local suite_failures=0
+
+  local ccg_suite="$HOME/.claude/scripts/tests/test-completion-claim-guard.sh"
+  local qaog_suite="$HOME/.claude/scripts/tests/test-qa-artifact-ownership-guard.sh"
+
+  if [[ -n "$PATCH_FILE" ]]; then
+    # Use patched guard for suite runs via env override
+    local patched_ccg="$WORK_GUARD_HOME/scripts/completion-claim-guard.sh"
+    local patched_qaog="$WORK_GUARD_HOME/scripts/governance/qa-artifact-ownership-guard.sh"
+
+    if [[ -f "$ccg_suite" && -x "$patched_ccg" ]]; then
+      GUARD="$patched_ccg" _eval_run_guard_suite "$ccg_suite" "completion-claim-guard" || suite_failures=$(( suite_failures + 1 ))
+    else
+      echo "  SKIP completion-claim-guard suite (patched guard not found)"
+    fi
+    if [[ -f "$qaog_suite" && -x "$patched_qaog" ]]; then
+      GUARD="$patched_qaog" _eval_run_guard_suite "$qaog_suite" "qa-artifact-ownership-guard" || suite_failures=$(( suite_failures + 1 ))
+    else
+      echo "  SKIP qa-artifact-ownership-guard suite (patched guard not found)"
+    fi
+  else
+    [[ -f "$ccg_suite" ]] && _eval_run_guard_suite "$ccg_suite" "completion-claim-guard" || suite_failures=$(( suite_failures + 1 ))
+    [[ -f "$qaog_suite" ]] && _eval_run_guard_suite "$qaog_suite" "qa-artifact-ownership-guard" || suite_failures=$(( suite_failures + 1 ))
+  fi
+  echo ""
+
+  # Determine verdict
+  local regressions_empty=true
+  python3 -c "
+import json, sys
+arr = json.loads('$f_regressions')
+sys.exit(0 if len(arr)==0 else 1)
+" 2>/dev/null || regressions_empty=false
+
+  local verdict="STAGE-OK"
+  if [[ "$regressions_empty" == "false" ]] || [[ "$suite_failures" -gt 0 ]]; then
+    verdict="STAGE-REFUSED"
+  fi
+
+  # Print summary JSON
+  local total_passed=$(( f_passed ))
+  local total_failed=$(( f_failed + suite_failures ))
+  local summary_json
+  summary_json="$(jq -cn \
+    --argjson corpus "$corpus_count" \
+    --argjson passed "$total_passed" \
+    --argjson failed "$total_failed" \
+    --argjson gap "$f_gap" \
+    --argjson regressions "$f_regressions" \
+    --arg suite_failures "$suite_failures" \
+    --arg verdict "$verdict" \
+    '{corpus:$corpus, passed:$passed, failed:$failed, gap:$gap, regressions:$regressions, suite_failures:$suite_failures, verdict:$verdict}' 2>/dev/null || \
+    printf '{"corpus":%d,"passed":%d,"failed":%d,"gap":%d,"regressions":%s,"verdict":"%s"}' \
+      "$corpus_count" "$total_passed" "$total_failed" "$f_gap" "$f_regressions" "$verdict")"
+
+  echo "── Summary ──────────────────────────────────────────────────────────────"
+  printf '%s\n' "$summary_json"
+  echo ""
+  echo "VERDICT: $verdict"
+
+  # Emit eval_run event (fail-open)
+  _emit_eval_run "$corpus_count" "$total_passed" "$total_failed" "$f_regressions" "$verdict" || true
+
+  # Cleanup
+  if [[ -n "$WORK_DIR" ]]; then
+    rm -rf "$WORK_DIR"
+  fi
+
+  # Exit code: 0 for STAGE-OK, 1 for STAGE-REFUSED, 3 was already used for CORPUS_TAMPER
+  if [[ "$verdict" == "STAGE-OK" ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# ── harness replay ────────────────────────────────────────────────────────────
+# Purpose: Golden trace-replay regression guard (§III-3.5). Feeds each step's
+#   stdin through the live hook script and diffs the result against golden-decisions.
+# Usage: harness replay <trace-name> --assert-decisions
+#        harness replay --all-golden
+# Gotchas: HARNESS_GOLDEN_DIR env overrides the trace root (used by tests).
+#   HARNESS_HOOK_OVERRIDE_<guard_basename> overrides a specific hook binary path.
+#   __TRACE_DIR__ in stdin payloads is substituted with the trace directory abs-path.
+#   __SENTINEL_CWD__ steps use a temp git repo with .active sentinel as cwd.
+#   Fail-closed on real DIVERGE; fail-open only on missing harness binary.
+cmd_replay() {
+  local CLAUDE_HOME="$HOME/.claude"
+  # Golden traces root: HARNESS_GOLDEN_DIR env overrides for tests.
+  local GOLDEN_ROOT="${HARNESS_GOLDEN_DIR:-$HOME/.claude/.agents/claude-governance/eval-corpus/golden-traces}"
+
+  # ── derive_decision: run one step stdin through the guard, return decision string
+  # Purpose: Invoke the hook binary, capture stdout, classify output as
+  #   block|deny|allow|silent based on JSON output fields and exit code.
+  # Usage: derive_decision <guard_path> <stdin_json> [<workdir>]
+  # Gotchas: Hook binaries may write to stderr (informational); we only parse stdout.
+  _derive_decision() {
+    local guard="$1" stdin_json="$2" workdir="${3:-/tmp}"
+    local outfile
+    outfile="$(mktemp /tmp/harness-replay-out-XXXXXX.json)"
+    local ec=0
+    ( cd "$workdir" && printf '%s\n' "$stdin_json" | bash "$guard" >"$outfile" 2>/dev/null ) || ec=$?
+    local content
+    content="$(cat "$outfile" 2>/dev/null || echo '')"
+    rm -f "$outfile"
+
+    local decision="silent"
+    if [[ -n "$content" ]]; then
+      local block_val perm_val
+      block_val="$(printf '%s\n' "$content" | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); print(d.get('decision',''))" 2>/dev/null || echo '')"
+      perm_val="$(printf '%s\n' "$content" | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); \
+         print(d.get('hookSpecificOutput',{}).get('permissionDecision',''))" 2>/dev/null || echo '')"
+      if [[ "$block_val" == "block" ]]; then
+        decision="block"
+      elif [[ "$perm_val" == "deny" ]]; then
+        decision="deny"
+      elif [[ "$perm_val" == "allow" ]]; then
+        decision="allow"
+      elif [[ "$ec" -eq 2 ]]; then
+        decision="deny"
+      fi
+    fi
+    printf '%s' "$decision"
+  }
+
+  # ── _replay_one: replay a single named trace and assert its decisions
+  # Purpose: Verify MANIFEST, load steps.jsonl + golden-decisions.jsonl, run each
+  #   step through the live guard, diff against golden. Exits nonzero on DIVERGE.
+  # Usage: _replay_one <trace-name>
+  # Gotchas: Prints DIVERGE lines to stdout on mismatch (caller captures for --all-golden).
+  _replay_one() {
+    local trace_name="$1"
+    local trace_dir="$GOLDEN_ROOT/$trace_name"
+
+    # Missing trace dir → clear error
+    if [[ ! -d "$trace_dir" ]]; then
+      echo "REPLAY ERROR: trace directory not found: $trace_dir" >&2
+      return 1
+    fi
+
+    # Verify MANIFEST.sha256 if present (fail-closed on tamper)
+    local manifest="$GOLDEN_ROOT/MANIFEST.sha256"
+    if [[ -f "$manifest" ]]; then
+      local verify_out verify_ec=0
+      verify_out="$(cd "$GOLDEN_ROOT" && shasum -a 256 -c MANIFEST.sha256 2>&1)" || verify_ec=$?
+      if [[ "$verify_ec" -ne 0 ]]; then
+        echo "REPLAY ERROR: MANIFEST.sha256 mismatch — corpus tamper detected. Cannot replay." >&2
+        echo "shasum output: $verify_out" >&2
+        return 1
+      fi
+    fi
+
+    # Load steps and golden decisions
+    local steps_file="$trace_dir/steps.jsonl"
+    local golden_file="$trace_dir/golden-decisions.jsonl"
+    if [[ ! -f "$steps_file" ]]; then
+      echo "REPLAY ERROR: missing steps.jsonl in $trace_dir" >&2
+      return 1
+    fi
+    if [[ ! -f "$golden_file" ]]; then
+      echo "REPLAY ERROR: missing golden-decisions.jsonl in $trace_dir" >&2
+      return 1
+    fi
+
+    # If this trace needs a sentinel, set up a temp git repo with .active
+    local sentinel_cwd=""
+    local sentinel_dir=""
+    if grep -q '"requires_sentinel"' "$steps_file" 2>/dev/null; then
+      sentinel_dir="$(mktemp -d /tmp/harness-replay-sentinel-XXXXXX)"
+      git -C "$sentinel_dir" init -q 2>/dev/null || true
+      mkdir -p "$sentinel_dir/.agents/claude-governance"
+      touch "$sentinel_dir/.agents/claude-governance/.active"
+      sentinel_cwd="$sentinel_dir"
+    fi
+    # Cleanup sentinel dir on function return
+    _cleanup_sentinel() { [[ -n "${sentinel_dir:-}" ]] && rm -rf "$sentinel_dir" || true; }
+    trap '_cleanup_sentinel' RETURN
+
+    local diverge=0
+
+    # Read steps and golden decisions in parallel using line index
+    local step_lines=()
+    local golden_lines=()
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      step_lines+=("$line")
+    done < "$steps_file"
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      golden_lines+=("$line")
+    done < "$golden_file"
+
+    local n="${#step_lines[@]}"
+    local i
+    for (( i=0; i<n; i++ )); do
+      local step_json="${step_lines[$i]}"
+      # NOTE: "${var:-{}} " is a bash footgun — the trailing } is a literal char,
+      # not part of the default value. Use explicit empty-check instead.
+      local golden_json="${golden_lines[$i]:-}"
+      [[ -z "$golden_json" ]] && golden_json="{}"
+
+      local seq hook stdin_json
+      seq="$(printf '%s\n' "$step_json" | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); print(d.get('seq',''))" 2>/dev/null || echo "$((i+1))")"
+      hook="$(printf '%s\n' "$step_json" | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); print(d.get('hook',''))" 2>/dev/null || echo '')"
+      stdin_json="$(printf '%s\n' "$step_json" | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); print(json.dumps(d.get('stdin',{})))" 2>/dev/null || echo '{}')"
+
+      local expected_decision
+      expected_decision="$(printf '%s\n' "$golden_json" | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); print(d.get('decision','silent'))" 2>/dev/null || echo 'silent')"
+
+      # Substitute __TRACE_DIR__ placeholder in stdin
+      stdin_json="${stdin_json//__TRACE_DIR__/$trace_dir}"
+      # Substitute __SENTINEL_CWD__ placeholder
+      if [[ -n "$sentinel_cwd" ]]; then
+        stdin_json="${stdin_json//__SENTINEL_CWD__/$sentinel_cwd}"
+      fi
+
+      # Resolve hook path: check for HARNESS_HOOK_OVERRIDE_<basename> env first
+      local guard_path="$CLAUDE_HOME/$hook"
+      local hook_basename
+      hook_basename="$(basename "$hook" .sh | tr '-' '_')"
+      local override_var="HARNESS_HOOK_OVERRIDE_${hook_basename}"
+      local override_val="${!override_var:-}"
+      if [[ -n "$override_val" && -x "$override_val" ]]; then
+        guard_path="$override_val"
+      fi
+
+      if [[ ! -x "$guard_path" ]]; then
+        echo "  SKIP seq=$seq ($hook): guard not found at $guard_path" >&2
+        continue
+      fi
+
+      # Determine workdir for the guard
+      local workdir="/tmp"
+      if [[ -n "$sentinel_cwd" ]] && printf '%s\n' "$step_json" | grep -q '"requires_sentinel"'; then
+        workdir="$sentinel_cwd"
+      fi
+
+      local actual_decision
+      actual_decision="$(_derive_decision "$guard_path" "$stdin_json" "$workdir")"
+
+      if [[ "$actual_decision" != "$expected_decision" ]]; then
+        echo "DIVERGE: trace=$trace_name seq=$seq expected=$expected_decision got=$actual_decision (hook=$hook)"
+        diverge=1
+      fi
+    done
+
+    if [[ "$diverge" -eq 0 ]]; then
+      echo "PASS: $trace_name (${#step_lines[@]} steps)"
+    fi
+    return "$diverge"
+  }
+
+  # ── Parse args ───────────────────────────────────────────────────────────────
+  local mode=""
+  local trace_name=""
+  local assert_decisions=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --all-golden)       mode="all-golden"; shift ;;
+      --assert-decisions) assert_decisions=1; shift ;;
+      --help|-h)
+        echo "harness replay <trace-name> --assert-decisions"
+        echo "harness replay --all-golden"
+        return 0 ;;
+      -*)  echo "harness replay: unknown option: $1" >&2; return 1 ;;
+      *)
+        if [[ -z "$trace_name" ]]; then trace_name="$1"
+        else echo "harness replay: unexpected argument: $1" >&2; return 1
+        fi
+        shift ;;
+    esac
+  done
+
+  if [[ "$mode" == "all-golden" ]]; then
+    # Run all 5 golden traces in sequence
+    local all_traces=(
+      golden-healthy-orchestration
+      golden-qa-ownership
+      golden-completion-block
+      golden-skill-routing
+      golden-clean-interactive
+    )
+    local overall_ec=0
+    local pass_count=0 fail_count=0
+    echo "harness replay --all-golden: running ${#all_traces[@]} traces"
+    echo ""
+    for t in "${all_traces[@]}"; do
+      if _replay_one "$t"; then
+        pass_count=$(( pass_count + 1 ))
+      else
+        fail_count=$(( fail_count + 1 ))
+        overall_ec=1
+      fi
+    done
+    echo ""
+    echo "Results: PASS=$pass_count  FAIL=$fail_count"
+    return "$overall_ec"
+  fi
+
+  # Single trace mode
+  if [[ -z "$trace_name" ]]; then
+    echo "harness replay: trace name required (or --all-golden)" >&2
+    echo "Usage: harness replay <trace-name> --assert-decisions" >&2
+    return 1
+  fi
+
+  _replay_one "$trace_name"
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────────────
+SUBCOMMAND="${1:-}"
+shift 2>/dev/null || true
+
+case "$SUBCOMMAND" in
+  query)       cmd_query       "$@" ;;
+  trace)       cmd_trace       "$@" ;;
+  incidents)   cmd_incidents   "$@" ;;
+  metrics)     cmd_metrics     "$@" ;;
+  doctor)      cmd_doctor      "$@" ;;
+  recall)      cmd_recall      "$@" ;;
+  queue)       cmd_queue       "$@" ;;
+  eval)        cmd_eval        "$@" ;;
+  brief)       cmd_brief       ;;
+  escalations) cmd_escalations ;;
+  replay)      cmd_replay      "$@" ;;
+  --help|-h|help|"") usage; exit 0 ;;
+  *) echo "harness: unknown subcommand: $SUBCOMMAND" >&2; echo "Run 'harness --help' for usage." >&2; exit 1 ;;
+esac

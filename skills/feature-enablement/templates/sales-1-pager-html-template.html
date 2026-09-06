@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{FEATURE_NAME}} - Sales One-Pager</title>
+    <style>
+        @media print {
+            @page {
+                size: letter;
+                margin: 0.5in;
+            }
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.5;
+            color: #1a1a1a;
+            background: #ffffff;
+            max-width: 8.5in;
+            margin: 0 auto;
+            padding: 0.5in;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 3px solid {{BRAND_COLOR}};
+            padding-bottom: 1rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            color: {{BRAND_COLOR}};
+            margin-bottom: 0.25rem;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .problem-solution {
+            background: #f5f5f5;
+            padding: 1rem;
+            border-left: 4px solid {{BRAND_COLOR}};
+            margin-bottom: 1.5rem;
+        }
+
+        .problem-solution p {
+            margin-bottom: 0.5rem;
+        }
+
+        .problem-solution strong {
+            color: {{BRAND_COLOR}};
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            color: {{BRAND_COLOR}};
+            margin: 1.5rem 0 1rem 0;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 0.5rem;
+        }
+
+        .feature-section {
+            margin-bottom: 2rem;
+            page-break-inside: avoid;
+        }
+
+        .feature-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-number {
+            background: {{BRAND_COLOR}};
+            color: white;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .feature-header h3 {
+            font-size: 1.25rem;
+            color: #1a1a1a;
+            margin: 0;
+        }
+
+        .image-container {
+            position: relative;
+            margin: 1rem 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .image-container img {
+            width: 100%;
+            display: block;
+        }
+
+        .annotation {
+            position: absolute;
+            background: rgba({{BRAND_RGB}}, 0.95);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .annotation::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+        }
+
+        /* Arrow pointing down */
+        .annotation.arrow-down::after {
+            border-width: 8px 6px 0 6px;
+            border-color: rgba({{BRAND_RGB}}, 0.95) transparent transparent transparent;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* Arrow pointing up */
+        .annotation.arrow-up::after {
+            border-width: 0 6px 8px 6px;
+            border-color: transparent transparent rgba({{BRAND_RGB}}, 0.95) transparent;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* Arrow pointing left */
+        .annotation.arrow-left::after {
+            border-width: 6px 8px 6px 0;
+            border-color: transparent rgba({{BRAND_RGB}}, 0.95) transparent transparent;
+            left: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Arrow pointing right */
+        .annotation.arrow-right::after {
+            border-width: 6px 0 6px 8px;
+            border-color: transparent transparent transparent rgba({{BRAND_RGB}}, 0.95);
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .value-prop {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 0.75rem 1rem;
+            margin: 0.75rem 0;
+            font-style: italic;
+        }
+
+        .value-prop strong {
+            color: #f57c00;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            border: 1px solid #e0e0e0;
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        .comparison-table th {
+            background: {{BRAND_COLOR}};
+            color: white;
+            font-weight: 600;
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .comparison-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .highlight-box {
+            background: #e3f2fd;
+            border: 2px solid #1976d2;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        .highlight-box h4 {
+            color: #1976d2;
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight-box ul {
+            margin-left: 1.5rem;
+        }
+
+        .roadmap-box {
+            background: #f3e5f5;
+            border: 2px solid #7b1fa2;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        .roadmap-box h4 {
+            color: #7b1fa2;
+            margin-bottom: 0.5rem;
+        }
+
+        .roadmap-box ul {
+            margin-left: 1.5rem;
+        }
+
+        .objections {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .objection-item {
+            margin-bottom: 1rem;
+        }
+
+        .objection-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .objection-q {
+            font-weight: 600;
+            color: #c62828;
+            margin-bottom: 0.25rem;
+        }
+
+        .objection-a {
+            color: #2e7d32;
+            margin-left: 1rem;
+        }
+
+        .footer {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 2px solid #e0e0e0;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .cta-box {
+            background: {{BRAND_COLOR}};
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            text-align: center;
+            margin: 1rem 0;
+            font-weight: 600;
+        }
+
+        .links {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 1rem 0;
+            font-size: 0.85rem;
+        }
+
+        .links a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{FEATURE_NAME}}</h1>
+        <div class="subtitle">{{SUBTITLE}}</div>
+    </div>
+
+    <div class="problem-solution">
+        <p><strong>Today:</strong> {{CURRENT_STATE}}</p>
+        <p><strong>Tomorrow:</strong> {{FUTURE_STATE}}</p>
+    </div>
+
+    <h2>{{NUM_CAPABILITIES}} Key Capabilities</h2>
+
+    {{CAPABILITIES_SECTIONS}}
+
+    {{PAGE_BREAK_IF_NEEDED}}
+
+    <h2>Why {{FEATURE_NAME}} Wins</h2>
+
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Competitor</th>
+                <th>Their Focus</th>
+                <th>{{FEATURE_NAME}} Advantage</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{COMPETITIVE_ROWS}}
+        </tbody>
+    </table>
+
+    <div class="cta-box">
+        {{COMPETITIVE_SUMMARY}}
+    </div>
+
+    <h2>Ideal Customer Profile</h2>
+
+    <div class="highlight-box">
+        <h4>Best fit for:</h4>
+        <ul>
+            {{ICP_ITEMS}}
+        </ul>
+    </div>
+
+    <div class="highlight-box">
+        <h4>Pain points we solve:</h4>
+        <ul>
+            {{PAIN_POINT_ITEMS}}
+        </ul>
+    </div>
+
+    {{ROADMAP_SECTION_IF_AVAILABLE}}
+
+    <h2>Objection Handling (Quick Hits)</h2>
+
+    <div class="objections">
+        {{OBJECTION_ITEMS}}
+    </div>
+
+    <h2>Demo Call-to-Action</h2>
+
+    <div class="cta-box">
+        {{CTA_MESSAGE}}
+    </div>
+
+    <div class="links">
+        {{RESOURCE_LINKS}}
+    </div>
+
+    <div class="footer">
+        <p><strong>Contact:</strong> {{PM_NAME}} ({{PM_EMAIL}})</p>
+        <p>Version {{VERSION}} | Last Updated: {{LAST_UPDATED}}</p>
+    </div>
+</body>
+</html>

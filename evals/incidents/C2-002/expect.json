@@ -1,0 +1,7 @@
+{
+  "hook": "scripts/completion-claim-guard.sh",
+  "expect": "block",
+  "reason_contains": "decision",
+  "expected_gap": false,
+  "description": "Neutered-guard oracle: bare unevidenced completion claim -> healthy guard must BLOCK; a neutered guard would ALLOW, causing regression"
+}

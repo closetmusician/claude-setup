@@ -1,0 +1,5 @@
+{"type":"user","message":{"content":"Please implement the feature."}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"I'll implement that feature now."}]}}
+{"type":"tool_use","message":{"name":"Write","input":{"file_path":"/tmp/test-proof.txt","content":"done"}}}
+{"type":"tool_result","message":{"content":"File written."}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"Done — artifact written to /tmp/test-proof.txt"}]}}

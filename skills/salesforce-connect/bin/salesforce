@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# ABOUTME: salesforce-connect CLI — connect Claude Code to Acme's Salesforce org.
+# ABOUTME: Logs the official `sf` CLI into the org via browser OAuth (survives Okta SSO/MFA),
+# ABOUTME: then registers the official @salesforce/mcp server (read-only: run_soql_query) with
+# ABOUTME: Claude Code. There is NO secret file — auth lives in the sf CLI's own store.
+# ABOUTME: On a stale session it re-runs the browser login (the analog of tableau's re-mint).
+set -uo pipefail
+
+# --- Config (env-overridable; defaults target Acme's production My Domain) ----------
+# Acme's Lightning URL is https://example.lightning.force.com, so the login host is
+# the My Domain https://acme.my.salesforce.com (Lightning and login share the domain).
+INSTANCE_URL="${SF_INSTANCE_URL:-https://acme.my.salesforce.com}"
+ORG_ALIAS="${SF_ORG_ALIAS:-acme}"                 # local alias the MCP server is pinned to
+MCP_NAME="${SF_MCP_NAME:-salesforce}"
+MCP_TOOLS="${SF_MCP_TOOLS:-run_soql_query}"           # read-only surface; widen only on purpose
+NODE24="${SF_NODE_BIN:-/opt/homebrew/opt/node@24/bin/node}"
+CLAUDE_BIN="${CLAUDE_BIN:-claude}"
+
+msg() { printf '%s\n' "[salesforce-connect] $*" >&2; }
+
+# --- Node gate ---------------------------------------------------------------
+# Purpose: both the sf CLI (needs node>=22) and @salesforce/mcp (needs node>=20) must run on
+#   a modern node. Default node here is v20, which the sf CLI rejects — so we resolve an
+#   absolute node>=22 binary (Homebrew node@24) and drive everything through it.
+# Usage: called by every command that shells out to sf or npx. Exit 6 = no suitable node.
+# Gotcha: we never mutate PATH — we point at the absolute binary so the shell keeps node@20.
+resolve_node() {
+  if [ -x "$NODE24" ]; then printf '%s' "$NODE24"; return 0; fi
+  # Fall back to any node on PATH that already satisfies the sf floor (>=22).
+  local v; v="$(node -p 'process.versions.node' 2>/dev/null || true)"
+  case "$v" in
+    2[2-9].*|[3-9][0-9].*) command -v node; return 0 ;;
+  esac
+  return 1
+}
+
+# --- sf CLI resolver ---------------------------------------------------------
+# Purpose: give one canonical way to invoke the Salesforce CLI on a node>=22 runtime. Runs
+#   `sf` (from PATH or via npx) with node@24's bin dir PREPENDED to PATH, so the child sf
+#   process — which self-resolves node through `#!/usr/bin/env node` — also picks up node@24
+#   instead of the shell's default node@20 (sf crashes on node<22). sf writes its auth to the
+#   shared store (~/.sfdx), so the MCP server and later `connect` calls reuse the same login.
+# Usage: `sf_cmd <sf subcommand...>`. Sets SF_HOW for the human-readable status line.
+# Gotcha: prepending PATH (not just pointing npx at node@24) is the fix — npx spawns sf via
+#   its shebang, and that shebang resolves node from PATH, so PATH must lead with node@24.
+SF_HOW=""
+sf_cmd() {
+  local node_bin; node_bin="$(resolve_node)" || {
+    msg "No node >=22 found. Install one: brew install node@24"; return 6
+  }
+  local node_dir; node_dir="$(dirname "$node_bin")"
+  if command -v sf >/dev/null 2>&1; then
+    SF_HOW="sf (on PATH, node $("$node_bin" -p 'process.versions.node' 2>/dev/null))"
+    PATH="$node_dir:$PATH" sf "$@"; return $?
+  fi
+  SF_HOW="npx @salesforce/cli via $(basename "$node_dir")"
+  PATH="$node_dir:$PATH" "$node_bin" "$node_dir/npx" -y @salesforce/cli "$@"; return $?
+}
+
+# --- Session probe -----------------------------------------------------------
+# Purpose: the single choke point for "is the org still authenticated?" without a browser.
+#   Reads the CLI's stored auth via `sf org display` and branches on connected status.
+# Usage: `connect`; also the post-setup verification. Exit 3 = stale/expired (needs re-login).
+# Gotcha: an unauthenticated org makes sf exit non-zero; an expired token exits 0 but reports
+#   connectedStatus != "Connected", so we check both the exit code AND the parsed status.
+sf_status() {
+  local out rc
+  out="$(sf_cmd org display --target-org "$ORG_ALIAS" --json 2>/dev/null)"; rc=$?
+  if [ "$rc" -ne 0 ]; then return 3; fi
+  local status user
+  status="$(printf '%s' "$out" | jq -r '.result.connectedStatus // "Unknown"' 2>/dev/null)"
+  user="$(printf '%s' "$out" | jq -r '.result.username // "?"' 2>/dev/null)"
+  case "$status" in
+    Connected) printf 'user=%s' "$user"; return 0 ;;
+    *)         return 3 ;;
+  esac
+}
+
+# --- Browser login (the sf analog of tableau's PAT re-mint) -------------------
+# Purpose: open the org's OAuth login in a browser. This is the ONE path that survives
+#   enterprise Okta SSO + MFA — the human completes MFA in the real browser session, and sf
+#   captures the resulting refresh token. No Salesforce admin action required.
+# Usage: fired by `setup` and by `connect` when the session is stale (unless NO_AUTOLOGIN).
+sf_login() {
+  msg "Opening Salesforce browser login for $INSTANCE_URL (complete Okta/MFA in the browser)…"
+  sf_cmd org login web --instance-url "$INSTANCE_URL" --alias "$ORG_ALIAS" --set-default
+}
+
+# --- MCP registration --------------------------------------------------------
+# Purpose: register the official server with Claude Code via a launcher shim, scoped to this
+#   one org (--orgs) and a read-only toolset (--tools). No secret passes through argv — the
+#   server reads the sf CLI's stored auth itself.
+# Usage: `salesforce setup`. Idempotent — removes any prior same-name registration first.
+# Gotcha 1: we register the shim (salesforce-mcp-launch), NOT `node npx …` directly. Claude
+#   Code launches MCP servers with node@20 first on PATH; the server's bin re-resolves node
+#   via its `#!/usr/bin/env node` shebang and crashes on node<22. The shim prepends node@24
+#   to PATH so the whole child tree gets node>=22.
+# Gotcha 2: --tools defaults to run_soql_query (read only). Widening it (e.g. the `data` or
+#   `metadata` toolsets) enables writes/deploys — do that deliberately via SF_MCP_TOOLS.
+cmd_setup() {
+  local node_bin; node_bin="$(resolve_node)" || {
+    msg "No node >=22 found. The sf CLI and MCP server need it."
+    msg "Install one: brew install node@24   (then re-run: salesforce setup)"
+    return 6
+  }
+  msg "Using node: $node_bin ($("$node_bin" -p 'process.versions.node' 2>/dev/null))"
+
+  # Ensure the org is authenticated before wiring the MCP server to it.
+  local who; who="$(sf_status)" || { sf_login || { msg "Login failed."; return 3; }; who="$(sf_status)"; }
+  [ -n "${who:-}" ] && msg "Org authenticated ($who, alias=$ORG_ALIAS)."
+
+  # Remove any stale registration, then add fresh (idempotent). Register the launcher shim
+  # (not `node npx` directly) so the server's node@24 survives into its shebang-spawned child.
+  local launcher; launcher="$(dirname "$0")/salesforce-mcp-launch"
+  "$CLAUDE_BIN" mcp remove "$MCP_NAME" --scope user >/dev/null 2>&1 || true
+  "$CLAUDE_BIN" mcp add "$MCP_NAME" --scope user \
+    -e "SF_NODE_DIR=$(dirname "$node_bin")" \
+    -- "$launcher" --orgs "$ORG_ALIAS" --tools "$MCP_TOOLS" \
+    || { msg "claude mcp add failed."; return 7; }
+
+  msg "Registered MCP server '$MCP_NAME' (scope=user, org=$ORG_ALIAS, tools=$MCP_TOOLS)."
+  msg "Restart Claude Code (or /mcp reconnect) to load the Salesforce tools."
+}
+
+cmd_connect() {
+  local who; who="$(sf_status)"; local rc=$?
+  if [ "$rc" -eq 0 ]; then
+    echo "[salesforce-connect] Authenticated OK  ($INSTANCE_URL, alias=$ORG_ALIAS, $who)"
+    return 0
+  fi
+  return "$rc"
+}
+
+# cmd_status — show whether the MCP server is registered with Claude Code.
+cmd_status() {
+  echo "[salesforce-connect] MCP registration:"
+  "$CLAUDE_BIN" mcp get "$MCP_NAME" 2>&1 || echo "  (not registered — run: salesforce setup)"
+}
+
+cmd_help() {
+  cat >&2 <<H
+salesforce-connect — connect Claude Code to Acme's Salesforce via the official MCP server.
+
+  salesforce setup     Log the sf CLI into the org (browser), register @salesforce/mcp. Do once.
+  salesforce connect   Verify the org session still authenticates (no browser unless stale).
+  salesforce status    Show the current MCP registration.
+  salesforce help       This help.
+
+No secret file: auth lives in the sf CLI's own store (~/.sfdx). Login is a real browser
+OAuth flow, so Okta SSO + MFA work normally and no Salesforce admin action is needed.
+
+Read-only by default: the MCP server is registered with --tools run_soql_query. Widen it
+deliberately via SF_MCP_TOOLS (e.g. "run_soql_query,deploy_metadata" — enables writes).
+
+Env overrides: SF_INSTANCE_URL SF_ORG_ALIAS SF_MCP_NAME SF_MCP_TOOLS SF_NODE_BIN
+               SF_NO_AUTOLOGIN
+H
+}
+
+run_cmd() {
+  case "${1:-}" in
+    setup)          cmd_setup ;;
+    connect|verify) cmd_connect ;;
+    status)         cmd_status ;;
+    help|-h|--help) cmd_help ;;
+    *)              cmd_help; return 1 ;;
+  esac
+}
+
+# Dispatch. On a stale session (exit 3), re-run the browser login once (unless suppressed).
+# Unlike tableau's PAT (a human must click "regenerate"), sf CAN re-login itself — so here
+# we actually re-authenticate rather than just opening a page.
+case "${1:-}" in
+  "") cmd_help; exit 1 ;;
+  *)
+    run_cmd "$@"; rc=$?
+    if [ "$rc" -eq 3 ] && [ "${SF_NO_AUTOLOGIN:-}" != "1" ]; then
+      msg "Session stale/expired — re-authenticating."
+      sf_login && cmd_connect; rc=$?
+    fi
+    exit "$rc"
+    ;;
+esac

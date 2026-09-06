@@ -1,0 +1,5 @@
+{
+  "transcript_path": "__FIXTURE_DIR__/fixture.jsonl",
+  "cwd": "/tmp",
+  "stop_hook_active": false
+}
