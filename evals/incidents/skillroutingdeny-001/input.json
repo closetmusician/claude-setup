@@ -1,1 +1,1 @@
-{"session_id":"unknown","class":"skillroutingdeny","incident_ts":"2026-07-07T22:21:57.839Z","transcript_path":"/Users/yklin/.claude/evals/incidents/skillroutingdeny-001/fixture.jsonl","hook_event_name":"PostToolUse","tool_name":"Bash"}
+{"session_id":"unknown","class":"skillroutingdeny","incident_ts":"2026-07-07T22:21:57.839Z","transcript_path":"$HOME/.claude/evals/incidents/skillroutingdeny-001/fixture.jsonl","hook_event_name":"PostToolUse","tool_name":"Bash"}

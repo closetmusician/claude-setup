@@ -24,8 +24,8 @@ allowed-tools:
   - Glob
 ---
 <!--
-Intended final target: /Users/yklin/.claude/skills/skill-lifecycle/SKILL.md
-Draft source: /Users/yklin/.claude/docs/plans/fable-skills/drafts/skills/skill-lifecycle/SKILL.md
+Intended final target: $HOME/.claude/skills/skill-lifecycle/SKILL.md
+Draft source: $HOME/.claude/docs/plans/fable-skills/drafts/skills/skill-lifecycle/SKILL.md
 Draft status: candidate (planning artifact, not installed). Verify volatile
 claims (skill counts, archive convention path, cross-repo caller filenames)
 against the live repo before install — see §10.

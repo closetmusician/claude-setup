@@ -5,7 +5,7 @@
 
 # Browser Cookie Profile Setup (Reference)
 
-Parent skill: [browse](/Users/yklin/.claude/skills/browse/SKILL.md)
+Parent skill: [browse]($HOME/.claude/skills/browse/SKILL.md)
 
 This document covers setting up cookie profiles for browser automation tasks. Used
 when the /browse skill needs to access authenticated sessions.
@@ -29,7 +29,7 @@ If `CDP_MODE=true`: tell the user "Not needed — you're connected to your real 
 
 ### 1. Find the browse binary
 
-Use the standard browse setup block (see [browse/SKILL.md](/Users/yklin/.claude/skills/browse/SKILL.md) §SETUP) to resolve `$B`.
+Use the standard browse setup block (see [browse/SKILL.md]($HOME/.claude/skills/browse/SKILL.md) §SETUP) to resolve `$B`.
 
 ### 2. Open the cookie picker
 

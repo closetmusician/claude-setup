@@ -8,10 +8,10 @@
   <key>Label</key><string>com.yklin.burnin</string>
   <key>ProgramArguments</key><array>
     <string>/bin/bash</string>
-    <string>/Users/yklin/.claude/scripts/burnin-score.sh</string>
+    <string>$HOME/.claude/scripts/burnin-score.sh</string>
   </array>
   <key>StartInterval</key><integer>21600</integer>
-  <key>StandardOutPath</key><string>/Users/yklin/.claude/state/burnin/burnin.log</string>
-  <key>StandardErrorPath</key><string>/Users/yklin/.claude/state/burnin/burnin.log</string>
+  <key>StandardOutPath</key><string>$HOME/.claude/state/burnin/burnin.log</string>
+  <key>StandardErrorPath</key><string>$HOME/.claude/state/burnin/burnin.log</string>
   <key>RunAtLoad</key><false/>
 </dict></plist>

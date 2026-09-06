@@ -21,8 +21,8 @@ allowed-tools:
   - Glob
 ---
 <!--
-Intended final target: /Users/yklin/.claude/skills/hook-authoring/SKILL.md
-Draft source: /Users/yklin/.claude/docs/plans/fable-skills/drafts/skills/hook-authoring/SKILL.md
+Intended final target: $HOME/.claude/skills/hook-authoring/SKILL.md
+Draft source: $HOME/.claude/docs/plans/fable-skills/drafts/skills/hook-authoring/SKILL.md
 Draft status: candidate (planning artifact, not installed). Verify volatile
 claims (settings.json hook wiring, working-consumer filenames, commit SHAs)
 against the live repo before install — see §10.

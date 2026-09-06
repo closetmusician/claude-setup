@@ -20,8 +20,8 @@ allowed-tools:
   - Glob
 ---
 <!--
-Intended final target: /Users/yklin/.claude/skills/evidence-backed-status/SKILL.md
-Draft source: /Users/yklin/.claude/docs/plans/fable-skills/drafts/skills/evidence-backed-status/SKILL.md
+Intended final target: $HOME/.claude/skills/evidence-backed-status/SKILL.md
+Draft source: $HOME/.claude/docs/plans/fable-skills/drafts/skills/evidence-backed-status/SKILL.md
 Draft status: candidate (planning artifact, not installed). Verify all volatile
 claims (incident counts, retention window, guard filenames) against the cited
 sources before install — see §10.
@@ -35,7 +35,7 @@ Capture the reporting doctrine that separates a *claim* from *evidence*, so any
 future session — any model tier — reports status the way a careful reviewer
 would accept. Fake-done reporting is the single largest trust-incident class in
 this harness (stated as 46 incidents over ~6 months in
-`/Users/yklin/.claude/docs/plans/harness/judgment-rubrics.md` §7 and `report-trust-incidents.md`;
+`$HOME/.claude/docs/plans/harness/judgment-rubrics.md` §7 and `report-trust-incidents.md`;
 re-verify that count against those files before citing it — it is a snapshot,
 not a live metric). This skill makes the honest form of every status claim
 cheap and mechanical.
@@ -52,10 +52,10 @@ Fire whenever you are about to:
 ## 3. When not to use
 
 - The decision of whether something *is* done, or whether to stop/escalate —
-  that is `/Users/yklin/.claude/docs/plans/harness/judgment-rubrics.md` §2/§3. This skill governs the
+  that is `$HOME/.claude/docs/plans/harness/judgment-rubrics.md` §2/§3. This skill governs the
   *wording and proof* once you report.
 - The mechanics of spawning an independent verifier subagent — that is
-  `/Users/yklin/.claude/docs/plans/harness/dispatch-protocol.md` Rule 5. This skill states the
+  `$HOME/.claude/docs/plans/harness/dispatch-protocol.md` Rule 5. This skill states the
   contract the verifier must satisfy (re-run, not re-read); it does not own the
   dispatch template.
 - Pure exploration/research with nothing being claimed done.
@@ -119,14 +119,14 @@ A verifier who reads the producer's log is not a verifier. Independence means
 the checker executes the check itself, in a fresh context, and the verifier is
 a different agent than the producer (and ≥ its tier for judgment work). This is
 the contract; the dispatch mechanics live in
-`/Users/yklin/.claude/docs/plans/harness/dispatch-protocol.md` Rule 5.
+`$HOME/.claude/docs/plans/harness/dispatch-protocol.md` Rule 5.
 
 ### 5e. Self-citation ban
 
 Do not cite an artifact you authored as proof that your own work is correct.
 "QA artifacts exist on disk" is worthless if the orchestrator wrote them — 100%
 of QA-cycle files in one corpus were authored by the orchestrator, not QA
-(`/Users/yklin/.claude/docs/plans/harness/judgment-rubrics.md` §7 NEGATIVE). Evidence must originate outside the claimant.
+(`$HOME/.claude/docs/plans/harness/judgment-rubrics.md` §7 NEGATIVE). Evidence must originate outside the claimant.
 
 ### 5f. Usage/history claims state the window
 
@@ -134,7 +134,7 @@ Any "fired N times / no session did X" claim is valid ONLY if it states the
 retention window taken from the oldest retained file, and reconciles against a
 purge-immune source (journal, episodic archive). Transcripts purge on
 `cleanupPeriodDays` (recorded as 180 in `settings.json` — confirm current value
-before citing). See `/Users/yklin/.claude/docs/plans/harness/judgment-rubrics.md` §6 for
+before citing). See `$HOME/.claude/docs/plans/harness/judgment-rubrics.md` §6 for
 the full rule and the reversal that motivated it.
 
 ## 6. Evidence required
@@ -170,17 +170,17 @@ a silent gap is the exact failure this skill prevents.
   while they were loaded (capability-capture §6). Probe first.
 - **Windowless usage claim** — "12 flagship skills fired ~0 times, delete them"
   was reversed when full history showed 383 events for one of them
-  (`/Users/yklin/.claude/docs/plans/harness/judgment-rubrics.md` §6 NEGATIVE). State the window.
+  (`$HOME/.claude/docs/plans/harness/judgment-rubrics.md` §6 NEGATIVE). State the window.
 - **Schedule enabled ≠ running.** `schedules.json` may show `enabled:true` for 8
   tasks with no execution logs (harness_inventory §7). "Enabled" is a config
   observation, not an execution `verified`.
 
 ## 9. Related skills
 
-- `/Users/yklin/.claude/docs/plans/harness/judgment-rubrics.md` — §2 done, §3 stop/escalate, §5
+- `$HOME/.claude/docs/plans/harness/judgment-rubrics.md` — §2 done, §3 stop/escalate, §5
   quality floors, §6 usage windows, §7 agent trust. This skill operationalizes
   the *reporting* half of those rubrics.
-- `/Users/yklin/.claude/docs/plans/harness/dispatch-protocol.md` — Rule 5 independent-verifier
+- `$HOME/.claude/docs/plans/harness/dispatch-protocol.md` — Rule 5 independent-verifier
   mechanics; digest-to-file contract.
 - `hook-authoring` — the guard-side enforcement (completion-claim-guard.sh)
   that backstops these claims.
@@ -189,8 +189,8 @@ a silent gap is the exact failure this skill prevents.
 
 ## 10. Provenance and maintenance
 
-- Sources: `/Users/yklin/.claude/docs/plans/harness/judgment-rubrics.md` (§2/§5/§6/§7),
-  `/Users/yklin/.claude/docs/plans/fable-skills/evidence/recent_capability_capture.md` (§4 patterns
+- Sources: `$HOME/.claude/docs/plans/harness/judgment-rubrics.md` (§2/§5/§6/§7),
+  `$HOME/.claude/docs/plans/fable-skills/evidence/recent_capability_capture.md` (§4 patterns
   4, 5), `MEMORY.md` (2026-03-22 incident).
 - Volatile facts flagged inline (incident count 46/6mo, retention 180 days,
   suite pass counts, plist load states) are point-in-time snapshots. Before
@@ -198,4 +198,4 @@ a silent gap is the exact failure this skill prevents.
   source — do not trust this skill's snapshot.
 - Maintenance: when a new trust-incident class appears, add its status word or
   trap here and cross-link the guard that catches it. Changes follow
-  `/Users/yklin/.claude/docs/plans/harness/maintenance-protocol.md`.
+  `$HOME/.claude/docs/plans/harness/maintenance-protocol.md`.

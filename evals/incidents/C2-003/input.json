@@ -1,1 +1,1 @@
-{"session_id":"oracle-session-iii-1-proof","class":"C2","incident_ts":"2026-07-04T02:07:00.000Z","transcript_path":"/Users/yklin/.claude/evals/incidents/C2-003/fixture.jsonl","hook_event_name":"PostToolUse","tool_name":"Bash"}
+{"session_id":"oracle-session-iii-1-proof","class":"C2","incident_ts":"2026-07-04T02:07:00.000Z","transcript_path":"$HOME/.claude/evals/incidents/C2-003/fixture.jsonl","hook_event_name":"PostToolUse","tool_name":"Bash"}

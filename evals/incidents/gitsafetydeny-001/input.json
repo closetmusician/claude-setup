@@ -1,1 +1,1 @@
-{"session_id":"0f73dd52-98e7-4721-b797-6d046371b2a1","class":"gitsafetydeny","incident_ts":"2026-07-07T15:43:38.495Z","transcript_path":"/Users/yklin/.claude/evals/incidents/gitsafetydeny-001/fixture.jsonl","hook_event_name":"PostToolUse","tool_name":"Bash"}
+{"session_id":"0f73dd52-98e7-4721-b797-6d046371b2a1","class":"gitsafetydeny","incident_ts":"2026-07-07T15:43:38.495Z","transcript_path":"$HOME/.claude/evals/incidents/gitsafetydeny-001/fixture.jsonl","hook_event_name":"PostToolUse","tool_name":"Bash"}

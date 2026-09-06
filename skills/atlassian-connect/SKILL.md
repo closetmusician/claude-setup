@@ -167,7 +167,7 @@ Only if a Step 2 criterion selected MCP (user chose it, or direct API failed and
      -e JIRA_USERNAME=dev@example.com \
      -e CONFLUENCE_URL=https://example.atlassian.net \
      -e CONFLUENCE_USERNAME=dev@example.com \
-     -- atlassian /Users/yklin/.claude/scripts/atlassian-mcp.sh
+     -- atlassian $HOME/.claude/scripts/atlassian-mcp.sh
    ```
 
    If the project is a git repo, ensure `.mcp.json` is in `.gitignore`.

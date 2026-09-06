@@ -75,13 +75,13 @@ skills = [
     ("codebase-mapping",
      "Orchestrates comprehensive codebase architecture documentation. "
      "Map the codebase, architecture overview, understand this codebase, create arch doc.",
-     "/Users/yklin/.claude/skills/codebase-mapping/SKILL.md"),
+     "$HOME/.claude/skills/codebase-mapping/SKILL.md"),
     ("investigate",
      "Root-cause debugging. Debug why this is broken, investigate failure, find the bug.",
-     "/Users/yklin/.claude/skills/investigate/SKILL.md"),
+     "$HOME/.claude/skills/investigate/SKILL.md"),
     ("pr-review-pr",
      "Comprehensive PR-diff review. Review this PR, check the PR, pre-landing review.",
-     "/Users/yklin/.claude/skills/pr-review-pr/SKILL.md"),
+     "$HOME/.claude/skills/pr-review-pr/SKILL.md"),
 ]
 
 import struct

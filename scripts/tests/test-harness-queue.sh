@@ -71,7 +71,7 @@ VALID_TASK="$TMPROOT/valid-task.md"
 cat > "$VALID_TASK" <<'TASK'
 ---
 id: q-20260704-120000-test-task
-repo: /Users/yklin/.claude
+repo: $HOME/.claude
 intent: Fix the test harness latency regression
 priority: normal
 acceptance:
@@ -100,7 +100,7 @@ BACKLOG_TASK="$TMPROOT/backlog-task.md"
 cat > "$BACKLOG_TASK" <<'TASK'
 ---
 id: q-20260704-120001-backlog-task
-repo: /Users/yklin/.claude
+repo: $HOME/.claude
 intent: Auto-ingested backlog task that must be rejected
 priority: normal
 acceptance:
