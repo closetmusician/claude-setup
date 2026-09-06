@@ -1,0 +1,135 @@
+# === Transient / session data (large, changes every session) ===
+debug/
+todos/
+session-env/
+file-history/
+paste-cache/
+telemetry/
+shell-snapshots/
+cache/
+stats-cache.json
+mcp-needs-auth-cache.json
+history.jsonl
+.last-cleanup
+.last-update-result.json
+settings.json.tmp
+
+# Plans and tasks are session artifacts (top-level only, not docs/plans/)
+/plans/
+/tasks/
+
+# Plugin caches and cloned repos (reproducible from settings.json enabledPlugins)
+plugins/cache/
+plugins/repos/
+plugins/marketplaces/
+plugins/install-counts-cache.json
+plugins/installed_plugins.json
+plugins/installed_plugins.json.bak
+plugins/known_marketplaces.json
+plugins/data/
+plugins/plugin-catalog-cache.json
+plugins/.last_inuse_sweep
+
+# Environment files (secrets)
+.env
+.env.*
+*.env
+
+# macOS junk
+.DS_Store
+
+# Python bytecode
+__pycache__/
+
+# Cached images
+image-cache/
+
+# IDE metadata
+ide/
+
+# Chrome browser automation state
+chrome/
+
+# Session transcripts (per-project, contain conversation data)
+projects/
+
+# Downloads
+downloads/
+
+# Usage data
+usage-data/
+
+# Logs
+logs/
+
+# Statsig feature flag cache (runtime)
+statsig/
+
+# Auto-memory (per-project, auto-generated)
+.claude/
+
+# Bin (if auto-generated)
+bin/
+
+# Old pre-git backups (git handles versioning now)
+backups/
+
+# === Personal files (per-user, not shared) ===
+
+# Personal overrides (see rules/personal.md.example)
+rules/personal.md
+
+# Memory is per-user
+memory/journal.md
+memory/lessons.md
+memory/*.md
+!memory/.gitkeep
+
+# Local settings override
+settings.local.json
+
+# Personal schedules
+schedules.json
+
+# Personal PM/voice skills (symlinked from ~/Code/pm_os — absolute local paths, useless to clone)
+skills/pm-*
+skills/yk-voice.md
+skills/ai-leaderboard
+
+# gstack local state
+.gstack/
+
+# Session data (ephemeral)
+sessions/
+
+# Runtime harness state (live spine, metrics, sentinels) + durable work queue
+# (mutated by hooks/launchd jobs every session — never commit)
+state/
+queue/
+
+# Heavy binary assets (gstack decoupled copies)
+skills/browse/dist/
+skills/browse/bin/
+skills/make-pdf/dist/
+skills/design/dist/
+skills/extension/
+skills/bin/
+
+# Prevent recurrence of the 1.28GB sparse-file blob (2026-07-05 history rewrite)
+docs/plans/harness/fable/evidence/II-4-reflex.log
+.agents/
+.tokensave
+.claude.json
+
+# Daemon runtime state + control credential (never commit — control.key is a secret)
+/daemon/
+/daemon.lock
+/daemon.log
+/daemon.status.json
+
+# Ephemeral job run artifacts (tmp PDFs/PNGs/timelines from win-loss etc.)
+/jobs/
+
+# Ad-hoc pre-change config snapshots (git already versions these; 2026-07-26 copy
+# also carried a live sk-ccr- token, so never commit this class of dir)
+/backup-20*/

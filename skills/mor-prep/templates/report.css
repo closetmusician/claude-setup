@@ -1,0 +1,386 @@
+/* ABOUTME: Print-ready stylesheet for the FY27 global Boards Why We Win / Why We Lose reports.
+   ABOUTME: Reproduces the visual language of the June 2026 AMS reference PDFs.
+   ABOUTME: Two themes — .theme-win (navy/teal) and .theme-lose (navy/mid-blue) — set on <body>.
+   ABOUTME: Page furniture (running header, footer, page numbers) is emitted via @page and
+   ABOUTME: .sheet elements so that browser Print-to-PDF produces the reference layout. */
+
+/* ---------- Page geometry ----------
+   Letter portrait with the same generous margins as the reference decks. Each logical
+   page is a .sheet so on-screen reading and print pagination agree. */
+@page {
+  size: Letter portrait;
+  margin: 0;
+}
+
+:root {
+  --navy: #1f3864;
+  --navy-rule: #2e5c8a;
+  --teal: #17786b;
+  --midblue: #2e75b6;
+  --tile-bg: #dce6f1;
+  --tile-border: #b8cce4;
+  --row-alt: #f2f2f2;
+  --row-tint: #dce6f1;
+  --quote-bg: #f2f2f2;
+  --callout-bg: #fdf6d8;
+  --ink: #1a1a1a;
+  --muted: #595959;
+  --hairline: #c9c9c9;
+
+  --accent: var(--teal);          /* overridden per theme */
+  --table-head: var(--navy);
+}
+
+body.theme-lose {
+  --accent: var(--midblue);
+  --table-head: var(--midblue);
+}
+
+* { box-sizing: border-box; }
+
+html { background: #6b6b6b; }
+
+body {
+  margin: 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 9pt;
+  line-height: 1.36;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- The sheet ----------
+   72pt side margins mirror the reference PDFs. Fixed height keeps the footer pinned
+   to the bottom of every page in both screen and print rendering. */
+.sheet {
+  position: relative;
+  width: 8.5in;
+  height: 11in;
+  padding: 0.58in 0.72in 0.62in 0.72in;
+  margin: 0 auto 18px;
+  background: #fff;
+  overflow: hidden;
+  page-break-after: always;
+  break-after: page;
+}
+
+.sheet:last-of-type { page-break-after: auto; break-after: auto; }
+
+/* ---------- Running header ----------
+   Win theme: title on the right only. Lose theme: CONFIDENTIAL left, title right. */
+
+.rh {
+  position: absolute;
+  top: 0.34in;
+  left: 0.72in;
+  right: 0.72in;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 7pt;
+  color: var(--navy);
+  padding-bottom: 4px;
+  border-bottom: 1.6px solid var(--navy-rule);
+}
+
+.rh .rh-left { font-weight: 400; letter-spacing: 0.02em; }
+.rh .rh-right { margin-left: auto; }
+
+/* ---------- Running footer ---------- */
+.rf {
+  position: absolute;
+  bottom: 0.32in;
+  left: 0.72in;
+  right: 0.72in;
+  display: flex;
+  justify-content: center;
+  font-size: 7pt;
+  color: var(--muted);
+  padding-top: 4px;
+  border-top: 1.2px solid var(--navy-rule);
+}
+
+body.theme-lose .rf { justify-content: space-between; }
+
+/* ---------- Cover ---------- */
+.cover-title {
+  font-size: 30pt;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.01em;
+  margin: 0.78in 0 0;
+  line-height: 1.05;
+}
+
+.cover-sub {
+  font-size: 15pt;
+  font-weight: 400;
+  color: var(--accent);
+  margin: 6px 0 0;
+  padding-bottom: 10px;
+  border-bottom: 2.2px solid var(--navy-rule);
+}
+
+.cover-meta {
+  margin-top: 16px;
+  font-size: 8.6pt;
+  color: var(--ink);
+}
+
+.cover-meta strong { color: var(--navy); }
+
+.cover-byline {
+  margin-top: 14px;
+  font-size: 8.2pt;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Lose-theme cover is centred, per the reference. */
+body.theme-lose .cover-title { text-align: center; font-size: 26pt; margin-top: 1.15in; }
+body.theme-lose .cover-sub { text-align: center; font-size: 13pt; border-bottom: none; }
+body.theme-lose .cover-rule {
+  border-bottom: 2.2px solid var(--navy-rule);
+  margin: 14px 0 0;
+}
+body.theme-lose .cover-byline { text-align: center; }
+
+/* ---------- Headings ---------- */
+h1.section {
+  font-size: 15.5pt;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 0 0 3px;
+  padding-bottom: 5px;
+  border-bottom: 2.2px solid var(--navy-rule);
+}
+
+h2 {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 13px 0 5px;
+}
+
+body.theme-lose h2 { color: var(--midblue); }
+
+h3 {
+  font-size: 9.5pt;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 10px 0 4px;
+}
+
+.product-line {
+  font-size: 8.8pt;
+  font-style: italic;
+  color: var(--accent);
+  margin: 6px 0 3px;
+}
+
+p { margin: 0 0 6px; }
+
+/* ---------- Stat tiles ----------
+   Win theme: single row of 4 tiles with vertical dividers inside one bordered band.
+   Lose theme: 2x2 grid inside one filled panel, larger type. */
+.stats {
+  display: flex;
+  border: 1.4px solid var(--tile-border);
+  background: var(--tile-bg);
+  margin: 9px 0 11px;
+}
+
+.stats .stat {
+  flex: 1;
+  padding: 8px 7px 9px;
+  text-align: center;
+  border-right: 1.4px solid var(--tile-border);
+}
+
+.stats .stat:last-child { border-right: none; }
+
+.stat .num {
+  font-size: 16pt;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.1;
+}
+
+.stat .lbl {
+  font-size: 7pt;
+  font-weight: 700;
+  color: var(--navy);
+  margin-top: 3px;
+}
+
+.stat .sub {
+  font-size: 6.4pt;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.stats-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 0;
+  background: var(--tile-bg);
+  padding: 11px 15px 12px;
+  margin: 12px 0;
+}
+
+.stats-panel .cell { padding: 5px 4px; }
+.stats-panel .cell + .cell.divider { border-left: 1.2px solid var(--tile-border); padding-left: 20px; }
+.stats-panel .big { font-size: 15pt; font-weight: 700; color: var(--navy); line-height: 1.15; }
+.stats-panel .big.small { font-size: 11.5pt; }
+.stats-panel .cap { font-size: 6.8pt; color: var(--muted); margin-top: 2px; }
+
+/* ---------- Tables ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 7px 0 9px;
+  font-size: 7.8pt;
+}
+
+thead th {
+  background: var(--table-head);
+  color: #fff;
+  font-weight: 700;
+  text-align: left;
+  padding: 4px 6px;
+  border: 1px solid var(--table-head);
+}
+
+tbody td {
+  padding: 4px 6px;
+  border: 1px solid var(--hairline);
+  vertical-align: top;
+}
+
+/* Win theme alternates a blue tint; Lose theme alternates plain grey. */
+body.theme-win tbody tr:nth-child(odd) td { background: var(--row-tint); }
+body.theme-win tbody tr:nth-child(even) td { background: #fff; }
+body.theme-lose tbody tr:nth-child(odd) td { background: #fff; }
+body.theme-lose tbody tr:nth-child(even) td { background: var(--row-alt); }
+
+td.num, th.num { text-align: center; }
+tbody td:first-child { font-weight: 700; color: var(--navy); }
+table.plain tbody td:first-child { font-weight: 400; color: var(--ink); }
+
+/* ---------- Quote blocks ---------- */
+.quote {
+  background: var(--quote-bg);
+  border-left: 3px solid var(--accent);
+  padding: 7px 10px;
+  margin: 7px 0;
+}
+
+.quote p {
+  font-style: italic;
+  color: var(--navy);
+  margin: 0 0 3px;
+  font-size: 8.4pt;
+}
+
+.quote .attrib {
+  font-size: 7.2pt;
+  font-weight: 700;
+  color: var(--accent);
+  font-style: normal;
+}
+
+/* ---------- Callout (Lose theme "Critical Product Gap") ---------- */
+.callout {
+  background: var(--callout-bg);
+  border-left: 3px solid var(--midblue);
+  padding: 6px 10px;
+  margin: 7px 0;
+  font-size: 7.8pt;
+}
+
+.callout .callout-head {
+  font-weight: 700;
+  color: var(--midblue);
+  margin-bottom: 4px;
+}
+
+.rep-quote {
+  background: var(--tile-bg);
+  border-left: 3px solid var(--midblue);
+  padding: 6px 10px;
+  margin: 7px 0;
+  font-size: 7.8pt;
+}
+
+.rep-quote .rep-head { font-weight: 700; color: var(--midblue); margin-bottom: 4px; }
+
+/* ---------- Lists ---------- */
+ul { margin: 5px 0 7px; padding-left: 16px; }
+li { margin-bottom: 3.5px; }
+li strong { color: var(--navy); }
+
+/* ---------- Citations ----------
+   Superscript markers in the body resolve to the Sources appendix. Kept visually quiet
+   so the reports read as executive documents rather than academic papers. */
+sup.cite {
+  font-size: 6.8pt;
+  color: var(--accent);
+  font-weight: 700;
+  vertical-align: super;
+  line-height: 0;
+}
+
+.gap {
+  color: #b03030;
+  font-weight: 700;
+  font-size: 8.5pt;
+}
+
+.sources { font-size: 6.5pt; line-height: 1.33; }
+.sources ol { padding-left: 16px; margin: 4px 0; }
+.sources li { margin-bottom: 1.5px; }
+.sources .src-title { font-weight: 700; color: var(--navy); }
+.sources .src-meta { color: var(--muted); }
+
+.note {
+  font-size: 7.3pt;
+  font-style: italic;
+  color: var(--muted);
+  margin: 10px 0;
+}
+
+/* ---------- Print ---------- */
+@media print {
+  html { background: #fff; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; }
+  .sheet {
+    margin: 0 !important;
+    box-shadow: none;
+    width: 8.5in;
+    height: 10.98in;      /* just under 11in so rounding cannot spill a second sheet */
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  /* Kill the trailing break on the final sheet, otherwise Chrome emits blank pages. */
+  .sheet:last-child,
+  .sheet:last-of-type {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    height: auto;
+    min-height: 0;
+  }
+  body > :last-child { page-break-after: avoid !important; break-after: avoid !important; }
+}
+
+/* ---------- Per-page density escape hatch ----------
+   A handful of dense pages exceed the fixed sheet by a few pixels. Rather than cut
+   load-bearing content, tighten leading and block spacing on just those pages. */
+.sheet.tighten { line-height: 1.3; }
+.sheet.tighten h2 { margin: 10px 0 4px; }
+.sheet.tighten p { margin: 0 0 5px; }
+.sheet.tighten table { margin: 6px 0 7px; }
+.sheet.tighten ul { margin: 4px 0 6px; }
+.sheet.tighten li { margin-bottom: 3px; }

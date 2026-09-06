@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "rules": [
+    {
+      "match": { "verb_re": "^(wc|count|ls|stat|exist|find|locate|diff|grep|awk|sed|mv|cp|rename|move)$" },
+      "tier": "haiku",
+      "reason": "mechanical-count-diff-grep-move"
+    },
+    {
+      "match": { "subtask_class": "count" },
+      "tier": "haiku",
+      "reason": "count-class"
+    },
+    {
+      "match": { "subtask_class": "existence" },
+      "tier": "haiku",
+      "reason": "existence-check"
+    },
+    {
+      "match": { "subtask_class": "diff" },
+      "tier": "haiku",
+      "reason": "diff-summary"
+    },
+    {
+      "match": { "subtask_class": "grep" },
+      "tier": "haiku",
+      "reason": "grep-search"
+    },
+    {
+      "match": { "subtask_class": "move" },
+      "tier": "haiku",
+      "reason": "file-move-rename"
+    },
+    {
+      "match": { "subtask_class": "edit" },
+      "tier": "sonnet",
+      "reason": "code-edit"
+    },
+    {
+      "match": { "subtask_class": "apply" },
+      "tier": "sonnet",
+      "reason": "apply-patch"
+    },
+    {
+      "match": { "subtask_class": "verify" },
+      "tier": "sonnet",
+      "reason": "oracle-verification"
+    },
+    {
+      "match": { "subtask_class": "test-run" },
+      "tier": "sonnet",
+      "reason": "test-execution"
+    },
+    {
+      "match": { "verb_re": "^(edit|apply|patch|fix|implement|test|run|verify|check)$" },
+      "tier": "sonnet",
+      "reason": "edit-apply-verify"
+    },
+    {
+      "match": { "subtask_class": "synthesis" },
+      "tier": "opus",
+      "reason": "cross-domain-synthesis"
+    },
+    {
+      "match": { "subtask_class": "architecture" },
+      "tier": "opus",
+      "reason": "architecture-design"
+    },
+    {
+      "match": { "subtask_class": "adversarial-audit" },
+      "tier": "opus",
+      "reason": "adversarial-security-audit"
+    },
+    {
+      "match": { "verb_re": "^(design|architect|audit|synthesize|review-arch|plan)$" },
+      "tier": "opus",
+      "reason": "synthesis-architecture-adversarial"
+    },
+    {
+      "match": { "subtask_class": "prose-voice" },
+      "tier": "fable",
+      "reason": "prose-narrative-voice"
+    },
+    {
+      "match": { "subtask_class": "prd-narrative" },
+      "tier": "fable",
+      "reason": "prd-narrative-writing"
+    },
+    {
+      "match": { "subtask_class": "briefing" },
+      "tier": "fable",
+      "reason": "briefing-communication"
+    },
+    {
+      "match": { "verb_re": "^(write-prd|brief|narrate|draft-comms|yk-voice|storytell)$" },
+      "tier": "fable",
+      "reason": "creative-prose-briefing"
+    }
+  ],
+  "default_tier": "sonnet",
+  "classifier": {
+    "enabled": true,
+    "model": "haiku",
+    "max_ms": 800
+  }
+}

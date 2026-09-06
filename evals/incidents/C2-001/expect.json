@@ -1,0 +1,7 @@
+{
+  "hook": "scripts/completion-claim-guard.sh",
+  "expect": "allow",
+  "reason_contains": "",
+  "expected_gap": false,
+  "description": "Healthy guard: assistant message has real artifact evidence -> ALLOW (no block)"
+}

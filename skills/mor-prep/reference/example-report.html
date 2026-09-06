@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<!-- ABOUTME: "Why Bookings & GDR Moved" — July 2026 MOR root-cause analysis for Governance BU / Boards (BLC).
+     ABOUTME: The Finance models say WHAT moved; this report says WHY, decomposed by geo and segment.
+     ABOUTME: Bookings = Pipeline x Win/Conv rate x ASP; GDR shortfall = at-risk pool x realised churn rate.
+     ABOUTME: Every figure carries a superscript citation resolving to the Sources appendix at the back.
+     ABOUTME: Built from nine parallel RCA findings files under output/rca/; supports MOR slides 58-62. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Why Bookings &amp; GDR Moved — July 2026 MOR Root-Cause Analysis — Boards / BLC</title>
+<link rel="stylesheet" href="report.css">
+</head>
+<body class="theme-lose">
+
+<!-- ============ PAGE 1 — EXECUTIVE SUMMARY: AT A GLANCE ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Executive Summary | Board &amp; Leadership Collaboration | July 2026 MOR</span></div>
+
+  <h1 class="cover-title">WHY BOOKINGS &amp; GDR MOVED</h1>
+  <p class="cover-sub">Board &amp; Leadership Collaboration — July 2026 Root-Cause Executive Summary</p>
+
+  <h2>Bookings — $1,729K, +4% vs target, −7% YoY &nbsp;·&nbsp; Bookings ≈ Pipeline created × Win rate × ASP</h2>
+  <table>
+    <thead><tr><th>Cut</th><th class="num">July bookings (YoY · vs tgt)</th><th class="num">Pipeline gen. vs tgt</th><th class="num">Win rate (clean)</th><th class="num">ASP (clean)</th><th>Read</th></tr></thead>
+    <tbody>
+      <tr><td><strong>AMS</strong></td><td class="num">$855K (−20% · +5%)</td><td class="num">+17%</td><td class="num">19.3%</td><td class="num">$20.0K</td><td>Pipe healthy — the miss is win-rate and mix in STRAT &amp; MM</td></tr>
+      <tr><td><strong>EMEA</strong></td><td class="num">$530K (+13% · −2%)</td><td class="num">−18%</td><td class="num">18.1%</td><td class="num">$21.4K</td><td>Beat on expansion; the new-logo funnel is shrinking</td></tr>
+      <tr><td><strong>APAC</strong></td><td class="num">$330K (+45% · +27%)</td><td class="num">−30%</td><td class="num">26.7%</td><td class="num">$12.1K</td><td>Beat by monetising the installed base, not new pipeline</td></tr>
+      <tr><td>Total</td><td class="num">$1,729K (−7% · +4%)</td><td class="num">−4%</td><td class="num">20.4%</td><td class="num">$18.3K</td><td>A base-conversion month that beat target</td></tr>
+    </tbody>
+  </table>
+  <p class="note">By segment (July YoY): ENT $696K <strong>+197%</strong> · SMB $753K <strong>+34%</strong> · STRAT $107K <strong>−78%</strong> · MM $172K <strong>−71%</strong>. Land $790K (+0%) / Expand $939K (−13%). Win rate on Finance's clean basis (all-sizes 28.6%); ASP clean (all-sizes $11.4K).<sup class="cite">1,&nbsp;9</sup></p>
+
+  <h2>GDR — 91.7%, −2.3pt vs target &nbsp;·&nbsp; GDR shortfall ≈ at-risk pool × realised churn/downsell rate</h2>
+  <table>
+    <thead><tr><th>Cut</th><th class="num">July GDR (vs tgt)</th><th class="num">Renewal pool</th><th class="num">Realised loss</th><th>Top driver</th></tr></thead>
+    <tbody>
+      <tr><td><strong>AMS</strong></td><td class="num">93.0% (−1.3pt)</td><td class="num">$12.4M</td><td class="num">−$865K</td><td>Price-to-Value 37% + M&amp;A 26%; top-10 accounts = 69%</td></tr>
+      <tr><td><strong>EMEA</strong></td><td class="num">90.4% (−2.9pt)</td><td class="num">$6.8M</td><td class="num">−$653K</td><td>British Telecom alone = 47%; ex-BT ≈ 94.7% (beats target)</td></tr>
+      <tr><td><strong>APAC</strong></td><td class="num">90.2% (−4.4pt)</td><td class="num">$4.3M</td><td class="num">−$422K</td><td>Broad small-book noise — no account moves it 1pt</td></tr>
+      <tr><td>Total</td><td class="num">91.7% (−2.3pt)</td><td class="num">$23.5M</td><td class="num">−$1.94M</td><td>Price-to-value is the common thread</td></tr>
+    </tbody>
+  </table>
+  <p class="note">By segment (July GDR vs YA): SMB 91.4% <strong>(+0.5pt)</strong> · MM 92.1% (−1.3pt) · ENT 91.9% (−1.4pt). Loss = churn −$978K (54 accounts) + downsell −$963K (187 accounts).<sup class="cite">1,&nbsp;5</sup></p>
+
+  <h2>The trend, and why — in one read</h2>
+  <p>July was a genuine <strong>+4% beat on bookings (+17% YTD)</strong> with a small retention miss — a healthy month, not a business in trouble. The through-line for both halves is the <strong>AI story doing double duty</strong>: the Acme One Platform upgrade of the installed base is our biggest growth lever (33% of bookings, ENT +197%), but the <em>shipped</em> AI is only board-book summarisation. So the segments that want the not-yet-shipped flagship — Strategic and Mid-Market — defer, and price-to-value is the top churn driver. One fix — honest AI-roadmap messaging plus interim value proof — helps bookings and GDR at once (flagship GA is <strong>Q1 2027</strong>, not October).<sup class="cite">2,&nbsp;17</sup></p>
+
+  <p class="note"><strong>Reading notes:</strong> win rates use Finance's "clean" basis (excludes <code>&lt; $5K Amendment</code> deals) unless labelled; the CRM competitor field is 0% populated, so competitive counts are lower bounds; YoY % are Finance's (no July-2025 deal file); small books (APAC GDR, Strategic) swing on timing. BLC only · AMS/EMEA/APAC · July 2026, Q2 as context.<sup class="cite">1,&nbsp;4,&nbsp;9</sup></p>
+</section>
+
+<!-- ============ PAGE 2 — EXECUTIVE SUMMARY: DRIVERS &amp; TAKEAWAYS ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Executive Summary — Drivers &amp; Takeaways | July 2026 MOR</span></div>
+
+  <h1 class="section">Drivers &amp; Takeaways</h1>
+
+  <h2>Bookings — takeaway</h2>
+  <p>We beat target (+4%, +17% YTD), carried by the D1P/GovernAI upgrade of the installed base and a working SMB motion. The −7% YoY and the forward risk sit in Strategic and Mid-Market, and in a new-logo pipeline below target in EMEA and APAC — the beat rode a base-conversion wave that is already cooling.</p>
+  <table>
+    <thead><tr><th>Top 3 that helped</th><th>Top 3 that hurt</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>D1P / GovernAI base upgrades</strong> — 33% of bookings, +34% ASP uplift; drove ENT +197%.<sup class="cite">2</sup></td>
+        <td><strong>Strategic AI-upgrade stall (−78%)</strong> — buyers defer to the not-yet-GA flagship. Self-inflicted: we sell the vision as near-term and price interim GovernAI as pre-paying for it, so there is no cost to waiting.<sup class="cite">10,&nbsp;17,&nbsp;21</sup></td>
+      </tr>
+      <tr>
+        <td><strong>SMB product ladder + greenfield (+34%)</strong> — Starter/Foundations packages plus referral and new-logo wins into boards with no incumbent.<sup class="cite">1,&nbsp;9</sup></td>
+        <td><strong>Mid-Market fit-gap at price (−71%)</strong> — shipped GovernAI summarises the book, not the live discussion boards value; a +$15–35K uplift fails the test; weak new-logo funnel.<sup class="cite">9,&nbsp;21</sup></td>
+      </tr>
+      <tr>
+        <td><strong>Expansion-led regional beats</strong> — APAC +27% vs target and EMEA ENT +251%, monetising the base even where new pipe missed.<sup class="cite">1</sup></td>
+        <td><strong>New-logo pipeline below target</strong> — EMEA −18%, APAC −30%; the beat rode a shrinking funnel, so Q3 is harder without new-business demand-gen.<sup class="cite">1,&nbsp;7</sup></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>GDR — takeaway</h2>
+  <p>GDR missed target by 2.3pt, but it is not a broad decline — it is three different regional stories with price-to-value the common thread. Strip the single British Telecom loss and EMEA clears target; APAC is small-book timing noise; only AMER is a genuine, concentrated loss-rate problem.</p>
+  <table>
+    <thead><tr><th>Top 3 that helped</th><th>Top 3 that hurt</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>SMB retention above target</strong> — +0.5pt vs YA in July, +2.4pt YTD; the healthiest cell in the book.<sup class="cite">1</sup></td>
+        <td><strong>Price-to-value — the #1 driver</strong> (30% coded, 45% once BT is re-coded); shipped AI does not yet lift value perception.<sup class="cite">14,&nbsp;19</sup></td>
+      </tr>
+      <tr>
+        <td><strong>Churn-mitigation saves</strong> — Phase 1 renewed 100% of addressable enterprise accounts (5 of 16 to multi-year); Q2 M&amp;A save $485K of $518K.<sup class="cite">19</sup></td>
+        <td><strong>British Telecom (−$305K)</strong> — one competitive/price RFP = 47% of EMEA's miss; competitor ~⅓ our price; our 12-month-only terms a joint cause.<sup class="cite">14</sup></td>
+      </tr>
+      <tr>
+        <td><strong>Underlying book is stable</strong> — ex the one BT loss, EMEA GDR ≈ 94.7% (above the 93.3% target); APAC YTD flat at 92.9%.<sup class="cite">14</sup></td>
+        <td><strong>M&amp;A consolidation</strong> — ~$145K in July plus ~$1.8M Q3–Q4 forward risk; acquired customers move to the acquirer's platform.<sup class="cite">13,&nbsp;19</sup></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="note"><strong>Before presenting — five deck figures need correcting or re-labelling (detailed in §6):</strong> "D1P 320 / $4.98M / 31.7%" is <em>YTD</em>, not July (July = 38 / $576K / 33.3%); "First Bank $156K" is a forward-risk 2027 renewal, not July churn; "Sherpany" appears in zero July Boards churn rows; BT is coded "Legal Issue" but is a price/competitive RFP; "3 UKI accounts churned to XYZ" is an unfilled Q2 placeholder.<sup class="cite">2,&nbsp;13,&nbsp;18,&nbsp;14,&nbsp;8</sup></p>
+</section>
+
+<!-- ============ PAGE 3 — BOOKINGS: THE GLOBAL PICTURE ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Part I — Bookings | July 2026 MOR</span></div>
+
+  <h1 class="section">Part I — Bookings: −7% YoY on a beat-to-target month</h1>
+
+  <p>July BLC bookings were <strong>$1,729K — +4% vs target but −7% YoY</strong>; YTD $15,692K, +17% YoY.<sup class="cite">1</sup>
+  The decomposition below shows the −7% is not one failure. It is a <strong>tale of two AI motions and a new-logo
+  shortfall</strong>: the D1P/GovernAI upgrade of the installed base powered Enterprise (+197%) and lifted SMB (+34%),
+  while the two segments most exposed to <em>new</em> demand or a not-yet-shipped flagship — Strategic (−78%) and
+  Mid-Market (−71%) — fell sharply.<sup class="cite">1,&nbsp;9</sup></p>
+
+  <div class="stats">
+    <div class="stat"><div class="num">+197%</div><div class="lbl">ENT bookings YoY</div><div class="sub">$696K — the D1P engine<sup class="cite">1</sup></div></div>
+    <div class="stat"><div class="num">−78%</div><div class="lbl">STRAT bookings YoY</div><div class="sub">$107K — an AI-upgrade conversion stall<sup class="cite">9</sup></div></div>
+    <div class="stat"><div class="num">−71%</div><div class="lbl">MM bookings YoY</div><div class="sub">$172K — upsell fit-gap + weak new-logo funnel<sup class="cite">4,&nbsp;9</sup></div></div>
+    <div class="stat"><div class="num">+34%</div><div class="lbl">SMB bookings YoY</div><div class="sub">$753K — the product ladder works<sup class="cite">1</sup></div></div>
+  </div>
+
+  <h2>Segment decomposition — pipeline vs win rate vs ASP</h2>
+  <table>
+    <thead><tr><th>Segment</th><th class="num">July bookings (YoY)</th><th>Which lever moved</th><th>Root cause</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Enterprise</strong></td><td class="num">$696K (+197%)</td><td>Win rate × ASP on a growing Expand pipe</td><td>D1P/GovernAI upgrades of the installed base; internal GC/CorpSec champion; gate is a passable security review, not a missing feature<sup class="cite">2,&nbsp;10</sup></td></tr>
+      <tr><td><strong>Strategic</strong></td><td class="num">$107K (−78%)</td><td>AI-upgrade conversion stall on a tiny all-upsell book</td><td>All 46 in-scope opps are Upsell, zero New (46 rows / 43 accounts); AMS "$2K" is two sub-$5K amendments while its one real deal (Disney $102K) stayed <em>open</em>. Every material opp is a GovernAI upgrade that deferred to the not-yet-GA flagship. The −78% is deck-sourced — no July-2025 baseline exists to prove a definitional cause<sup class="cite">9</sup></td></tr>
+      <tr><td><strong>Mid-Market</strong></td><td class="num">$172K (−71%)</td><td>Two failures under one number</td><td>AMER MM: 68% of losses are installed-base Upsells stalling on a GovernAI product-market-fit-at-price gap, plus a weak new-logo funnel (2.2% clean win rate, 1 real win vs 44 losses); EMEA MM: genuine price-to-value loss to Board Intelligence<sup class="cite">4,&nbsp;9,&nbsp;11</sup></td></tr>
+      <tr><td><strong>SMB</strong></td><td class="num">$753K (+34%)</td><td>Win volume on a low but functioning motion</td><td>Governance-greenfield new logos + a product ladder (Starter/Foundations) that reaches SMB and the D1P wave that lifted it; rode a <em>shrinking</em> funnel, so not durable<sup class="cite">1,&nbsp;9</sup></td></tr>
+    </tbody>
+  </table>
+
+  <h2>The leading indicator is the real story: pipeline generation</h2>
+  <p>July pipeline generation was <strong>$10,355K, −4% vs target</strong>, but the regional split is stark and it is a
+  <strong>new-business (Land) problem</strong>: AMS +17% vs target, but <strong>EMEA −18%</strong> (Land pipe −37%) and
+  <strong>APAC −30%</strong> (the deepest target-miss of the three regions).<sup class="cite">1</sup> By segment, STRAT pipe −30% and
+  MM pipe −31%.<sup class="cite">1</sup> In other words, the bookings that beat target in July came out of a funnel that is no
+  longer being replenished for new logos — which is exactly why the BU's own Q3 forecast is −13% vs target.<sup class="cite">7</sup></p>
+
+  <p class="note">Pipeline-generation YoY is Finance-workbook only — the <code>Top Open</code> sheet is broken and the
+  win-rate series stops at June — so it is cited as stated and not independently re-derived.<sup class="cite">1</sup></p>
+</section>
+
+<!-- ============ PAGE 4 — THE D1P ENGINE ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Part I — Bookings | July 2026 MOR</span></div>
+
+  <h1 class="section">1. The D1P Upgrade Engine — the single biggest driver, and it is cooling</h1>
+
+  <p>A "D1P upgrade" moves an existing Boards customer onto a 2026 Acme One Platform package: all <em>shipped</em>
+  GovernAI features (Smart Summary, Minutes, Prep, Risk Scanner), unlimited users/admins/committees, platform
+  consolidation across D1P solutions, and a re-SKU that targets the same commercial value through Deal Desk.<sup class="cite">16</sup>
+  It is always an Upsell/Cross-Sell — never a new logo. It is the mechanical core of the Enterprise surge: July
+  Enterprise D1P conversions were $283K, +183% YoY, roughly 40% of ENT July bookings.<sup class="cite">2</sup></p>
+
+  <div class="callout">
+    <strong>Correction that changes the slide.</strong> "D1P upgrades: 320 deals, $4.98M ARR = 31.7% of BLC bookings" is
+    the <strong>YTD-July</strong> roll-up (31.7% = $4,981K ÷ $15,692K YTD). <strong>July alone was 38 deals, $575,704, and
+    33.3% of July bookings.</strong> A July slide must state the basis in the same breath, or it overstates the month by
+    roughly 8×.<sup class="cite">2</sup>
+  </div>
+
+  <table>
+    <thead><tr><th>D1P upgrade metric</th><th class="num">July 2026</th><th class="num">July YoY</th><th class="num">YTD-July</th><th class="num">YTD YoY</th></tr></thead>
+    <tbody>
+      <tr><td>Upgrade ARR — total</td><td class="num">$575,704</td><td class="num">+10.7%</td><td class="num">$4,981,049</td><td class="num">+93.0%</td></tr>
+      <tr><td>— Enterprise</td><td class="num">$283,489</td><td class="num">+182.6%</td><td class="num">$1,260,099</td><td class="num">+148.6%</td></tr>
+      <tr><td>— Strategic</td><td class="num">$61,069</td><td class="num">−56.3%</td><td class="num">$1,736,091</td><td class="num">+250.0%</td></tr>
+      <tr><td>— Mid-Market</td><td class="num">$64,261</td><td class="num">−54.0%</td><td class="num">$737,817</td><td class="num">+55.5%</td></tr>
+      <tr><td>— SMB</td><td class="num">$166,885</td><td class="num">+19.0%</td><td class="num">$1,247,043</td><td class="num">+13.1%</td></tr>
+      <tr><td>Deals · avg ARR/deal</td><td class="num">38 · $15,150</td><td class="num">−3.9%</td><td class="num">320 · $15,566</td><td class="num">+30.9%</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Source: <code>BLC July MOR</code> D1P Upgrade Drivers block, rows 111–128.<sup class="cite">1,&nbsp;2</sup></p>
+
+  <h2>Why it works, and why it is a maturing wave — not an open-ended trajectory</h2>
+  <ul>
+    <li><strong>ASP uplift is real: +34%.</strong> A D1P upsell (clean) is $17,397 vs a non-D1P upsell $12,956 — a like-for-like +34.3% uplift; Finance's own YoY framing is $11,890 → $15,566 (+31%).<sup class="cite">2</sup></li>
+    <li><strong>The acceleration was Q2, not July.</strong> "+248% (Q1) → +339% (Q2) on GovernAI's first anniversary" is a Q2 figure — the renewal-cycle conversion of customers who took GovernAI a year earlier, plus the Feb-2026 unlimited-user packaging with a deliberate list-price uplift.<sup class="cite">2,&nbsp;7</sup></li>
+    <li><strong>July momentum cooled sharply.</strong> +11% YoY in July vs +93% YTD, with Strategic −56% and Mid-Market −54% <em>in the month</em>. The rich Strategic/Enterprise conversions front-loaded earlier in the year (Strategic YTD +250%, AMS alone $96K→$1,199K). Each account converts once; the convertible base shrinks.<sup class="cite">2</sup></li>
+    <li><strong>The original hook is impaired.</strong> The upgrade was sold toward a "free AI Boards upgrade in October"; AI Boards GA slipped to <strong>Q1 2027</strong>, and customers increasingly call the delivered GovernAI "table stakes". The second wave depends on unshipped product (AI Boards GA, Next Gen/AWS) — a plan, not a booking.<sup class="cite">2,&nbsp;17</sup></li>
+  </ul>
+</section>
+
+<!-- ============ PAGE 5 — STRAT + MM ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Part I — Bookings | July 2026 MOR</span></div>
+
+  <h1 class="section">2. Strategic (−78%) and Mid-Market (−71%): different failures</h1>
+
+  <h2>Strategic: a real AI-upgrade conversion stall, not a proven definitional artefact</h2>
+  <p>"Strategic" is a CS account-coverage tag — it lands on exactly 46 in-scope July opportunities and is null on the
+  other 573; <strong>all 46 are Upsell/Cross-Sell, zero New</strong>, so "STRAT has no Land" is true by construction.<sup class="cite">9</sup>
+  The whole segment produces about 10 wins a month globally across 43 accounts, so the headline swings on timing:</p>
+  <ul>
+    <li><strong>AMS STRAT "$2K, −99%" is two sub-$5K contract amendments</strong> (TriSummit $1,037 + BCBS Wyoming $892 = $1,929) — while AMS Strategic's one real deal, <strong>Disney Worldwide Services at $102,000, was still open at month-end</strong>. Had it closed, AMS STRAT would read ~$104K.<sup class="cite">9,&nbsp;10</sup></li>
+    <li><strong>EMEA STRAT ($92K) is real but concentrated</strong> — five referral wins, of which Argenta Holdings ($51K, itself a D1P conversion) is 55%.<sup class="cite">9,&nbsp;11</sup></li>
+    <li><strong>Every material AMS Strategic loss is a GovernAI upgrade that deferred</strong> — for not-yet-GA features or the ~$25–35K price (see the AMER section) — not a lost bake-off (only 2 of 26 losses touch a competitor, both under $5K).<sup class="cite">10</sup></li>
+  </ul>
+  <p>The deep root cause is a <strong>self-inflicted GTM/roadmap-timing mismatch</strong>: reps sell the AI vision (AI Board
+  Member, Smart Search) as near-term and price the ~$25–35K interim GovernAI upgrade as pre-paying for that roadmap — but
+  shipped GovernAI is admin summarisation the cosecs already do by hand, so there is <strong>no cost to waiting</strong> and the
+  AI-hungry Strategic buyer rationally defers to the flagship (actual GA <strong>Q1 2027</strong>).<sup class="cite">10,&nbsp;17</sup>
+  One honest limit, from the adversarial review: we cannot prove a definitional artefact <em>caused</em> the −78% YoY — there
+  is no July-2025 baseline, no documented Strategic-assignment rule and no reclassification bridge, and buyers waiting for a
+  differently-priced future product may be genuine effective-demand losses at today's offer, not preserved pipeline.<sup class="cite">9</sup>
+  Note the entanglement with Enterprise: folding Strategic into Enterprise moves 24 deals / $272K, so part of ENT's +197% is
+  reclassification.<sup class="cite">9</sup></p>
+
+  <h2>Mid-Market: AMER is two failures under one number; EMEA is genuinely price-to-value</h2>
+  <p>The deck frames MM as a "price-to-value / pricing &amp; packaging" problem. The named-deal and Gong-transcript
+  evidence says that is <strong>right for EMEA MM, and only half-right for AMER MM</strong> — AMER MM is two distinct
+  failures wearing one bad number:</p>
+  <table>
+    <thead><tr><th>Region</th><th>What the losses actually are</th></tr></thead>
+    <tbody>
+      <tr><td><strong>AMER MM</strong> (−91%)</td><td>47 losses, only 1 competitive (mistagged) — so not a bake-off. <strong>The Upsell majority (32 of 47, 68%)</strong> is a product-market-fit-at-price gap: shipped GovernAI is admin-only board-book summarisation + minutes-from-materials, and at a mid-market board that value collapses — the board values the live Q&amp;A discussion the tool doesn't capture, admins already do minutes fast or via Copilot, and the interactive "AI board member" that would move them is not GA — so the +$15–35K uplift fails the value test ("ROI / no budget" is downstream of this). Plus a trust-erosion strand (CubeSmart froze expansion after its system crashed mid board-meeting). <strong>The new-logo minority (15 losses)</strong> is a qualification / ICP-entry failure: outbound reaches a board-admin coordinator, not the economic buyer, against a good-enough status quo with no compelling event (2.2% clean win rate; the two dedicated MM territories went 0W/41L; the one genuine AMER MM win, Lyntris, landed in the SMB territory).<sup class="cite">4,&nbsp;9,&nbsp;10,&nbsp;21</sup></td></tr>
+      <tr><td><strong>EMEA MM</strong> (−13%)</td><td>Genuine competitive price-to-value: IG Markets ($115K, lost to Briefed + Board Intelligence on "commercial viability without a discount"), Ibstock ("BI undercut us"), BDO ($50K, lost on AI-minutes output quality). This is where the deck's pricing thesis holds.<sup class="cite">11</sup></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Why SMB grew while MM collapsed under the same pressure</h2>
+  <p>Four structural reasons: (1) the package ladder — Starter/Foundations are ~100% SMB; MM new logos get only
+  Essential/Pro, so SMB has an on-ramp and MM has a cliff; (2) the D1P wave lifted SMB (17 deals) and Enterprise (14)
+  but bypassed MM (4); (3) SMB's motion is majority new-logo referral that works, while MM's engine is Expand, which
+  fell from 28.7% to 2.4% clean; (4) coverage — AMS MM teams went 0W/41L and EMEA has no MM territory at all.<sup class="cite">9</sup>
+  SMB has not "solved" price-to-value; it has a product ladder and a channel that fit its buyer. MM has neither.</p>
+</section>
+
+<!-- ============ PAGE 6 — AMER BOOKINGS ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Part I — Bookings — AMER | July 2026 MOR</span></div>
+
+  <h1 class="section">3. AMER Bookings — $855K, −20% YoY</h1>
+  <div class="stats">
+    <div class="stat"><div class="num">$855K</div><div class="lbl">AMS bookings</div><div class="sub">−20% YoY, +5% vs target<sup class="cite">1</sup></div></div>
+    <div class="stat"><div class="num">+10%</div><div class="lbl">AMS pipeline gen.</div><div class="sub">+17% vs target — pipe is healthy<sup class="cite">1</sup></div></div>
+    <div class="stat"><div class="num">2.2%</div><div class="lbl">AMS MM win rate (clean)</div><div class="sub">1 real win vs 44 losses<sup class="cite">4,&nbsp;9</sup></div></div>
+    <div class="stat"><div class="num">13</div><div class="lbl">AMS D1P upgrades</div><div class="sub">the ENT +227% engine<sup class="cite">2</sup></div></div>
+  </div>
+
+  <p>Aggregate AMS pipeline was <em>up</em> (+10% YoY, +17% vs target), so the −20% miss is not a volume problem — it is
+  <strong>conversion and mix in the two AI-upgrade-dependent segments</strong>, masked by the Enterprise and SMB
+  engines.<sup class="cite">4,&nbsp;9</sup></p>
+
+  <h2>The two AI motions split by segment — same trigger, opposite outcome</h2>
+  <p><strong>Enterprise (+227%) worked</strong> because the buyer already owned Boards, the champion was internal
+  (GC/CorpSec), and the gate was a passable security review: Flowers Foods ($48K GovernAI upgrade after directors
+  asked for AI), Jones Financial ($47.5K, gated by outside counsel), United Rentals and VICI (BoardVantage takeaways
+  won on direct-director AI access).<sup class="cite">10</sup> <strong>Strategic (−99%) stalled on a self-inflicted
+  GTM/roadmap-timing mismatch:</strong> reps sell the AI vision — AI Board Member, Smart Search — as near-term and price the
+  ~$25–35K interim GovernAI upgrade as pre-paying for that roadmap, but shipped GovernAI is only admin summarisation the
+  cosecs already do by hand, so there is <strong>no cost to waiting</strong> and the AI-hungry buyer rationally defers to the
+  flagship (actual GA <strong>Q1 2027</strong>).<sup class="cite">10,&nbsp;17</sup> The Gong transcripts prove the mechanism:</p>
+  <div class="quote"><p>"Any roadmap items from an AI perspective … will be available to you if you do upgrade, so you won't have to pay additional money in the future … that's where a lot of organizations are really trying to get in while the iron's hot." … "Acme has plans later this year to release a feature that's essentially an AI director."</p>
+  <span class="attrib">— Acme reps to Canadian National Railway, $18.2K Strategic loss, GovernAI demo [gong 5241225742212609819]<sup class="cite">21</sup></span></div>
+  <div class="quote"><p>"If I move to AcmeOne today, what's that cost increase? And what am I actually getting? Because it sounds like I'm not getting anything new yet … we are going to pre-buy into AcmeOne without being able to see the smart search capability."</p>
+  <span class="attrib">— Miko Owa, FTI Consulting, $13.1K Strategic loss [gong 4811842356495327778]<sup class="cite">21</sup></span></div>
+  <div class="quote"><p>"We do have on our roadmap … an AI board member … set to release … September October. If you go the AI route now you get access at a lower cost … as more features come out, it will get more expensive."</p>
+  <span class="attrib">— Acme AM to UT MD Anderson, $25K Strategic postponement [gong 8301997879086060160]<sup class="cite">21</sup></span></div>
+  <p>These are timing / roadmap-positioning losses tied to AI Boards GA being Q1 2027 — not competitive defeats (only 2 of
+  26 losses touch a competitor, both under $5K; Danaher is a mistagged BoardVantage price loss, orthogonal to the AI stall).<sup class="cite">10,&nbsp;21</sup></p>
+
+  <h2>Mid-Market is two failures under one number — and neither is competition</h2>
+  <p>AMER MM booked $37K (−91%) across 47 losses; only 1 was competitive (mistagged), so it is not a bake-off.<sup class="cite">4,&nbsp;10</sup>
+  <strong>The Upsell majority (32 of 47, 68%)</strong> is a product-market-fit-at-price gap: shipped GovernAI is admin-only
+  board-book summarisation and minutes-from-materials, and at a mid-market board that value collapses — the board values the
+  live Q&amp;A discussion the tool doesn't capture, admins already do minutes fast or via Copilot, and the interactive "AI
+  board member" that would move them is not GA — so the +$15–35K uplift (often doubling a ~$20–25K base) fails the value
+  test. "ROI / no budget" is downstream of this; a distinct trust-erosion strand exists too (CubeSmart froze expansion after
+  its system crashed mid board-meeting).<sup class="cite">21</sup> <strong>The new-logo minority (15 losses)</strong> is a
+  qualification / ICP-entry failure: outbound reaches a board-admin coordinator, not the economic buyer, against a
+  good-enough status quo with no compelling event — so even well-fit deals drift and die (2.2% clean win rate; the two
+  dedicated MM territories went 0W/41L; the one genuine AMER MM win, Lyntris $30K, landed in the SMB territory).<sup class="cite">9,&nbsp;21</sup></p>
+  <div class="quote"><p>"I use copilot now which saves a ton of time … I've got an agent in copilot for the minutes that has all of our prior minutes … I'm not really seeing how that saves much time beyond our current process."</p>
+  <span class="attrib">— Andy, VP Legal, Major Drilling, MM Upsell loss [gong 1222637216212026575]<sup class="cite">21</sup></span></div>
+  <div class="quote"><p>"The important part about the minutes are the questions and answers … going back and forth live. But this is just based on the materials … it doesn't take into account anything that was said at the meeting."</p>
+  <span class="attrib">— Jim, Maine Employers' (MEMIC), $15K MM Upsell loss [gong 3590847483910164781]<sup class="cite">21</sup></span></div>
+  <div class="quote"><p>"Why should I pay for something when I get the email and that's it?"</p>
+  <span class="attrib">— Juan, National DCP, $25K MM new-logo loss (a co-chair, not the admin who owns the account) [gong 7997027075618080299]<sup class="cite">21</sup></span></div>
+  <p>SMB (+31%), by contrast, is governance-greenfield: pre-IPO and newly independent boards with no incumbent (Type One
+  Energy $35K, Csquare $30K, General Fusion $22.5K), and it is the only AMS segment where marketing sourcing is
+  material.<sup class="cite">10</sup></p>
+</section>
+
+<!-- ============ PAGE 7 — EMEA + APAC BOOKINGS ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Part I — Bookings — EMEA &amp; APAC | July 2026 MOR</span></div>
+
+  <h1 class="section">4. EMEA ($530K, +13% YoY) &amp; APAC ($330K, +45% YoY)</h1>
+
+  <h2>EMEA — a bookings beat on a softening new-logo funnel</h2>
+  <p>EMEA bookings were +13% YoY but −2% vs target, and the segment moves reconcile to the CSV exactly (ENT $159K
+  +251%, STRAT $92K −62%, MM $73K −13%, SMB $206K +102%).<sup class="cite">4,&nbsp;1</sup> ENT +251% is genuine and pipe-backed — the
+  one EMEA segment whose pipe grew (+58%, Expand +136% on D1P), topped by the one new logo, ICG FMC ($60K,
+  an Admincontrol displacement).<sup class="cite">11</sup> But the leading indicator is softening: <strong>EMEA pipeline generation is
+  −16% YoY / −18% vs target, a new-business shortfall (Land pipe −37%) while Expand grew +18%</strong>.<sup class="cite">1</sup>
+  Three named causes: UKI marketing budget holds cut planned events; EMEA has the weakest funnel conversion of any
+  region (HMQL-to-Opp 21% vs AMS 29%); and field capacity gaps (UKI not at full strength through July).<sup class="cite">7,&nbsp;11</sup>
+  SMB +102% is real (only 4% is amendments) but rode a −25% pipe — a conversion beat, not a sustainable level.</p>
+  <div class="quote"><p>"EMEA remains the weakest region overall, with HMQL-to-Opp at 21% … suggesting a broader process, lead quality, or follow-up issue."</p>
+  <span class="attrib">— July 2026 MOR, EMEA funnel slide<sup class="cite">7</sup></span></div>
+
+  <h2>APAC — a genuine expansion-led beat, on a thin forward funnel</h2>
+  <p>APAC beat target by +27%, and the beat is <strong>genuine expansion ARR, not an amendment mirage</strong>: 72% of the
+  $330K is Upsell/Cross-Sell and 56% is D1P upgrades (APAC ran 16 of the company's 37 July D1P deals).<sup class="cite">1,&nbsp;2</sup>
+  Genuine new logos were only $92K, all SMB, all ANZ/Korea. One honest limit, from the adversarial review: this is a
+  <em>level</em> decomposition, not a bridge — with no prior-year mix it does not prove expansion <em>caused</em> the +45%
+  beat, and SMB (62% of bookings) held its pipeline flat, which weakens a "collapsing funnel" reading.<sup class="cite">9</sup>
+  What is clear is that <strong>new-pipeline generation missed target by −30% — the deepest of the three regions</strong> —
+  concentrated where future large deals come from (Enterprise pipe −41%, MM −30%, Strategic −37% YoY).<sup class="cite">1</sup></p>
+  <div class="callout"><strong>The amendment caveat, quantified two ways.</strong> 57.4% of APAC's wins by <em>count</em> are
+  sub-$5K amendments (which is why the <em>win rate</em> falls from <strong>42.86% (54 / 72 raw)</strong> to <strong>26.74%
+  clean</strong> — a 16-point / 37.6% reduction; note the deal <em>count</em> falls 57.4%, not the rate) — but by <em>ARR</em>
+  those amendments are only 15.5% of bookings. So the amendments distort the win rate, <strong>not</strong> the bookings beat,
+  which is real D1P expansion ARR. The beat was driven by high-win-rate referral/upsell volume (referral 67.9%), not
+  by ASP — APAC's ASP is the lowest of the three regions.<sup class="cite">9</sup></div>
+  <div class="quote"><p>"This would move us to unlimited … a 60K uplift from what we currently are to this AcmeOne."</p>
+  <span class="attrib">— Rebecca Brockman, Swinburne University; APAC's largest July expansion ($38K), coded merely "Price/Value"<sup class="cite">12</sup></span></div>
+  <p>The Q3 watch-item is durability, not a cliff: each account converts to D1P once, so the beat rests on a thinner forward
+  funnel, and the top-of-funnel that would rebuild new-logo pipeline is thin (APAC MQLs −64% YoY, ~$250K activations frozen,
+  22% rep attrition — all from one MOR source, so treat them as one signal, not three).<sup class="cite">1,&nbsp;7</sup> The remaining
+  convertible D1P stock is unknown, so this is a forward funnel to watch, not a proven depletion.</p>
+</section>
+
+<!-- ============ PAGE 8 — GDR GLOBAL + DRIVERS ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Part II — GDR | July 2026 MOR</span></div>
+
+  <h1 class="section">Part II — GDR: 91.7%, −2.3pt vs target — three different stories</h1>
+
+  <p>July churn + downsell across the three regions was <strong>−$1,940,696 across 241 rows</strong> on a $23.5M
+  renewal pool.<sup class="cite">5</sup> The −2.3pt miss is not a single phenomenon: <strong>EMEA is one account, APAC is
+  broad-based noise, AMER is a genuine concentrated loss-rate problem</strong>. You cannot fix all three the same way.</p>
+
+  <table>
+    <thead><tr><th>Region</th><th class="num">July GDR (vs target)</th><th>Shape of the miss</th></tr></thead>
+    <tbody>
+      <tr><td>AMS</td><td class="num">93.0% (−1.3pt)</td><td>Loss-rate problem on the biggest book (53% of pool); lost $161K over allowance; top-10 accounts = 69% of loss<sup class="cite">13</sup></td></tr>
+      <tr><td>EMEA</td><td class="num">90.4% (−2.9pt)</td><td><strong>One big account, plus a price tail:</strong> British Telecom (−$305K) is 46.7% of the region's loss; the true ex-BT cohort GDR is <strong>94.66%</strong> (clears the 93.30% target), but the rest is not pristine<sup class="cite">14</sup></td></tr>
+      <tr><td>APAC</td><td class="num">90.2% (−4.4pt)</td><td><strong>Broad-based noise:</strong> largest single loss is 0.72pt; takes 33 accounts to explain the miss; $43K moves the rate a point<sup class="cite">5,&nbsp;15</sup></td></tr>
+    </tbody>
+  </table>
+
+  <h2>The three churn drivers, quantified</h2>
+  <p><strong>Driver 1 — Price-to-Value (the #1 driver).</strong> As coded, Pricing/Value is 29.7% of July loss ARR; once
+  BT's "Legal Issue" miscode is corrected, it rises to <strong>45.4%</strong>, and total addressable churn (price /
+  product / adoption) is 51.2% of the $1.94M.<sup class="cite">14,&nbsp;19</sup> The mechanism is <em>value perception</em> — "paying
+  for capability we don't use" (IOSH used Boards "only as a repository"; Siam City "did not utilize many of the
+  features") — not per-user price (already unlimited) or absolute price, with competitor-undercutting as the tail (BT
+  at ~⅓ of our cost).<sup class="cite">14,&nbsp;18,&nbsp;19</sup> It is proportionally twice as heavy in SMB/MM (33–35%) as Enterprise (8%).</p>
+
+  <p><strong>Driver 2 — M&amp;A.</strong> Genuine mechanism (acquired customer consolidates onto the acquirer's platform:
+  WK Kellogg, MEG Energy, dentalcorp) — but the July dollar exposure is <strong>small: $93K coded / $145K named</strong>,
+  and ~$90K of that is intra-Acme migration that does not actually leave.<sup class="cite">13,&nbsp;19</sup> The deck's "First Bank
+  $156K" is a forward-risk 2027 renewal, not a July churn (§6); the $1.8M is Q3–Q4 forward risk. The Q2 save proof
+  ($485K of $518K = 93.6%, incl. Elon vs OnBoard) is real; the go-forward play is being "reevaluated" — partly
+  aspirational.<sup class="cite">13,&nbsp;19</sup></p>
+
+  <p><strong>Driver 3 — Competitive (name corrected).</strong> "Diltrust" is <strong>DiliTrust</strong>, a distinct French/EU
+  LegalTech-origin competitor — <em>not</em> Acme Entities; paired with Sherpany. Their takeaway segments are
+  Sherpany = DACH, DiliTrust = France/Belgium.<sup class="cite">18</sup> But the EMEA-SMB/MM competitive-churn claim is
+  narrative-led: <strong>no July Boards churn to DiliTrust exists</strong> (its only July appearance is an Entities win),
+  and the one hard July competitive Boards churn to a named competitor is Sunrise → Sherpany — and that was
+  UX/director-preference-driven, "not related to product cost or features."<sup class="cite">18,&nbsp;20</sup> Competitors win on
+  price + director-facing UX + AI + local presence, in roughly that order.</p>
+</section>
+
+<!-- ============ PAGE 9 — GDR BY REGION ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Part II — GDR | July 2026 MOR</span></div>
+
+  <h1 class="section">5. GDR by region — why each number is what it is</h1>
+
+  <h2>AMER — 93.0%: a real, concentrated loss-rate problem</h2>
+  <p>AMER holds 52.6% of the renewal book ($12.38M / 377 accounts) and lost $865K — $161K (23%) over its allowance.
+  It is not broad decay: the top 10 accounts are 69% of the loss and RWJBH alone (−$163K) is 18.9%.<sup class="cite">13</sup>
+  Driver mix matches the deck's pair exactly — <strong>Price-to-Value 36.5%, M&amp;A 25.9%</strong>.<sup class="cite">13</sup>
+  RWJBH walked to "an alternative supplier" off a green health score of 88 (a health-scoring failure); Texas A&amp;M
+  left for a competitor "40–75% cheaper"; WK Kellogg, MEG, Step Energy are genuine M&amp;A.<sup class="cite">13</sup></p>
+  <div class="quote"><p>"RWJBH has already engaged with an alternative supplier … an unexpected non-renewal notice was received on June 4 despite a strong health score of 88."</p>
+  <span class="attrib">— RWJBH Corporate Services, −$163K, the largest AMER loss<sup class="cite">13</sup></span></div>
+
+  <h2>EMEA — 90.4%: one big price-driven loss, plus a small price tail</h2>
+  <p>British Telecom (−$305K) is 46.7% of EMEA loss on a single account; remove it and the true "rest of EMEA" cohort GDR
+  (BT out of numerator <em>and</em> denominator) is <strong>94.66%</strong>, which clears the 93.30% target.<sup class="cite">14</sup>
+  (The 94.89% figure sometimes quoted is only the "if BT had fully renewed" counterfactual, not the ex-BT cohort — do not
+  present 95.9%.) BT is coded "Legal Issue," but three Gong transcripts prove a <strong>price-driven competitive RFP</strong>:
+  the competitor was quoted at "about a third of what we are paying today" for "functionality very similar … for quite a lot
+  less money," and BT needed a one-month extension we could not give on 12-month-only terms.<sup class="cite">14</sup> Critically,
+  <strong>the deck's proposed cure — Unlimited Users — was already offered to BT and did not close the gap.</strong> One honest
+  limit: "the rest of EMEA is healthy" is not established — the other 53.3% of loss includes a coherent ~$149K UK SMB
+  price-to-value cluster (the same disease as BT) plus ~$113K across two large unexplained losses (RBC, UBS) — so ex-BT clears
+  target but is not pristine. EMEA July M&amp;A churn is $0, and there is no nameable competitive takeaway in the actual July
+  book (BT's competitor is unnamed).<sup class="cite">14</sup></p>
+  <div class="quote"><p>"The ultimate functionality is very similar to the other provider we're looking at for quite a lot less money."</p>
+  <span class="attrib">— Kathryn Zielinski, British Telecom<sup class="cite">14</sup></span></div>
+
+  <h2>APAC — 90.2%: broad-based noise on a small book</h2>
+  <p>APAC's −4.4pt miss is the mirror image of EMEA: <strong>no whale</strong>. The largest single loss (NSW Health
+  Pathology, −$31K) is 0.72 GDR points; it takes 33 accounts to reach 99% of the loss, and $43K moves the rate a full
+  point.<sup class="cite">5,&nbsp;15</sup> The losses are scattered across ~30 unrelated AU/NZ government, education and mid-market
+  accounts with mixed reasons (price, seat cuts, one whole-of-government RFP exit, one non-adoption death, one $25K
+  paperwork artefact that arguably isn't real churn) — no common competitor, no product cliff, no July pricing change.
+  With ~75 loss rows and YTD sitting flat at 92.9%, <strong>July should be read as volatility, not a regression.</strong>
+  The task's "Q2 96.1%" figure is not sourceable — the defensible Q2 APAC GDR is 94.65%.<sup class="cite">15</sup></p>
+</section>
+
+<!-- ============ PAGE 10 — CORRECTIONS ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Corrections &amp; Data-Quality Flags | July 2026 MOR</span></div>
+
+  <h1 class="section">6. What to correct or re-label before presenting</h1>
+  <p>These are not quibbles — each one changes what a reader concludes, and every one is sourced.</p>
+
+  <table>
+    <thead><tr><th>On the deck</th><th>The correction</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>"D1P conversions drove 320 upgrade deals and $4.98M ARR, 31.7% of BLC Bookings" on the July bookings slide</td><td><strong>That is YTD-July, not July.</strong> July alone = 38 deals / $576K / 33.3% of July bookings. Label the basis or the month is overstated ~8×.</td><td class="num">2</td></tr>
+      <tr><td>"M&amp;A: e.g., First Bank ($156K ARR)" as a churn-driver example</td><td><strong>First Bank did not churn in July.</strong> It is FirstBank Holding Co, a 2027–28-term renewal at "Potential Churn (10%)" — a forward at-risk account inside the ~$1.8M Q3–Q4 risk book. Present it as forward risk.</td><td class="num">13</td></tr>
+      <tr><td>"Competitive: Sherpany &amp; Diltrust in EMEA SMB/MM"</td><td><strong>"Diltrust" = DiliTrust</strong> (a distinct competitor, not Acme Entities). <strong>Sherpany appears in zero July Boards churn rows</strong> (it is a DACH threat; its one evidenced churn is Swiss/Sunrise, UX-driven). The real July competitive threats in the evidence are Board Intelligence and Convene.</td><td class="num">18</td></tr>
+      <tr><td>British Telecom coded "Legal Issue"</td><td><strong>It is a price-driven competitive RFP</strong> (Gong-verified). Finance's own MOR calls it "RFP" and "Price-to-Value" — the RFL code contradicts the deck. BT ARR appears as three figures ($305K / $321K / ~$400K); show all, never average.</td><td class="num">14</td></tr>
+      <tr><td>"UKI … 3 accounts churned to competitor"</td><td><strong>An unfilled Q2 placeholder</strong> — the source literally reads "XYZ" and "[need source]," sits under a Q2 GDR block, and the accounts/competitor were never entered. The evidenced UKI competitive churns (BDO, Ibstock → Board Intelligence) are forward-month (Sept/Dec), not July.</td><td class="num">8,&nbsp;14</td></tr>
+      <tr><td>Churn-mitigation pilot: "SMB/MM 5 of 16 converted to Multi-Year"</td><td><strong>That is an Enterprise result, not SMB/MM</strong> — Phase 1 (complete): 18 targeted, 16 addressable, all renewed, 5 to 3-yr MYD (31.2%). Phase 2 (47 accts), the "17 of 35" cohort, Expert Edge, and "churn reduced 20%" are pending / in-progress / unsubstantiated.</td><td class="num">19</td></tr>
+      <tr><td>Stray line: "27% July churn to M&amp;A (Actis $43k, Nuveen $40k), Vistra $82k, SMB 76.4%"</td><td><strong>Not BLC Boards</strong> — none of those accounts is in the Boards RFL, and SMB 76.4% contradicts BLC SMB (91.4%). It belongs to a different business unit's section.</td><td class="num">13</td></tr>
+      <tr><td>AI roadmap timing implied for October 2026</td><td><strong>Acme AI Boards GA is Q1 2027</strong> (updated 21 Jul 2026, superseding Q4 2026 / October). Distinguish shipped GovernAI from the planned AI Boards flagship in every reference.</td><td class="num">17</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ PAGE 11-12 — SOURCES ============ -->
+<section class="sheet">
+  <div class="rh"><span class="rh-right">Sources | July 2026 MOR</span></div>
+
+  <h1 class="section">Sources</h1>
+  <p class="note">The system of record is the Finance workbook; narrative colour is deal-level Gong / Salesforce /
+  Gainsight / Cancel-Details, pulled via Glean. Full per-claim citations and search logs live in the nine findings
+  files under <code>output/rca/</code>.</p>
+  <ol class="sources">
+    <li><strong>Finance workbook — <code>20260803-BLC-July-2026-Results.xlsx</code>, <code>BLC July MOR</code> sheet</strong> — July &amp; YTD bookings, pipeline generation, GDR, and the D1P Upgrade Drivers block (rows 111–128), all by region and segment. The system of record.</li>
+    <li>Same workbook — <strong><code>BLC D1P Upgrades</code> sheet</strong> (810 conversion rows, 2025-01 → 2026-08): D1P deal counts, ARR, monthly ramp, per-region and per-segment splits.</li>
+    <li>Same workbook — <strong><code>Target - GDR 2026</code> sheet</strong>: regional GDR targets and loss allowances (AMS 94.27%, EMEA 93.30%, APAC 94.57%).</li>
+    <li><strong><code>csp-blc-july2026.csv</code></strong> — 638-row deal-level July new-business extract (segment, ARR, opp type, stage, source, competitor field). Reconciles to sheet 1 to the dollar.</li>
+    <li><strong><code>rfl-blc-july2026.csv</code></strong> — 1,054-row July renewal / churn / downsell extract (churn reason, ARR, segment, sub-region). The GDR spine.</li>
+    <li><code>csp-blc-q2-2026.csv</code> — 1,864-row Q2 extract, used for labelled Q2 context only.</li>
+    <li><strong>July 2026 Monthly Operating Review (MOR) — Live Development deck</strong> (o365 SharePoint / AcmeFinance) — bookings/pipeline/GDR slides, churn-driver slide, churn-mitigation programme slide, EMEA/APAC funnel and capacity slides, segment (Q2) slide.</li>
+    <li>July 2026 MOR_YK deck (o365 OneDrive) — exec-summary framing; the "XYZ" / "[need source]" UKI placeholder; "churn reduced 20%"; "58% price-driven" line.</li>
+    <li><strong><code>f1-finance-data.md</code></strong> — the audited finance spine: two-basis (clean vs all-sizes) win-rate/ASP by region × segment, the <code>&lt;$5K Amendment</code> asymmetry, D1P reconciliation.</li>
+    <li><strong>AMER new-business named-deal records</strong> (Salesforce / Gong): Allianz Life, Canadian National Railway, FTI Consulting, MD Anderson, Wells Fargo (STRAT losses); Flowers Foods, Jones Financial, United Rentals, VICI, Emera, Point32Health (ENT wins); Central States, National DCP, StockX, Central Insurance (MM losses); Type One Energy, Csquare, Relm (SMB wins).</li>
+    <li><strong>EMEA new-business named-deal records</strong>: ICG FMC, Persimmon, Galliford Try, Argenta Holdings, ERGO, Al Wathba, EXOR, Briggs Equipment (wins); IG Markets, Ibstock, BDO, Miahona, Hannover Rück, Société Générale (losses).</li>
+    <li><strong>APAC new-business named-deal records</strong>: Swinburne, Fortescue, Dulux, Dyno Nobel (D1P upgrades); Auriga, NIOA, Toubani, Douzone Bizon (new logos); Dah Sing, Racing Victoria (mis-coded "competitor" losses).</li>
+    <li><strong>AMER GDR records</strong>: RWJBH, Kentucky Public Pensions, WK Kellogg, MEG Energy, Step Energy, Sun America, Texas A&amp;M, dentalcorp, U.S. Tobacco Cooperative; FirstBank Holding Co renewal (opp 006Pa00000ct79RIAQ) — the forward-risk "First Bank."</li>
+    <li><strong>EMEA GDR records</strong>: British Telecom (3 Gong transcripts + MOR lines), CCLA, RBC London, UBS Pension Trustee, IOSH; forward-book BDO &amp; Ibstock → Board Intelligence; Sunrise → Sherpany.</li>
+    <li><strong>APAC GDR records</strong>: Siam City Cement, NSW Health Pathology, Ministry of Social Development, ASE Technology, Mobileum, Sealord, Ngai Tahu, Justice Health.</li>
+    <li><code>FAQ-BLC-2026-Packaging-FINAL.docx</code> — D1P upgrade mechanics: shipped GovernAI features, unlimited users, platform consolidation, Deal-Desk re-SKU-to-same-value, Next Gen/AWS successor motion.</li>
+    <li><strong><code>AI-Boards-Internal-FAQs-Master.docx</code></strong> (updated 2026-07-21) — Acme AI Boards GA = Q1 2027 (superseding Q4 2026 / October).</li>
+    <li><code>DiliTrust-Competitive-Messaging.docx</code> + <code>Confluence-6sense-Competitor-Segments.md</code> — DiliTrust as a distinct LegalTech-origin competitor (EMEA FR/BE segment); Sherpany as the DACH segment.</li>
+    <li>Churn-mitigation programme slide (MOR Live Development): Phase 1 (complete, Enterprise, 5/16 → 3-yr MYD, 100% addressable save), Phase 2 (47 accts, pending), M&amp;A Q2 proof ($485K/$518K), Expert Edge status.</li>
+    <li>Cancel Details email series (via r1): Sunrise → Sherpany (Oct), Direct Digital → Boardvantage (Feb 2027), forward-book competitive churns; M&amp;A no longer labelled "Unavoidable" from July 2026.</li>
+    <li><strong>AMER Mid-Market &amp; Strategic Gong call transcripts</strong> — Major Drilling (gong 1222637216212026575), MEMIC (3590847483910164781), National DCP (7997027075618080299), Canadian National Railway (5241225742212609819), FTI Consulting (4811842356495327778), MD Anderson (8301997879086060160) and Danaher (4552338749986931925) — full speaker-attributed transcripts pulled via gong-connect / Glean. The bedrock evidence for the AMER MM product-market-fit-at-price gap and the AMER STRAT GTM/roadmap-timing mismatch.</li>
+  </ol>
+  <p class="note">Prepared August 2026 from nine parallel root-cause findings files (<code>output/rca/rca-*.md</code>),
+  each carrying its own coverage assessment, named-deal table, verbatim quotes, numbers table, gaps and search log.
+  Where a figure could not be sourced it is marked <span class="gap">[need sources]</span> in the underlying file rather
+  than estimated.</p>
+</section>
+
+</body>
+</html>

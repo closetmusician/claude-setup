@@ -1,0 +1,1 @@
+{"hook":"scripts/completion-claim-guard.sh","class":"C2","expect":"block","reason_contains":"C2","expected_gap":true,"description":"III-1 oracle proof artifact — incident event JSON, not a guard-runnable transcript; runner reports KNOWN-GAP"}

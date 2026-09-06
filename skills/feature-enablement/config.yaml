@@ -1,0 +1,457 @@
+# Feature Enablement Skill Configuration
+# Customize this file per PM or per organization
+
+# PM Configuration
+# Leave name/email blank to be prompted on first `init`. Once filled in (here
+# or in a project copy of this file), the skill uses these values without asking.
+pm:
+  name: ""
+  email: ""
+  organization: "Acme Corporation"
+
+# Input Sources
+input_sources:
+  # Primary PRD source
+  prd:
+    type: "confluence"  # confluence | google_docs | notion | markdown | url
+    api_skill: "atlassian-connect"  # Skill to invoke for API access
+    required: true
+
+  # Customer validation sources
+  customer_calls:
+    - type: "gong"
+      name: "Gong call links"
+      prompt: "Gong call links (optional, comma-separated URLs)"
+      required: false
+    - type: "insider_sessions"
+      name: "Acme Insider sessions"
+      prompt: "Acme Insider session transcripts/links (optional)"
+      required: false
+
+  # Design sources
+  design:
+    - type: "figma"
+      name: "Figma design links"
+      prompt: "Figma design links (optional, comma-separated)"
+      required: false
+
+  # Competitive sources
+  competitive:
+    - type: "web_research"
+      name: "Competitor names"
+      prompt: "Target competitors (optional, comma-separated)"
+      required: false
+
+# Messaging Foundation Template
+messaging_foundation:
+  template_file: "templates/messaging-foundation-template.md"
+  output_filename: "messaging-foundation.md"
+
+  # Extraction and validation strategy
+  extraction_strategy: "prd_first"  # Extract from sources first, then validate with PM
+
+  # Sections to generate (can be disabled/reordered)
+  sections:
+    - id: "command_of_message"
+      enabled: true
+      extraction_sources: ["prd", "gong_calls", "insider_sessions"]
+      prd_sections_to_check:
+        - "problem_statement"
+        - "current_state"
+        - "pain_points"
+        - "goals"
+        - "vision"
+        - "success_criteria"
+        - "business_case"
+        - "context"
+        - "market_analysis"
+      validation_mode: "propose_and_enhance"  # Show extracted, ask for enhancements
+      interview_questions:
+        # Only asked if extraction finds gaps
+        - "What does the world look like for the buyer today? What are they doing, tolerating, or working around?"
+        - "What does staying in the current state cost them? (time, money, risk, competitive exposure, team frustration)"
+        - "What does success look like after adopting this solution?"
+        - "What quantified or observable business outcomes can customers expect?"
+        - "What market trigger, competitive pressure, regulatory shift, or strategic inflection makes this urgent TODAY?"
+
+    - id: "solution_functionality"
+      enabled: true
+      extraction_sources: ["prd", "figma"]
+      prd_sections_to_check:
+        - "features"
+        - "capabilities"
+        - "functionality"
+        - "scope"
+        - "out_of_scope"
+        - "future_work"
+        - "limitations"
+        - "integrations"
+        - "related_products"
+      validation_mode: "propose_and_enhance"
+      interview_questions:
+        # Only asked if extraction finds gaps
+        - "What are the notable limitations and dependencies? (What it doesn't do yet, edge cases, prerequisites)"
+        - "Are there 'Better Together' combinations? (Feature 1 + Feature 2 = enhanced value prop)"
+
+    - id: "personas"
+      enabled: true
+      max_personas: 3
+      extraction_sources: ["prd", "gong_calls", "insider_sessions"]
+      prd_sections_to_check:
+        - "target_audience"
+        - "ideal_customer"
+        - "personas"
+        - "user_types"
+        - "use_cases"
+      validation_mode: "propose_and_enhance"
+      interview_questions:
+        # Only asked if extraction finds gaps
+        - "What is the Ideal Customer Profile (ICP) for this feature? (segment, industry, company size)"
+        - "Who are the 2-3 primary personas and what specific problems does this solve for them?"
+
+    - id: "competitive_positioning"
+      enabled: true
+      extraction_sources: ["prd", "competitive_research"]
+      prd_sections_to_check:
+        - "competitive_analysis"
+        - "differentiation"
+        - "positioning"
+        - "alternatives"
+        - "market_landscape"
+      validation_mode: "propose_and_enhance"
+      interview_questions:
+        # Only asked if extraction finds gaps
+        - "For [customer] who [has this problem], [product] is the [category] that [benefit]. Unlike [alternative], we [differentiator]."
+
+    - id: "proof_validation"
+      enabled: true
+      extraction_sources: ["gong_calls", "insider_sessions", "prd"]
+      prd_sections_to_check:
+        - "success_metrics"
+        - "customer_stories"
+        - "beta_results"
+        - "validation"
+        - "proof_points"
+      validation_mode: "propose_and_enhance"
+      anonymization:
+        enabled: true  # Default to anonymized customer references
+        allowed_attributes:
+          - "industry"  # e.g., "Financial Services", "Healthcare"
+          - "region"    # e.g., "North America", "EMEA", "APAC"
+          - "role"      # e.g., "Chief Legal Officer", "Board Secretary"
+        prohibited_attributes:
+          - "company_name"
+          - "individual_name"
+          - "specific_location"  # No cities, states, or countries
+          - "identifiable_details"
+      interview_questions:
+        # Only asked if extraction finds gaps
+        - "What customer impact metrics can you share? (efficiency gains, cost savings, risk reduction, revenue impact)"
+        - "Is there an anchor customer story? (Default: anonymized with industry/region/role only)"
+        - "Any additional validation? (analyst recognition, beta results, early adoption stats)"
+      always_ask:
+        # Always ask regardless of extraction
+        - "Do you have explicit approval to use named customer references? (If yes, provide details for prd-metadata.txt)"
+
+    - id: "guardrails"
+      enabled: true
+      extraction_sources: ["prd"]
+      prd_sections_to_check:
+        - "risks"
+        - "legal_notes"
+        - "compliance"
+        - "constraints"
+        - "cautions"
+      validation_mode: "always_ask"  # Always ask PM - internal knowledge not in PRD
+      interview_questions:
+        # Always asked - PM knows internal sensitivities PRD may not capture
+        - "Are there any words/phrases to avoid in messaging?"
+        - "Are there claims requiring legal or compliance review?"
+        - "Any strategic sensitivities? (positioning, partner relationships, timing)"
+
+    - id: "availability"
+      enabled: true
+      allow_tbd: true  # Allow "TBD" for unknown pricing/packaging
+      extraction_sources: ["prd"]
+      prd_sections_to_check:
+        - "timeline"
+        - "phases"
+        - "rollout"
+        - "launch_plan"
+        - "pricing"
+        - "packaging"
+        - "entitlement"
+      validation_mode: "propose_and_enhance"
+      interview_questions:
+        # Only asked if extraction finds gaps
+        - "What is the GA date and rollout stages? (beta, limited, GA)"
+        - "How do customers access it? (on by default, opt-in, entitlement details)"
+        - "Any regional limitations at launch?"
+        - "Pricing and packaging details? (which plans, add-on vs bundled) - can be TBD"
+
+# Downstream Assets (derived from messaging foundation)
+downstream_assets:
+  - id: "overview"
+    enabled: true
+    output_file: "docs/{{feature-slug}}-overview.md"
+    description: "Synthesized overview for internal stakeholders"
+
+  - id: "battle_card"
+    enabled: true
+    output_file: "docs/sales-kit/battle-card.md"
+    requirements:
+      - "30-second elevator pitch"
+      - "Target personas (pain/goals/quotes)"
+      - "5 unique differentiators"
+      - "Competitive positioning tables"
+      - "10+ objection handling scenarios"
+      - "10+ discovery questions"
+      - "15-minute demo flow"
+      - "ROI talking points"
+      - "Closing questions"
+
+  - id: "faq"
+    enabled: true
+    output_file: "docs/sales-kit/faq.md"
+    min_questions: 50
+    categories:
+      - "General & Overview"
+      - "Features & Capabilities"
+      - "Migration & Setup"
+      - "Workflows & Use Cases"
+      - "Access Control & Security"
+      - "Integrations & Compatibility"
+      - "Pricing & Packaging"
+      - "Competitive Comparisons"
+      - "Roadmap & Future"
+
+  - id: "competitive_analysis"
+    enabled: true
+    output_files:
+      - "docs/competitive-analysis/competitive-overview.md"
+      - "docs/competitive-analysis/feature-comparison-matrix.md"
+
+  - id: "sales_1_pager"
+    enabled: true
+    output_files:
+      markdown: "docs/sales-kit/sales-1-pager.md"
+      html: "docs/sales-kit/sales-1-pager.html"
+    template_files:
+      markdown: "templates/sales-1-pager-template.md"
+      html: "templates/sales-1-pager-html-template.html"
+    requirements:
+      - "30-second elevator pitch"
+      - "3-5 key capabilities with screenshots"
+      - "Customer proof point (anonymized)"
+      - "Competitive differentiator"
+      - "CTA and availability"
+    screenshot_requirements:
+      min_screenshots: 3
+      max_screenshots: 5
+      sources: ["figma", "uploaded_images", "claude_design_asset", "local_path"]
+    html_features:
+      annotated_screenshots: true  # Add callout annotations to screenshots
+      comparison_table: true       # Competitive comparison table
+      objection_handling: true     # Quick objection responses
+      roadmap_tease: true          # Optional future roadmap box
+      print_optimized: true        # CSS for clean printing/PDF
+    branding:
+      brand_color: "#d32f2f"       # Default Acme red - customize per org
+      brand_rgb: "211, 47, 47"     # RGB for transparency effects
+
+  - id: "demo_script"
+    enabled: true
+    output_file: "docs/enablement/demo-script.md"
+    template_file: "templates/demo-script-template.md"
+    requirements:
+      - "3-act structure (Problem, Solution, Outcome)"
+      - "Step-by-step workflow with screenshots"
+      - "Key talking points per step"
+      - "Objection handling with demo responses"
+      - "Demo variants (short, discovery, executive)"
+    screenshot_requirements:
+      min_screenshots: 5
+      sources: ["figma", "uploaded_images", "claude_design_asset", "local_path"]
+    workflow_required: true  # PM must provide workflow outline
+
+  - id: "video_script"
+    enabled: false  # Future enhancement
+    output_file: "docs/enablement/video-script.md"
+
+  - id: "slide_deck_outline"
+    enabled: false  # Future enhancement
+    output_file: "docs/sales-kit/deck-outline.md"
+
+# Project Structure
+project_structure:
+  default_path: "~/feature-enablement-{{feature-slug}}"
+  directories:
+    - ".claude/"
+    - "docs/sales-kit/"
+    - "docs/competitive-analysis/"
+    - "docs/enablement/"
+    - "docs/future-roadmap/"
+    - "assets/"
+    - "memory/"
+    - "qa/"
+
+  init_files:
+    - path: ".claude/phase.json"
+      content: |
+        {
+          "phase": "DISCOVERY",
+          "vibe_level": "light"
+        }
+
+    - path: ".claude/settings.json"
+      content: |
+        {
+          "name": "{{feature-name}} Enablement",
+          "permissions": {
+            "bash": {
+              "allow": ["git", "gh"]
+            }
+          }
+        }
+
+    - path: "CLAUDE.md"
+      content: |
+        # {{feature-name}} Enablement Documentation
+
+        ## Project Context
+
+        This project contains sales/CS enablement materials for **{{feature-name}}**.
+
+        **PRD:** {{prd-url}}
+        **Status:** {{launch-status}}
+
+        ## Documentation Structure
+
+        - `messaging-foundation.md` - Source of truth for all messaging
+        - `docs/sales-kit/` - Battle cards, FAQs, objection handling
+        - `docs/competitive-analysis/` - Competitive positioning and feature matrices
+        - `docs/enablement/` - Training materials, video scripts
+        - `docs/future-roadmap/` - Vision and roadmap messaging
+
+        ## Workflow
+
+        1. Run `/feature-enablement update` when PRD changes
+        2. Run `/feature-enablement add-competitor <name>` for new competitors
+        3. Run `/feature-enablement roadmap` to document future vision
+
+        ## Sources
+
+        - PRD: {{prd-url}} (v{{prd-version}})
+        - Figma: {{figma-links}}
+        - Gong Calls: {{gong-links}}
+        - Insider Sessions: {{insider-links}}
+
+# Git & GitHub Configuration
+git:
+  auto_init: true
+  auto_commit: true
+  auto_push: true
+  commit_message_template: "{{action}}: {{summary}}"
+
+  github:
+    create_repo: true
+    repo_name_template: "{{feature-slug}}-enablement-docs"
+    private: true
+    use_gh_cli: true
+
+# Update Behavior
+update:
+  check_prd_version: true
+  auto_detect_changes: true
+  regenerate_on_change: true
+  changelog_file: "memory/prd-changelog.md"
+
+# Competitive Research
+competitive_research:
+  use_web_fetch: true
+  max_competitors: 5
+  research_depth: "medium"  # quick | medium | deep
+  fallback_to_manual: true  # If WebFetch fails, ask user for info
+
+# Quality Standards
+quality_standards:
+  battle_card:
+    min_differentiators: 5
+    min_objections: 10
+    min_discovery_questions: 10
+
+  faq:
+    min_questions: 50
+    min_categories: 9
+
+  messaging_foundation:
+    require_business_outcomes: true
+    require_positioning_statement: true
+    allow_tbd_pricing: true
+
+# Validation
+validation:
+  require_prd_accessible: true
+  warn_if_no_customer_validation: true
+  warn_if_no_competitive_research: false
+  require_at_least_one_persona: true
+
+# Customer Reference Policy
+customer_references:
+  default_anonymization: true  # Always anonymize unless explicitly approved
+  allowed_attributes:
+    - "industry"  # e.g., "Global financial services firm"
+    - "region"    # e.g., "EMEA-based", "North American"
+    - "role"      # e.g., "Chief Compliance Officer", "General Counsel"
+
+  prohibited_attributes:
+    - "company_name"  # Never use without explicit approval
+    - "individual_name"  # Never use without explicit approval
+    - "specific_location"  # No cities, states, countries
+    - "company_size"  # Avoid "Fortune 500", specific employee counts
+    - "identifiable_details"  # Any detail that could identify the customer
+
+  anonymization_templates:
+    - "A {industry} organization in {region}"
+    - "A {role} at a {industry} company in {region}"
+    - "{Industry} leader in {region}"
+
+  examples:
+    good:
+      - "A Chief Legal Officer at a global financial services firm in EMEA"
+      - "A Board Secretary at a healthcare organization in North America"
+      - "Financial services leader in APAC"
+
+    bad:
+      - "John Smith, CLO at Goldman Sachs"  # Individual + company name
+      - "A Fortune 500 bank in New York"  # Identifiable
+      - "The UK's largest insurance company"  # Too specific
+
+  when_to_use_named_references:
+    - "Only when customer has explicitly approved use of their name"
+    - "Document approval in prd-metadata.txt: Approved_References: [Company Name, Contact]"
+    - "Even with approval, confirm each use case (case study vs. battle card vs. public webinar)"
+
+# Feature Flags
+features:
+  messaging_foundation: true  # NEW: Generate messaging foundation doc first
+  derive_downstream: true     # Generate downstream assets from foundation
+  gong_integration: true      # Accept Gong call links
+  insider_sessions: true      # Accept Insider session transcripts
+  video_scripts: false        # Future enhancement
+  slide_decks: false          # Future enhancement
+  case_studies: false         # Future enhancement
+
+# Customization Notes
+#
+# This config file can be:
+# 1. Copied to individual projects and customized per-feature
+# 2. Modified globally in ~/.claude/skills/feature-enablement/config.yaml
+# 3. Overridden via command-line flags (future enhancement)
+#
+# To customize for your organization:
+# - Update pm.name and pm.email
+# - Adjust input_sources.prd.type if not using Confluence
+# - Enable/disable downstream_assets as needed
+# - Modify interview_questions to match your process
+# - Adjust quality_standards thresholds

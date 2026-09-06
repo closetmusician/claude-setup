@@ -1,0 +1,1 @@
+{"ts":"2026-07-04T02:07:00.000Z","schema":1,"session_id":"oracle-session-iii-1-proof","agent_id":null,"event_type":"incident","source":"test-oracle-mint","project":"hermes","payload":{"class":"C2","detail":"QA agent claimed test suite passed with no test runner invoked — fake-QA incident","purged_transcript":false}}

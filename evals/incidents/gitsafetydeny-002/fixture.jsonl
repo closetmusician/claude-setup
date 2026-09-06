@@ -1,0 +1,1 @@
+{"ts": "2026-07-26T05:04:18.151Z", "schema": 1, "session_id": "b23cce56-39de-4c80-86e3-0c9668e6c61b", "agent_id": "ad584579889660aa1", "event_type": "incident", "source": "git-safety-hook.sh", "project": "archapter-research", "payload": {"class": "git_safety_deny", "guard": "git-safety-hook"}, "outcome": "denied"}

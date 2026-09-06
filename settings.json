@@ -1,0 +1,587 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": 180,
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "60",
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0",
+    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
+    "MAX_THINKING_TOKENS": "128000",
+    "SLASH_COMMAND_TOOL_CHAR_BUDGET": "16000",
+    "CLAUDE_CODE_ENABLE_AUTO_MODE": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "Task",
+      "Skill",
+      "WebFetch",
+      "Agent",
+      "Bash(rtk *)",
+      "Bash(git *)",
+      "Bash(~/.claude/skills/gong-connect/bin/gong *)",
+      "Bash(~/.claude/skills/tableau-connect/bin/tableau *)",
+      "Bash(agent-browser *)",
+      "Edit(/Users/yklin/.claude/**)",
+      "Write(/Users/yklin/.claude/**)",
+      "Read(/Users/yklin/.claude/**)",
+      "mcp__plugin_episodic-memory_episodic-memory__search",
+      "mcp__plugin_episodic-memory_episodic-memory__read"
+    ],
+    "deny": [
+      "Read(./secrets/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.secrets/**)",
+      "Read(~/.age/**)",
+      "Edit(/etc/**)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf ~/*)",
+      "Bash(rm -rf ../*)",
+      "Bash(cat ~/.secrets/**)",
+      "Bash(cat ~/.age/**)",
+      "Bash(head ~/.secrets/**)",
+      "Bash(head ~/.age/**)",
+      "Bash(tail ~/.secrets/**)",
+      "Bash(tail ~/.age/**)",
+      "Bash(less ~/.secrets/**)",
+      "Bash(less ~/.age/**)",
+      "Bash(cat*token-store*)",
+      "Bash(node*token-store*)",
+      "Bash(head*token-store*)",
+      "Bash(tail*token-store*)",
+      "Bash(less*token-store*)",
+      "Bash(more*token-store*)",
+      "Bash(source*token-store*)",
+      "Bash(.*token-store*)",
+      "Bash(*readToken*)",
+      "Bash(*writeToken*)",
+      "Bash(*.secrets*)",
+      "Bash(*.age/pm-os*)",
+      "Bash(*json.enc*)"
+    ],
+    "defaultMode": "auto"
+  },
+  "model": "us.anthropic.claude-opus-5[1m]",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/pre-agent-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/constraint-wording-lint.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/manifest-bind.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/skills/eng-planning/scripts/eng-planning-agent-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/skills/lead-orchestrator/scripts/orchestrator-step-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/skills/prd-writer/scripts/prd-writer-agent-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/multi-agent-auq-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/governance/parallel-scope-guard.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/governance/no-commit-headsha-audit.sh pre",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/codex-cli-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/role-enforcement.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/remote-destructive-hook.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/external-comms-hook.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/incident-freeze-enforcer.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/skill-routing-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/commit-staged-audit.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/git-safety-hook.sh"
+          },
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/commit-order-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/role-enforcement.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/skills/eng-planning/scripts/eng-planning-write-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/skills/lead-orchestrator/scripts/validate-artifact.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/skills/prd-writer/scripts/prd-writer-write-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/role-enforcement.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/task-spec-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/multi-agent-auq-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/governance/parallel-scope-guard.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/codex-cli-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/orchestrator-context-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/orchestrator-context-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/orchestrator-context-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__plugin_episodic-memory_episodic-memory__search",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/episodic-plan-path-gate.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/autonomous-push-guard.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/post-agent-audit.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/governance/no-commit-headsha-audit.sh post",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/activate-on-orchestrator.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/incident-freeze-detector.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/evidence-ledger.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/evidence-ledger.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/harness-change-flag.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/evidence-ledger.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/harness-change-flag.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/auq-witness.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/autonomous-secret-scan.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/autonomous-secret-scan.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/notify.sh 'Task finished'"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/auto-journal.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/completion-claim-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/completion-gate-sentinel-check.sh",
+            "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/governance/ledger-freshness-check.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash /Users/yklin/.claude/scripts/analysis-reflex.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/harness-selfcheck.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/harness-selfcheck-autonomous.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/heartbeat-stop-warn.sh"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/governance-cleanup.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/pm-send-synthesize-hook.sh"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/notify.sh 'Needs your input' Basso"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/correction-capture.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/skill-retrieve.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/codex-cli-nudge.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "/Users/yklin/.claude/scripts/statusline.sh"
+  },
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": false,
+    "episodic-memory@superpowers-marketplace": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "code-review-graph@code-review-graph": true,
+    "codex@openai-codex": true,
+    "typescript-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "code-review-graph": {
+      "source": {
+        "source": "github",
+        "repo": "tirth8205/code-review-graph"
+      }
+    },
+    "openai-codex": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/openai/codex-plugin-cc.git"
+      }
+    }
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "*.github.com",
+        "*.githubusercontent.com",
+        "ssh.github.com",
+        "api.anthropic.com",
+        "graph.microsoft.com",
+        "login.microsoftonline.com",
+        "*.atlassian.net",
+        "docs.claude.com",
+        "code.claude.com",
+        "platform.claude.com"
+      ]
+    },
+    "filesystem": {
+      "allowWrite": [
+        "~/Code",
+        "~/.claude",
+        "~/.codex",
+        "~/.colima",
+        "~/.lima",
+        "~/.agents"
+      ],
+      "allowRead": [
+        "~/.ssh/known_hosts",
+        "~/.ssh/config",
+        "~/.config/gh/hosts.yml",
+        "~/.config/gh/config.yml",
+        "~/.npmrc",
+        "~/.gitconfig",
+        "~/.bun",
+        "~/.colima",
+        "~/.lima",
+        "~/.agents"
+      ]
+    },
+    "excludedCommands": [
+      "git"
+    ]
+  },
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "medium",
+  "autoUpdatesChannel": "stable",
+  "tui": "fullscreen",
+  "showThinkingSummaries": true,
+  "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
+  "switchModelsOnFlag": false,
+  "agentPushNotifEnabled": true,
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "rtk-prefixed commands (`rtk ...`) are a token-optimizing passthrough and are as safe as the command they wrap.",
+      "Routine git operations are allowed: status, add (explicit paths), commit, diff, log, show, fetch, pull, branch, checkout, and push to the closetmusician remote. The git-safety PreToolUse hook independently blocks the dangerous cases (git add -A, force-push, protected-file rm).",
+      "The gong-connect CLI (~/.claude/skills/gong-connect/bin/gong) is a user-authorized read-only transcript retrieval tool. It accesses the user's own provisioned Gong account (tenant us-10290) for call listing, transcript retrieval, and keyword mining. The CLI and its underlying agent-browser commands are pre-approved by the user for autonomous execution — they perform read-only data retrieval, not credential exploration or write operations."
+    ],
+    "environment": [
+      "$defaults",
+      "The RTK proxy rewrites most dev commands to `rtk <cmd>` (rtk git ..., rtk grep, rtk find). Treat an rtk-prefixed command as equivalent in risk to the underlying command it wraps.",
+      "Source control: this repo (~/.claude) pushes to github.com/closetmusician/claude-setup, a solo-owned personal repo. Ordinary pushes to it are routine and trusted."
+    ]
+  }
+}

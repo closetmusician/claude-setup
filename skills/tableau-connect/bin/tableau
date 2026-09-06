@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# ABOUTME: tableau-connect CLI — connect Claude Code to Acme's Tableau Cloud.
+# ABOUTME: Registers the official @tableau/mcp-server (PAT auth) with Claude Code and
+# ABOUTME: verifies REST connectivity. Reads the PAT from ~/.secrets, never from args/stdout.
+# ABOUTME: Node<22.7.5 is auto-shimmed to Homebrew node@24 so the MCP server can launch.
+# ABOUTME: On 401 (expired/invalid PAT) it opens the Tableau PAT-settings page to re-mint.
+set -uo pipefail
+
+# --- Config (env-overridable; defaults target Acme Cloud site acme1) -----------
+SERVER="${TABLEAU_SERVER:-https://prod-useast-a.online.tableau.com}"
+SITE="${TABLEAU_SITE:-acme1}"
+CREDS="${TABLEAU_CREDS:-$HOME/.secrets/tableau.env}"   # sourced file: TABLEAU_PAT_NAME, TABLEAU_PAT_VALUE
+API_VER="${TABLEAU_API_VERSION:-3.24}"                 # REST API version for sign-in probe
+MCP_NAME="${TABLEAU_MCP_NAME:-tableau}"
+NODE24="${TABLEAU_NODE_BIN:-/opt/homebrew/opt/node@24/bin/node}"
+CLAUDE_BIN="${CLAUDE_BIN:-claude}"
+
+msg() { printf '%s\n' "[tableau-connect] $*" >&2; }
+
+# --- Node gate ---------------------------------------------------------------
+# Purpose: the official MCP server requires node >=22.7.5. Default node here is v20.
+# Usage: called by `setup`; resolves a satisfying node or tells the user how to get one.
+# Gotcha: we don't mutate the user's PATH — we point the MCP server's `command` at an
+#   absolute node>=22 binary so the rest of the shell keeps its node@20 default.
+resolve_node() {
+  if [ -x "$NODE24" ]; then printf '%s' "$NODE24"; return 0; fi
+  # Fall back to any node on PATH that already satisfies the floor.
+  local v; v="$(node -p 'process.versions.node' 2>/dev/null || true)"
+  case "$v" in
+    2[2-9].*|[3-9][0-9].*) command -v node; return 0 ;;
+  esac
+  return 1
+}
+
+# --- Credential loading ------------------------------------------------------
+# Purpose: pull the PAT from a chmod-600 file under ~/.secrets so the secret never
+#   appears on the command line, in args, or in this repo. Mirrors gong's secret model.
+# Usage: sourced by `setup` and `connect`. Exit 4 = creds file missing/incomplete.
+# Gotcha: the file is Read-denied to Claude by settings.json; only this wrapper reads it.
+load_creds() {
+  if [ ! -f "$CREDS" ]; then
+    msg "No credential file at $CREDS."
+    return 4
+  fi
+  # shellcheck disable=SC1090
+  set -a; . "$CREDS"; set +a
+  if [ -z "${TABLEAU_PAT_NAME:-}" ] || [ -z "${TABLEAU_PAT_VALUE:-}" ]; then
+    msg "Credential file present but TABLEAU_PAT_NAME / TABLEAU_PAT_VALUE not set."
+    return 4
+  fi
+}
+
+# --- REST sign-in probe ------------------------------------------------------
+# Purpose: the single choke point for verifying the PAT actually authenticates, WITHOUT
+#   leaking the secret. Signs in via REST, prints only the site id / user on success.
+# Usage: `connect`; also the post-setup verification. Exit 3 = 401 (stale/invalid PAT).
+# Gotcha: Tableau signals bad PATs with HTTP 401 + an XML/JSON error body — we branch on
+#   the HTTP status, not the body. The token in the response is discarded (never printed).
+rest_signin() {
+  load_creds || return 4
+  local url="$SERVER/api/$API_VER/auth/signin" body http
+  body="$(printf '{"credentials":{"personalAccessTokenName":"%s","personalAccessTokenSecret":"%s","site":{"contentUrl":"%s"}}}' \
+            "$TABLEAU_PAT_NAME" "$TABLEAU_PAT_VALUE" "$SITE")"
+  http="$(curl -sS -o /tmp/tableau-signin.$$ -w '%{http_code}' \
+            -X POST "$url" \
+            -H 'Content-Type: application/json' -H 'Accept: application/json' \
+            -d "$body" 2>/dev/null || echo 000)"
+  local resp; resp="$(cat /tmp/tableau-signin.$$ 2>/dev/null)"; rm -f /tmp/tableau-signin.$$
+  case "$http" in
+    200) printf '%s' "$resp" | jq -r '"site="+(.credentials.site.contentUrl // "?")+" user="+(.credentials.user.id // "?")' 2>/dev/null \
+           || echo "authenticated"; return 0 ;;
+    401) msg "401 Unauthorized — PAT expired or invalid."; return 3 ;;
+    000) msg "Could not reach $SERVER (network/curl error)."; return 5 ;;
+    *)   msg "Unexpected HTTP $http from sign-in. Body: $(printf '%s' "$resp" | head -c 300)"; return 5 ;;
+  esac
+}
+
+# --- PAT re-mint helper (the PAT analog of gong's auto-login) -----------------
+# Purpose: a PAT cannot be re-minted headlessly, so on a stale token we open the exact
+#   Tableau settings page where the user regenerates it, then explain the one manual step.
+# Usage: auto-fired by the dispatcher when a command returns 3, unless TABLEAU_NO_AUTOLOGIN=1.
+open_pat_page() {
+  local settings="$SERVER/#/site/$SITE/user/settings"
+  msg "Opening Tableau PAT settings so you can regenerate the token:"
+  msg "  $settings"
+  command -v open >/dev/null 2>&1 && open "$settings" >/dev/null 2>&1 || true
+  msg "Steps: My Account Settings -> Personal Access Tokens -> create/refresh a token,"
+  msg "then update $CREDS (TABLEAU_PAT_NAME + TABLEAU_PAT_VALUE) and re-run your command."
+}
+
+# --- MCP registration --------------------------------------------------------
+# Purpose: register the official server with Claude Code via `claude mcp add`, pinned to a
+#   node>=22 binary and fed the PAT via env (Claude Code stores it in its own MCP config).
+# Usage: `tableau setup`. Idempotent — removes any prior registration of the same name first.
+# Gotcha: env values pass through argv here; that is unavoidable with `claude mcp add -e`.
+#   The secret still never lands in THIS repo, in git, or in the chat — it lives in ~/.secrets
+#   and Claude Code's own (git-ignored) config. We `--scope user` so it's available everywhere.
+cmd_setup() {
+  local node_bin; node_bin="$(resolve_node)" || {
+    msg "No node >=22.7.5 found. The MCP server needs it."
+    msg "Install one: brew install node@24   (then re-run: tableau setup)"
+    return 6
+  }
+  msg "Using node: $node_bin ($("$node_bin" -p 'process.versions.node' 2>/dev/null))"
+  load_creds || { msg "Create $CREDS first (see: tableau help)."; return 4; }
+
+  # Verify the PAT before wiring it in, so setup fails loud on a bad token.
+  local who; who="$(rest_signin)" || { open_pat_page; return 3; }
+  msg "PAT verified ($who)."
+
+  # Remove any stale registration, then add fresh (idempotent).
+  "$CLAUDE_BIN" mcp remove "$MCP_NAME" --scope user >/dev/null 2>&1 || true
+  "$CLAUDE_BIN" mcp add "$MCP_NAME" --scope user \
+    -e "SERVER=$SERVER" \
+    -e "SITE_NAME=$SITE" \
+    -e "PAT_NAME=$TABLEAU_PAT_NAME" \
+    -e "PAT_VALUE=$TABLEAU_PAT_VALUE" \
+    -- "$node_bin" "$(dirname "$node_bin")/npx" -y "@tableau/mcp-server@latest" \
+    || { msg "claude mcp add failed."; return 7; }
+
+  msg "Registered MCP server '$MCP_NAME' (scope=user)."
+  msg "Restart Claude Code (or /mcp reconnect) to load the Tableau tools."
+}
+
+cmd_connect() {
+  local who; who="$(rest_signin)"; local rc=$?
+  if [ "$rc" -eq 0 ]; then
+    echo "[tableau-connect] Authenticated OK  ($SERVER, site=$SITE, $who)"
+    return 0
+  fi
+  return "$rc"
+}
+
+# cmd_status — show whether the MCP server is registered with Claude Code.
+cmd_status() {
+  echo "[tableau-connect] MCP registration:"
+  "$CLAUDE_BIN" mcp get "$MCP_NAME" 2>&1 | sed 's/PAT_VALUE=.*/PAT_VALUE=***redacted***/' || \
+    echo "  (not registered — run: tableau setup)"
+}
+
+cmd_help() {
+  cat >&2 <<'H'
+tableau-connect — connect Claude Code to Acme Tableau Cloud via the official MCP server.
+
+  tableau setup     Verify PAT, register @tableau/mcp-server with Claude Code (do this once).
+  tableau connect   Verify the PAT still authenticates (REST sign-in probe).
+  tableau status    Show the current MCP registration (secret redacted).
+  tableau help      This help.
+
+First-time credential setup (the secret never goes through Claude or git):
+  1. In Tableau: avatar -> My Account Settings -> Personal Access Tokens -> create a token.
+  2. Save it to ~/.secrets/tableau.env (chmod 600):
+        TABLEAU_PAT_NAME=claude-code
+        TABLEAU_PAT_VALUE=<the-secret-shown-once>
+  3. Run:  tableau setup
+
+Env overrides: TABLEAU_SERVER TABLEAU_SITE TABLEAU_CREDS TABLEAU_API_VERSION
+               TABLEAU_MCP_NAME TABLEAU_NODE_BIN TABLEAU_NO_AUTOLOGIN
+H
+}
+
+run_cmd() {
+  case "${1:-}" in
+    setup)          cmd_setup ;;
+    connect|verify) cmd_connect ;;
+    status)         cmd_status ;;
+    help|-h|--help) cmd_help ;;
+    *)              cmd_help; return 1 ;;
+  esac
+}
+
+# Dispatch. On a stale PAT (exit 3), open the re-mint page once (unless suppressed).
+# Unlike gong (browser session, silently re-mintable), a PAT needs a human to regenerate —
+# so we guide, we don't retry.
+case "${1:-}" in
+  "") cmd_help; exit 1 ;;
+  *)
+    run_cmd "$@"; rc=$?
+    if [ "$rc" -eq 3 ] && [ "${TABLEAU_NO_AUTOLOGIN:-}" != "1" ]; then
+      open_pat_page
+    fi
+    exit "$rc"
+    ;;
+esac

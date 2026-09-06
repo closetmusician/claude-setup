@@ -1,0 +1,125 @@
+#!/bin/bash
+# ABOUTME: Pre-commit hook blocking sensitive filenames and credential content.
+# ABOUTME: Checks staged file names against .env, key, and credential patterns.
+# ABOUTME: Scans staged diff hunks for hardcoded secrets, keys, and tokens.
+# ABOUTME: Safe against false positives: skips env-var references and placeholders.
+# ABOUTME: Install: cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+set -euo pipefail
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+BLOCKED=0
+
+block() {
+  echo -e "${RED}${BOLD}[BLOCKED]${NC} $1" >&2
+  BLOCKED=1
+}
+
+# ─── 1. Filename checks ──────────────────────────────────────────────────────
+# Staged files being added, copied, or modified
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
+
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+
+  base=$(basename "$file")
+
+  # .env and variants: .env, .env.local, .env.production, prod.env, my.env, etc.
+  if echo "$base" | grep -qiE '(^\.env$|^\.env\.|\.env$)'; then
+    block "Sensitive filename: '$file' — .env files must not be committed (add to .gitignore)"
+    continue
+  fi
+
+  # Private key / certificate files
+  if echo "$base" | grep -qiE '\.(pem|key|p12|pfx|jks|keystore|pkcs12|crt|cer|der)$'; then
+    block "Sensitive filename: '$file' — private key or certificate file must not be committed"
+    continue
+  fi
+
+  # Credential / secret named files
+  if echo "$base" | grep -qiE '^(credentials?|secrets?|\.secrets?)(\.json|\.yaml|\.yml|\.toml|\.ini|\.cfg|\.conf|\.env)?$'; then
+    block "Sensitive filename: '$file' — looks like a credentials/secrets file"
+    continue
+  fi
+
+done <<< "$STAGED_FILES"
+
+# ─── 2. Content checks ───────────────────────────────────────────────────────
+# Work only on added lines (+) from the staged diff; skip diff headers (+++).
+ADDED=$(git diff --cached --unified=0 2>/dev/null | grep -E '^\+' | grep -Fv '+++' || true)
+
+# Returns 0 if $ADDED contains a match for the given ERE pattern AND the
+# matching line does not look like an env-var / placeholder reference.
+content_has_secret() {
+  local pattern="$1"
+  echo "$ADDED" | grep -qiE "$pattern" && \
+    echo "$ADDED" | grep -iE "$pattern" | \
+      grep -qviE '(os\.environ|process\.env|ENV\[|getenv|\$\{|\$[A-Z_][A-Z0-9_]*|your[-_]?(key|secret|token|password)|placeholder|example|changeme|<[^>]+>|REPLACE_ME|TODO)'
+}
+
+# Private key headers (use -- to prevent leading dashes being parsed as flags)
+if echo "$ADDED" | grep -qE -- '[-]{5}BEGIN.{0,20}PRIVATE KEY[-]{5}'; then
+  block "Private key material detected in staged content (-----BEGIN ... PRIVATE KEY-----)"
+fi
+
+# AWS access key IDs (AKIA followed by 16 uppercase alphanumerics)
+if echo "$ADDED" | grep -qE 'AKIA[0-9A-Z]{16}'; then
+  block "AWS access key ID detected in staged content (AKIA...)"
+fi
+
+# AWS secret access key pattern (often follows 40-char base62 string next to "aws_secret")
+if content_has_secret 'aws_secret_access_key[[:space:]]*[=:][[:space:]]*[A-Za-z0-9+/]{40}'; then
+  block "AWS secret access key detected in staged content"
+fi
+
+# Anthropic API keys
+if echo "$ADDED" | grep -qE 'sk-ant-[A-Za-z0-9_-]{20,}'; then
+  block "Anthropic API key detected in staged content (sk-ant-...)"
+fi
+
+# OpenAI API keys (sk- followed by 20+ chars that aren't env-var references)
+if echo "$ADDED" | grep -qE 'sk-[A-Za-z0-9]{20,}' && \
+   echo "$ADDED" | grep -E 'sk-[A-Za-z0-9]{20,}' | grep -qvE '(os\.environ|\$\{|\$[A-Z])'; then
+  block "OpenAI-style API key detected in staged content (sk-...)"
+fi
+
+# Generic Bearer tokens (hardcoded, non-variable)
+if echo "$ADDED" | grep -qE 'Bearer [A-Za-z0-9._-]{32,}' && \
+   echo "$ADDED" | grep -E 'Bearer [A-Za-z0-9._-]{32,}' | grep -qvE '(\$\{|\$[A-Z_]|process\.env|os\.environ)'; then
+  block "Hardcoded Bearer token detected in staged content"
+fi
+
+# Hardcoded credentials in key=value assignments
+# Matches: password = "hunter2", api_key: 'abc123xyz', secret_key="...", etc.
+# Min 12 chars for the value to avoid false positives on short test strings.
+# client_id intentionally excluded: OAuth client IDs are public identifiers (RFC 6749);
+# only client_secret is sensitive.
+CRED_PATTERN='(password|passwd|api_key|apikey|api_secret|apisecret|auth_token|access_token|secret_key|private_key|client_secret|app_secret|db_password|database_password)[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9+/=_@!#%^&*-]{12,}'
+if content_has_secret "$CRED_PATTERN"; then
+  block "Potential hardcoded credential detected (password/secret/key/token = <value>)"
+  # Show offending lines with values masked
+  echo "$ADDED" | grep -iE "$CRED_PATTERN" | \
+    grep -viE '(os\.environ|process\.env|ENV\[|getenv|\$\{|\$[A-Z_][A-Z0-9_]*|your[-_]?(key|secret|token|password)|placeholder|example|changeme|<[^>]+>|REPLACE_ME|TODO)' | \
+    head -5 | \
+    perl -pe 's/([=:][[:space:]]*)[^\s,;}\]]{8,}/$1[REDACTED]/gi' >&2 || true
+fi
+
+# Database URLs with embedded credentials (user:pass@host)
+DB_URL_PATTERN='(postgres|postgresql|mysql|mongodb|redis|amqp|mssql)://[^:[:space:]]+:[^@[:space:]]+@'
+if content_has_secret "$DB_URL_PATTERN"; then
+  block "Database URL with embedded credentials detected (proto://user:pass@host)"
+fi
+
+# ─── 3. Result ───────────────────────────────────────────────────────────────
+if [[ "$BLOCKED" -eq 1 ]]; then
+  echo "" >&2
+  echo -e "${RED}${BOLD}Commit blocked.${NC} Remove or gitignore sensitive content before committing." >&2
+  echo -e "To force (dangerous): ${YELLOW}git commit --no-verify${NC}" >&2
+  exit 1
+fi
+
+exit 0

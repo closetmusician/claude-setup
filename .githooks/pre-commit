@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# ABOUTME: VII-owned pre-commit dispatcher for ~/.claude repo. Runs all pre-commit.d/ hooks in sorted order.
+# ABOUTME: Integrates the parallel-session staged 30-eval-dirty.sh and VII-3's 40-harness-eval.sh.
+# ABOUTME: Fail-open ONLY on missing harness binary (fresh-clone safe); real regressions BLOCK.
+# ABOUTME: Enable with: git -C ~/.claude config core.hooksPath .githooks  (one-time per clone).
+# VII-3-PRE-COMMIT-INSTALLED
+
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "$HOME/.claude")"
+HOOKS_D="${REPO_ROOT}/.githooks/pre-commit.d"
+
+# Dispatch all numbered drop-ins in sorted order.
+# Each drop-in is responsible for its own logic and exit code.
+# A nonzero exit from any drop-in blocks the commit.
+if [[ -d "$HOOKS_D" ]]; then
+  for script in "$HOOKS_D"/[0-9]*.sh; do
+    [[ -e "$script" ]] || continue
+    [[ -x "$script" ]] || continue
+    "$script" || exit 1
+  done
+fi
+
+# Run the VII-3 harness eval gate directly as the final backstop.
+# This catches harness-path changes even if pre-commit.d hasn't been populated yet.
+# Uses run-harness-evals.sh --check-dirty (which is already fail-open on missing harness binary).
+SCRIPTS_DIR="${REPO_ROOT}/scripts"
+EVALS_SCRIPT="${SCRIPTS_DIR}/run-harness-evals.sh"
+
+# Determine if any staged files touch harness-guarded paths
+STAGED_CHANGED=$(git diff --cached --name-only 2>/dev/null || true)
+TOUCHES_HARNESS=0
+while IFS= read -r fpath; do
+  case "$fpath" in
+    rules/*|scripts/*|skills/*|settings.json)
+      TOUCHES_HARNESS=1
+      break
+      ;;
+  esac
+done <<< "$STAGED_CHANGED"
+
+if [[ "$TOUCHES_HARNESS" -eq 1 ]]; then
+  # Fail-open ONLY on missing harness binary (so a fresh clone without harness can still commit).
+  # A present-but-failing harness BLOCKS.
+  HARNESS="${HARNESS_BIN:-${REPO_ROOT}/bin/harness}"
+  if [[ ! -x "$HARNESS" ]]; then
+    echo "pre-commit: harness binary not found — skipping eval gate (fail-open for fresh clone)" >&2
+    exit 0
+  fi
+
+  if [[ ! -x "$EVALS_SCRIPT" ]]; then
+    echo "pre-commit: run-harness-evals.sh not found at $EVALS_SCRIPT — skipping eval gate" >&2
+    exit 0
+  fi
+
+  echo "pre-commit: harness-path files staged — running eval corpus (VII-3 gate)..." >&2
+  if ! bash "$EVALS_SCRIPT" --check-dirty; then
+    echo "" >&2
+    echo "pre-commit BLOCKED: harness eval corpus FAILED." >&2
+    echo "Staged harness-path files:" >&2
+    printf '%s\n' "$STAGED_CHANGED" | grep -E '^(rules/|scripts/|skills/|settings\.json)' | sed 's/^/  /' >&2
+    echo "Fix the regression before committing." >&2
+    exit 1
+  fi
+fi
+
+exit 0

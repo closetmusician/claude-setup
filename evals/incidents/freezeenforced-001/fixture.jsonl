@@ -1,0 +1,1 @@
+{"ts": "2026-07-07T22:22:05.908Z", "schema": 1, "session_id": "unknown", "event_type": "incident", "source": "incident-freeze-enforcer.sh", "project": "~global", "payload": {"class": "freeze_enforced", "cause": "external_mutation_blocked"}, "outcome": "denied"}

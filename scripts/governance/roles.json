@@ -1,0 +1,22 @@
+{
+  "orchestrator": {
+    "description": "Top-level agent that spawns subagents. Never writes implementation.",
+    "denied_tools": ["Write", "Edit"],
+    "exceptions": [
+      "logs/",
+      "qa/",
+      "governance/",
+      "/memory/",
+      ".claude/projects/",
+      "/journal/",
+      "/journals/",
+      "settings.json",
+      "settings.local.json",
+      ".claude/settings",
+      "/learnings/",
+      "/learning/",
+      "skills/"
+    ],
+    "safe_bash_prefixes": ["git ", "ls ", "docker ", "curl ", "cat ", "echo ", "mkdir ", "touch ", "rm -f ", "rm ", "gh ", "rtk ", "test ", "bash -n "]
+  }
+}

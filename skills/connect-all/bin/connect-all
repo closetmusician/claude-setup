@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# ABOUTME: connect-all — master connect: bring every data source online in one command.
+# ABOUTME: Thin orchestrator; owns NO auth logic. It invokes each sub-skill's own connect
+# ABOUTME: verb (glean auth, gong/tableau/salesforce connect) and prints a per-source summary.
+# ABOUTME: Non-fatal per source — one failure never blocks the others; exit reflects any fail.
+# ABOUTME: Run a subset with args: `connect-all gong salesforce` (default: all four).
+set -uo pipefail
+
+GLEAN_JS="${GLEAN_SEARCH_JS:-$HOME/Code/pm_os/bin/glean-search.js}"
+GONG="${GONG_BIN:-$HOME/.claude/skills/gong-connect/bin/gong}"
+TABLEAU="${TABLEAU_BIN:-$HOME/.claude/skills/tableau-connect/bin/tableau}"
+SALESFORCE="${SALESFORCE_BIN:-$HOME/.claude/skills/salesforce-connect/bin/salesforce}"
+
+# ANSI marks; plain fallback if not a tty.
+if [ -t 1 ]; then OK=$'\033[32m✔\033[0m'; NO=$'\033[31m✘\033[0m'; else OK="OK"; NO="FAIL"; fi
+
+declare -a RESULTS=()
+overall=0
+
+# record <source> <rc> <detail> — accumulate one source's outcome for the final summary.
+record() {
+  local src="$1" rc="$2" detail="$3"
+  if [ "$rc" -eq 0 ]; then RESULTS+=("$OK  $src — $detail")
+  else RESULTS+=("$NO  $src — $detail"); overall=1; fi
+}
+
+# --- Glean: check CLI presence + auth status (no browser pop; report if login needed) ----
+# glean-connect delegates auth to the `glean` CLI; we mirror its check-then-report shape.
+connect_glean() {
+  echo "── Glean ──────────────────────────────────────────────" >&2
+  if ! command -v glean >/dev/null 2>&1; then
+    record "Glean" 1 "glean CLI not installed (brew install gleanwork/tap/glean-cli)"; return
+  fi
+  if glean auth status >/dev/null 2>&1; then
+    record "Glean" 0 "authenticated"
+  else
+    echo "[connect-all] Glean not authenticated — run: glean auth login" >&2
+    record "Glean" 1 "not authenticated (run: glean auth login)"
+  fi
+}
+
+# --- Gong: delegate to gong's own connect verb. GONG_NO_AUTOLOGIN keeps this non-interactive;
+# a stale session reports FAIL here instead of popping a browser mid-sweep. Run `gong connect`
+# directly (no flag) if you want the auto-login pop. -----------------------------------------
+connect_gong() {
+  echo "── Gong ───────────────────────────────────────────────" >&2
+  if [ ! -x "$GONG" ]; then record "Gong" 1 "CLI missing at $GONG"; return; fi
+  local out rc
+  out="$(GONG_NO_AUTOLOGIN=1 "$GONG" connect 2>&1)"; rc=$?
+  if [ "$rc" -eq 0 ]; then record "Gong" 0 "$(printf '%s' "$out" | sed -n 's/.*Authenticated OK//p' | head -1 | sed 's/^ *//;s/^(/(/' )"
+  else record "Gong" 1 "session stale — run: $GONG login"; fi
+}
+
+# --- Tableau: delegate to tableau's own connect verb (REST PAT probe). TABLEAU_NO_AUTOLOGIN
+# suppresses the PAT re-mint browser pop so the sweep stays non-interactive. ------------------
+connect_tableau() {
+  echo "── Tableau ────────────────────────────────────────────" >&2
+  if [ ! -x "$TABLEAU" ]; then record "Tableau" 1 "CLI missing at $TABLEAU"; return; fi
+  local out rc
+  out="$(TABLEAU_NO_AUTOLOGIN=1 "$TABLEAU" connect 2>&1)"; rc=$?
+  if [ "$rc" -eq 0 ]; then record "Tableau" 0 "$(printf '%s' "$out" | sed -n 's/.*Authenticated OK//p' | head -1 | sed 's/^ *//' )"
+  elif [ "$rc" -eq 3 ]; then record "Tableau" 1 "PAT stale/invalid — run: $TABLEAU connect (opens re-mint page)"
+  elif [ "$rc" -eq 4 ]; then record "Tableau" 1 "no PAT saved — see: $TABLEAU help"
+  else record "Tableau" 1 "sign-in failed (rc=$rc)"; fi
+}
+
+# --- Salesforce: delegate to salesforce's own connect verb (sf CLI session probe).
+# SF_NO_AUTOLOGIN suppresses the browser re-login so the sweep stays non-interactive; a
+# stale session reports FAIL here instead of popping a browser mid-sweep. ---------------------
+connect_salesforce() {
+  echo "── Salesforce ─────────────────────────────────────────" >&2
+  if [ ! -x "$SALESFORCE" ]; then record "Salesforce" 1 "CLI missing at $SALESFORCE"; return; fi
+  local out rc
+  out="$(SF_NO_AUTOLOGIN=1 "$SALESFORCE" connect 2>&1)"; rc=$?
+  if [ "$rc" -eq 0 ]; then record "Salesforce" 0 "$(printf '%s' "$out" | sed -n 's/.*Authenticated OK//p' | head -1 | sed 's/^ *//' )"
+  else record "Salesforce" 1 "session stale — run: $SALESFORCE connect (opens browser login)"; fi
+}
+
+usage() {
+  cat >&2 <<'H'
+connect-all — bring every data source online in one command.
+
+  connect-all                        Connect all sources (Glean, Gong, Tableau, Salesforce).
+  connect-all gong salesforce        Connect only the named sources.
+  connect-all help                   This help.
+
+Delegates to each sub-skill's own connect verb — owns no auth logic itself.
+Runs non-interactively (no browser pops); a stale source is reported, not auto-fixed.
+To auto-fix one, run its own CLI:
+  `gong login` / `tableau connect` / `glean auth login` / `salesforce connect`.
+H
+}
+
+main() {
+  local -a want
+  if [ "$#" -eq 0 ]; then want=(glean gong tableau salesforce); else want=("$@"); fi
+  for s in "${want[@]}"; do
+    case "$s" in
+      glean)      connect_glean ;;
+      gong)       connect_gong ;;
+      tableau)    connect_tableau ;;
+      salesforce) connect_salesforce ;;
+      help|-h|--help) usage; return 0 ;;
+      *) echo "[connect-all] unknown source: $s (want: glean|gong|tableau|salesforce)" >&2; overall=1 ;;
+    esac
+  done
+  echo "" >&2
+  echo "═══ connect-all summary ═══" >&2
+  printf '%s\n' "${RESULTS[@]}" >&2
+  return "$overall"
+}
+
+main "$@"
