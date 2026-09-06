@@ -1,8 +1,8 @@
 # ~/.claude — A Self-Improving Claude Code Setup
 
-A version-controlled [Claude Code](https://docs.anthropic.com/en/docs/claude-code) configuration that adds engineering guardrails, a large library of reusable skills, and multi-agent orchestration on top of the stock tool. Drop it in as your `~/.claude` directory, or cherry-pick the pieces you like.
+A version-controlled [Claude Code](https://docs.anthropic.com/en/docs/claude-code) configuration that adds engineering guardrails, a library of reusable skills, and multi-agent orchestration on top of the stock tool. Drop it in as your `~/.claude` directory, or cherry-pick the pieces you like.
 
-> **New to Claude Code?** It's Anthropic's command-line coding agent. Your personal settings, hooks, and skills live in a folder called `~/.claude`. This repo *is* that folder — cleaned up and shared so you can start from a batteries-included setup instead of an empty one.
+> **New to Claude Code?** It's Anthropic's command-line coding agent. Your personal settings, hooks, and skills live in a folder called `~/.claude`. This repo *is* that folder — cleaned up and shared so you can start from a configured setup instead of an empty one.
 
 ---
 
@@ -76,7 +76,7 @@ claude
 
 ## The safety hook
 
-The heart of the guardrails is `scripts/git-safety-hook.sh`, wired as a `PreToolUse` hook on `Bash` in `settings.json`. Before any shell command runs, it blocks:
+The main guardrail is `scripts/git-safety-hook.sh`, wired as a `PreToolUse` hook on `Bash` in `settings.json`. Before any shell command runs, it blocks:
 
 - `git add -A` / `git add .` — forces you to stage files explicitly.
 - `git push --force` — suggests `--force-with-lease` instead.
@@ -88,17 +88,17 @@ It strips heredocs first so the check can't be obfuscated. Like all hooks here, 
 
 ---
 
-## Skills — the crown jewels
+## Skills
 
-Skills are structured, reusable prompts in `skills/<name>/SKILL.md`. Each one encodes a repeatable workflow — a review checklist, a debugging protocol, a report pipeline — so Claude follows a proven process instead of improvising. You don't invoke them by hand: `rules/skill-routing.md` maps plain-language intents to skills, and Claude picks the right one when your task matches. You can also read any `SKILL.md` directly to see exactly what it does.
+Skills are structured, reusable prompts in `skills/<name>/SKILL.md`. Each one encodes a repeatable workflow — a review checklist, a debugging protocol, a report pipeline — so Claude follows a defined process instead of improvising. You don't invoke them by hand: `rules/skill-routing.md` maps plain-language intents to skills, and Claude picks the right one when your task matches. You can also read any `SKILL.md` directly to see exactly what it does.
 
 Most skills are short "routers" that pull in heavier `reference/` and `templates/` files on demand — so the prompt Claude loads stays small until the detail is actually needed.
 
-### Recently updated (the sharpest tools)
+### Recently updated
 
-These got the most work in mid-to-late 2026 and are the most battle-tested:
+These got the most work in mid-to-late 2026:
 
-- **`winloss-analysis`** *(updated Aug 2026)* — Produces executive-grade "Why We Win" / "Why We Lose" reports for a product line, split by region and segment. Leads with the **root cause** behind every number, not the CRM dropdown value; every figure carries a basis label and a citation. The `SKILL.md` is a thin router; the method lives in `reference/` files (evidence mining, root-cause protocol, quality rubric, insight patterns) with a golden HTML template. Distilled from a real analysis session, so the rigor is baked in.
+- **`winloss-analysis`** *(updated Aug 2026)* — Produces "Why We Win" / "Why We Lose" reports for a product line, split by region and segment. Leads with the **root cause** behind every number, not the CRM dropdown value; every figure carries a basis label and a citation. The `SKILL.md` is a thin router; the method lives in `reference/` files (evidence mining, root-cause protocol, quality rubric, insight patterns) with an HTML template.
 - **`teams-channel-research`** *(updated Jul 2026)* — Mines chat channels for customer feedback, deduplicates it, cross-references against a tracker, verifies each thread, runs an adversarial review, and produces a prioritized complaint report. A full pipeline, not a one-shot prompt.
 - **`csm-response`** — Takes a complaint report (from `teams-channel-research` or by hand) and drafts per-issue status updates plus 2–3 actionable workarounds, then posts replies back into the original threads.
 - **`mor-prep`** — Root-causes month-over-month metric moves ("why did bookings/retention move this month?") and builds the review deck.
