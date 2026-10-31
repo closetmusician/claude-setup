@@ -119,6 +119,8 @@ if [[ "$found_test_commit" == "true" ]]; then
 fi
 
 # BLOCK: No test-only commit found before this code commit
+# On exit 2 Claude Code shows the model stderr only, so the block reason goes to stderr.
+exec 1>&2
 echo "BLOCKED"
 echo ""
 echo "commit-order-guard: Code files staged without prior test-only commit."

@@ -21,6 +21,8 @@ fi
 
 # Read the Agent tool input from stdin
 INPUT=$(cat)
+# On exit 2 Claude Code shows the model stderr only, so every message from here goes to stderr.
+exec 1>&2
 
 # Extract the prompt field
 PROMPT=$(echo "$INPUT" | python3 -c "
