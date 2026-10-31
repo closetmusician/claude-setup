@@ -79,13 +79,17 @@ haiku_exit=0
 _prompt_tmp="$(mktemp /tmp/memory-consolidate-prompt.XXXXXX)"
 printf '%s' "$LLM_PROMPT" > "$_prompt_tmp"
 
+# Source Bedrock helper for non-scheduled headless launches
+# shellcheck source=scripts/lib/claude-bedrock.sh
+source "${SCRIPT_DIR}/lib/claude-bedrock.sh"
+
 if [[ -f "$TIMEOUT_LIB" ]]; then
   # shellcheck source=scripts/lib/timeout.sh
   source "$TIMEOUT_LIB"
-  llm_raw="$(_run_with_timeout 60 claude -p --model claude-haiku-4-5 < "$_prompt_tmp" 2>/dev/null)" || haiku_exit=$?
+  llm_raw="$(_run_with_timeout 60 claude_bedrock -p --model haiku < "$_prompt_tmp" 2>/dev/null)" || haiku_exit=$?
 else
   # Fallback: run without timeout wrapper (still fail-open)
-  llm_raw="$(claude -p --model claude-haiku-4-5 < "$_prompt_tmp" 2>/dev/null)" || haiku_exit=$?
+  llm_raw="$(claude_bedrock -p --model haiku < "$_prompt_tmp" 2>/dev/null)" || haiku_exit=$?
 fi
 
 rm -f "$_prompt_tmp"

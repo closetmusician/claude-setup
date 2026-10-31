@@ -11,7 +11,9 @@ set -euo pipefail
 # Safety net: never block on hook failure
 trap 'exit 0' ERR
 
-source "$HOME/.claude/scripts/governance/lib/project-root.sh"
+GOV_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../scripts/governance/lib" && pwd)"
+source "${GOV_LIB}/project-root.sh"
+source "${GOV_LIB}/workspace-kind.sh"
 
 # Bail if jq missing
 if ! command -v jq &>/dev/null; then
@@ -22,6 +24,8 @@ GOV_DIR="$(get_governance_state_dir)"
 
 # Only active when governance is active
 [[ ! -f "$GOV_DIR/.active" ]] && exit 0
+# Step ordering is the VIBE TDD pipeline; it applies to VIBE repos only (governance-scope-spec.md C3).
+is_vibe_repo "$PWD" || exit 0
 
 # ─── Read input ───
 INPUT=$(cat)

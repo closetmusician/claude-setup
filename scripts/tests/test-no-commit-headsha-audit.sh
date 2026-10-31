@@ -17,6 +17,12 @@ STATE_DIR="$TMP/state"
 mkdir -p "$STATE_DIR"
 export NOCOMMIT_STATE_DIR="$STATE_DIR"
 
+# ── Governance state dir with .active sentinel ─────────────────────────────────
+GOV_STATE="$TMP/gov"
+mkdir -p "$GOV_STATE"
+touch "$GOV_STATE/.active"
+export HARNESS_GOV_STATE_DIR="$GOV_STATE"
+
 # ── Throwaway git repo helper ─────────────────────────────────────────────────
 # Returns the path to a fresh git repo with one initial commit.
 make_git_repo() {
@@ -173,6 +179,27 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# CASE E: Hook inert without .active (not in governed context)
+# ══════════════════════════════════════════════════════════════════════════════
+echo "--- Test E: inert without .active ---"
+GOV_STATE_NO_ACTIVE="$TMP/gov-no-active"
+mkdir -p "$GOV_STATE_NO_ACTIVE"
+# Deliberately do NOT create .active
+REPO_E="$(make_git_repo)"
+SID_E="sess-no-active-$$"
+( cd "$REPO_E" && jq -cn --arg sid "$SID_E" \
+    '{"session_id":$sid,"hook_event_name":"PreToolUse","tool_name":"Agent",
+      "tool_input":{"prompt":"## Constraints\n- do not commit"}}' \
+  | HARNESS_GOV_STATE_DIR="$GOV_STATE_NO_ACTIVE" NOCOMMIT_STATE_DIR="$STATE_DIR" bash "$AUDIT" pre ) >/dev/null 2>&1
+# Check that NO record file was created (hook exited early)
+RECORD_E="$STATE_DIR/nocommit-headsha-${SID_E}.txt"
+if [[ ! -f "$RECORD_E" ]]; then
+  echo "PASS: E inert-without-active → no record file created"; PASS=$((PASS+1))
+else
+  echo "FAIL: E inert-without-active → record file created at $RECORD_E"; FAIL=$((FAIL+1))
+fi
+
 # NEUTER-AND-FAIL PROOF:
 # Comment out the SHA comparison in post-mode, re-run case A, assert that it NO LONGER
 # advises. This confirms the comparison is the load-bearing detection path.
@@ -242,5 +269,52 @@ else
 fi
 
 echo
+echo "no-commit-headsha-audit: $PASS passed, $FAIL failed"
+[[ "$FAIL" -eq 0 ]]
+
+# ── Neuter .active check ─────────────────────────────────────────────────────
+echo "--- Neuter .active check ---"
+GOV_INERT="$TMP/gov-inert-neuter"
+mkdir -p "$GOV_INERT"
+export HARNESS_GOV_STATE_DIR="$GOV_INERT"
+
+NEUTERED_ACTIVE="$TMP/neutered-active-nca.sh"
+cp "$AUDIT" "$NEUTERED_ACTIVE"
+perl -i -pe 's/SCRIPT_DIR=.*/SCRIPT_DIR="\$HOME\/.claude\/scripts\/governance"/' "$NEUTERED_ACTIVE"
+perl -i -pe 's/\[\[ ! -f "\$STATE_GOV\/\.active" \]\] && exit 0/# NEUTERED: .active check removed/' "$NEUTERED_ACTIVE"
+chmod +x "$NEUTERED_ACTIVE"
+
+# Neutered should create record file even without .active
+REPO_NA="$(make_git_repo)"
+SID_NA="sess-neuter-active-$$"
+( cd "$REPO_NA" && jq -cn --arg sid "$SID_NA" \
+    '{"session_id":$sid,"hook_event_name":"PreToolUse","tool_name":"Agent",
+      "tool_input":{"prompt":"## Constraints\n- do not commit"}}' \
+  | NOCOMMIT_STATE_DIR="$STATE_DIR" bash "$NEUTERED_ACTIVE" pre ) >/dev/null 2>&1
+RECORD_NA="$STATE_DIR/nocommit-headsha-${SID_NA}.txt"
+if [[ -f "$RECORD_NA" ]]; then
+  echo "PASS: F neuter-active — neutered hook creates record without .active"; PASS=$((PASS+1))
+else
+  echo "FAIL: F neuter-active — neutered hook did not create record"; FAIL=$((FAIL+1))
+fi
+
+# Real hook should NOT create record without .active (restore GOV_INERT without .active)
+rm -rf "$GOV_INERT" && mkdir -p "$GOV_INERT"
+export HARNESS_GOV_STATE_DIR="$GOV_INERT"
+REPO_REAL="$(make_git_repo)"
+SID_REAL="sess-real-inactive-$$"
+( cd "$REPO_REAL" && jq -cn --arg sid "$SID_REAL" \
+    '{"session_id":$sid,"hook_event_name":"PreToolUse","tool_name":"Agent",
+      "tool_input":{"prompt":"## Constraints\n- do not commit"}}' \
+  | NOCOMMIT_STATE_DIR="$STATE_DIR" bash "$AUDIT" pre ) >/dev/null 2>&1
+RECORD_REAL="$STATE_DIR/nocommit-headsha-${SID_REAL}.txt"
+if [[ ! -f "$RECORD_REAL" ]]; then
+  echo "PASS: F real hook inert without .active"; PASS=$((PASS+1))
+else
+  echo "FAIL: F real hook created record without .active"; FAIL=$((FAIL+1))
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+echo ""
 echo "no-commit-headsha-audit: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

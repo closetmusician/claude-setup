@@ -70,6 +70,8 @@ statsig/
 
 # Bin (if auto-generated)
 bin/
+# Skill CLIs are hand-written source, not build output
+!skills/*/bin/
 
 # Old pre-git backups (git handles versioning now)
 backups/

@@ -15,7 +15,7 @@ Automates creation of sales and customer success enablement materials from PRDs,
 
 # You'll be asked:
 # - Feature name: "Task Management"
-# - PRD URL: https://example.atlassian.net/wiki/spaces/BPROG/pages/1234567/
+# - PRD URL: https://diligentbrands.atlassian.net/wiki/spaces/BPROG/pages/1234567/
 # - Figma links: (optional)
 # - Gong calls: (optional)
 # - Competitors: "Asana, Monday.com, Jira"

@@ -20,6 +20,10 @@ source "$SCRIPT_DIR/lib/emit-event.sh" 2>/dev/null || true
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/lib/timeout.sh" 2>/dev/null || true
 
+# ── Source Bedrock helper (non-scheduled launch via Stop hook) ────────────────
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/lib/claude-bedrock.sh" 2>/dev/null || exit 0
+
 # ── Resolve STATE dir ─────────────────────────────────────────────────────────
 if [[ -n "${STATE:-}" ]]; then
   STATE_DIR="$STATE"
@@ -76,10 +80,10 @@ for JOB_FILE in "$QUEUE_DIR"/*.json; do
 
   if command -v _run_with_timeout >/dev/null 2>&1 || declare -f _run_with_timeout >/dev/null 2>&1; then
     RAW=$(printf '%s' "$PROMPT" | _run_with_timeout "$TIMEOUT_SECS" \
-      claude -p --model claude-haiku-4-5 --allowedTools "Read Grep Glob" \
+      claude_bedrock -p --model haiku --allowedTools "Read Grep Glob" \
       2>/dev/null) || TIMED_OUT=$?
   else
-    RAW=$(printf '%s' "$PROMPT" | claude -p --model claude-haiku-4-5 --allowedTools "Read Grep Glob" \
+    RAW=$(printf '%s' "$PROMPT" | claude_bedrock -p --model haiku --allowedTools "Read Grep Glob" \
       2>/dev/null) || TIMED_OUT=$?
   fi
 

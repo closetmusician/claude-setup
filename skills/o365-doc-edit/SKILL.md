@@ -48,7 +48,7 @@ Before Office Online browser edits:
    daemon by default so `--profile ~/.agent-browser/pm-os` is honored.
 3. If it returns `needs-auth`, repair the browser profile:
    - run `agent-browser close`;
-   - run `agent-browser --profile ~/.agent-browser/pm-os --headed open "https://acme.okta.com/"`;
+   - run `agent-browser --profile ~/.agent-browser/pm-os --headed open "https://diligent.okta.com/"`;
    - ask the user to complete Okta/Microsoft MFA in that headed browser;
    - after confirmation, run `agent-browser close`;
    - rerun the original browser edit command.

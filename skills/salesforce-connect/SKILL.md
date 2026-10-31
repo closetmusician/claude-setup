@@ -1,10 +1,10 @@
 ---
 name: salesforce-connect
-description: "Connect Claude Code to Acme's Salesforce org (example.lightning.force.com) via the official @salesforce/mcp server. Uses the sf CLI's browser OAuth login (survives Okta SSO/MFA, no admin needed) — no secret file. Read-only by default (SOQL query). Use to query Salesforce data (accounts, opportunities, cases) directly in the session."
+description: "Connect Claude Code to Diligent's Salesforce org (diligent.lightning.force.com) via the official @salesforce/mcp server. Uses the sf CLI's browser OAuth login (survives Okta SSO/MFA, no admin needed) — no secret file. Read-only by default (SOQL query). Use to query Salesforce data (accounts, opportunities, cases) directly in the session."
 ---
 
 <!-- ABOUTME:
-  salesforce-connect - one-time bootstrap that wires Claude Code to Acme's Salesforce org.
+  salesforce-connect - one-time bootstrap that wires Claude Code to Diligent's Salesforce org.
   Logs the official `sf` CLI into the org via browser OAuth (Okta SSO/MFA safe), then registers
   the official @salesforce/mcp server with `claude mcp add`, scoped to one org (--orgs) and a
   read-only toolset (--tools run_soql_query). NO secret file — auth lives in the sf CLI's store.
@@ -15,8 +15,8 @@ description: "Connect Claude Code to Acme's Salesforce org (example.lightning.fo
 
 # salesforce-connect
 
-Connect Claude Code to **Acme's Salesforce org** (`https://example.lightning.force.com`,
-My Domain `acme`) through Salesforce's **official** MCP server. Once connected, the
+Connect Claude Code to **Diligent's Salesforce org** (`https://diligent.lightning.force.com`,
+My Domain `diligent`) through Salesforce's **official** MCP server. Once connected, the
 Salesforce MCP tools (SOQL query, by default) are available directly in the session.
 CLI: `~/.claude/skills/salesforce-connect/bin/salesforce`.
 
@@ -43,7 +43,7 @@ To widen the surface deliberately, set `SF_MCP_TOOLS` before `setup`
 
 ## One-time setup
 1. Run: `~/.claude/skills/salesforce-connect/bin/salesforce setup`
-   - It logs the `sf` CLI into `acme.my.salesforce.com` (browser opens → Okta/MFA),
+   - It logs the `sf` CLI into `diligent.my.salesforce.com` (browser opens → Okta/MFA),
      then registers `@salesforce/mcp` with Claude Code (scope=user), pinned to node@24.
 2. Restart Claude Code (or `/mcp`) so the Salesforce tools load.
 
@@ -77,7 +77,7 @@ To widen the surface deliberately, set `SF_MCP_TOOLS` before `setup`
   only if the gap bites.
 - **`sf` install:** if `sf` isn't on PATH, the CLI runs it via node@24's `npx @salesforce/cli`
   (slower per call, but no global install needed and no node-version conflict).
-- **Org scope:** the MCP server is pinned to `--orgs acme`; it can't touch other orgs.
+- **Org scope:** the MCP server is pinned to `--orgs diligent`; it can't touch other orgs.
 
 ## Autonomy note
 This CLI performs a browser login and MCP registration only; it stores no secret of its own

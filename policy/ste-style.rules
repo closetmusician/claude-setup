@@ -1,0 +1,72 @@
+# ASD-STE100 style rules for ste-lint.sh — edit freely, no code change needed.
+# Format:  severity::perl-regex::advice
+#   block = the turn is stopped and must be rewritten
+#   warn  = listed as extra advice, only when a block already fired
+# Patterns are case-insensitive and matched against PROSE ONLY.
+# Code fences, inline code, URLs and file paths are removed before matching.
+
+# ── Non-STE vocabulary: one word, one meaning (STE rule 1.1) ──
+block::\butili[sz]e[sd]?\b::use
+block::\bleverag(e|es|ed|ing)\b::use
+block::\bdelv(e|es|ed|ing)\b::look at
+block::\brobust\b::reliable
+block::\bseamless(ly)?\b::smooth / smoothly
+block::\bcomprehensive(ly)?\b::complete / fully
+block::\bholistic(ally)?\b::whole
+block::\bnuanced\b::detailed
+block::\bunderscor(e|es|ed|ing)\b::show
+block::\bshowcas(e|es|ed|ing)\b::show
+block::\bmyriad\b::many
+block::\bplethora\b::many
+block::\bfacilitat(e|es|ed|ing)\b::help
+block::\bascertain\b::find out
+block::\bendeavou?r\b::try
+block::\bcommenc(e|es|ed|ing)\b::start
+block::\bprior to\b::before
+block::\bsubsequent to\b::after
+block::\bin order to\b::to
+block::\bdue to the fact that\b::because
+block::\bin the event that\b::if
+block::\bat this point in time\b::now
+block::\bcrucial\b::important
+block::\bpivotal\b::important
+block::\bparadigm\b::model
+block::\brealm\b::area
+block::\blandscape\b::area
+block::\bunpack(ing)?\b::explain
+block::\bspin up\b::start
+block::\bcircle back\b::come back to
+
+# ── Jargon and office-speak an 18-year-old should not have to decode ──
+block::\bdeep[- ]dive\b::detailed look
+block::\blow[- ]hanging fruit\b::easy win
+block::\bmove the needle\b::make a difference
+block::\bnorth star\b::goal
+block::\btable stakes\b::the minimum
+block::\ba testament to\b::proof of
+
+# ── Claude-speak: filler that says nothing ──
+block::\byou(\047re| are) absolutely right\b::delete it and state the fact
+block::\b(great|excellent|good) question\b::delete it and answer
+block::\bi(\047d| would) be happy to\b::just do it
+block::\blet(\047s| us) dive in\b::delete it
+block::\bit(\047s| is) worth noting\b::delete it and state the point
+block::\bit(\047s| is) important to note\b::delete it and state the point
+block::\bthat said,::but / however
+block::\bat the end of the day\b::delete it
+block::\brest assured\b::delete it
+block::\bthe key takeaway\b::the point is
+block::\b(i apologi[sz]e|my apologies)\b::state the correction, do not apologise
+block::\bnot just .{1,40}(,|\x{2014}) (it(\047s| is)|but)::say the one thing that is true
+block::\bthis (isn(\047)?t|is not) just\b::say what it is
+block::\bmore than just\b::say what it is
+
+# ── Vague words that hide the number (advisory) ──
+warn::\bvery\b::delete it or give the number
+warn::\bquite\b::delete it
+warn::\bsomewhat\b::delete it
+warn::\bfairly\b::delete it
+warn::\brather\b::delete it
+warn::\b(essentially|fundamentally|basically)\b::delete it
+warn::\barguably\b::say who argues it, or delete
+warn::\bsignificantly\b::give the number

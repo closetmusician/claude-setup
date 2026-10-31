@@ -18,7 +18,7 @@
 
 #### 2. Customer Validation Sources
 - **Gong call links** - Fetch transcripts for customer quotes and pain points
-- **Acme Insider sessions** - Extract proof points from customer interviews
+- **Diligent Insider sessions** - Extract proof points from customer interviews
 - Validation assets saved to `assets/validation/`
 
 #### 3. Universal PM Configuration

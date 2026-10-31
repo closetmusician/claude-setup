@@ -9,7 +9,7 @@
 | haiku  | claude-haiku   | Mechanical ops: counts, existence checks, diffs, greps, file moves/renames. Low-reasoning overhead. |
 | sonnet | claude-sonnet  | Code edits, patch applies, test runs, oracle verification. Default fallback tier. |
 | opus   | claude-opus    | Synthesis, architecture decisions, adversarial audits, complex cross-domain reasoning. |
-| fable  | claude-fable   | Prose voice, PRD narrative writing, briefings, stakeholder communications. |
+| fable  | claude-fable   | Orchestration and review/critique ONLY — never production work. No rule routes TO this tier; a caller pins it by hand for an adversarial review pass. See ~/.claude/rules/model-roles.md. |
 
 ## Matching Rules
 

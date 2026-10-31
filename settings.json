@@ -27,11 +27,13 @@
       "Bash(~/.claude/skills/gong-connect/bin/gong *)",
       "Bash(~/.claude/skills/tableau-connect/bin/tableau *)",
       "Bash(agent-browser *)",
-      "Edit(__HOME__/.claude/**)",
-      "Write(__HOME__/.claude/**)",
-      "Read(__HOME__/.claude/**)",
+      "Edit(/Users/yklin/.claude/**)",
+      "Write(/Users/yklin/.claude/**)",
+      "Read(/Users/yklin/.claude/**)",
       "mcp__plugin_episodic-memory_episodic-memory__search",
-      "mcp__plugin_episodic-memory_episodic-memory__read"
+      "mcp__plugin_episodic-memory_episodic-memory__read",
+      "Bash(git push diligent:*)",
+      "Bash(git push)"
     ],
     "deny": [
       "Read(./secrets/**)",
@@ -68,7 +70,6 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "us.anthropic.claude-opus-5[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -76,36 +77,32 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/spine-tap.sh"
+            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/pre-agent-gate.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/pre-agent-gate.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/constraint-wording-lint.sh",
+            "command": "/Users/yklin/.claude/scripts/governance/constraint-wording-lint.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/manifest-bind.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/manifest-bind.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/skills/eng-planning/scripts/eng-planning-agent-gate.sh"
+            "command": "/Users/yklin/.claude/skills/eng-planning/scripts/eng-planning-agent-gate.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/skills/lead-orchestrator/scripts/orchestrator-step-gate.sh"
+            "command": "/Users/yklin/.claude/skills/lead-orchestrator/scripts/orchestrator-step-gate.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/skills/prd-writer/scripts/prd-writer-agent-gate.sh"
-          },
-          {
-            "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/multi-agent-auq-gate.sh"
+            "command": "/Users/yklin/.claude/skills/prd-writer/scripts/prd-writer-agent-gate.sh"
           },
           {
             "type": "command",
@@ -119,7 +116,7 @@
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/codex-cli-guard.sh"
+            "command": "/Users/yklin/.claude/scripts/codex-cli-guard.sh"
           }
         ]
       },
@@ -128,32 +125,28 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/role-enforcement.sh"
+            "command": "/Users/yklin/.claude/scripts/remote-destructive-hook.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/remote-destructive-hook.sh"
+            "command": "/Users/yklin/.claude/scripts/external-comms-hook.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/external-comms-hook.sh"
+            "command": "/Users/yklin/.claude/scripts/incident-freeze-enforcer.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/incident-freeze-enforcer.sh"
+            "command": "/Users/yklin/.claude/scripts/skill-routing-guard.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/skill-routing-guard.sh"
-          },
-          {
-            "type": "command",
-            "command": "__HOME__/.claude/scripts/commit-staged-audit.sh",
+            "command": "/Users/yklin/.claude/scripts/commit-staged-audit.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/git-safety-hook.sh"
+            "command": "/Users/yklin/.claude/scripts/git-safety-hook.sh"
           },
           {
             "type": "command",
@@ -161,11 +154,15 @@
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/commit-order-guard.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/commit-order-guard.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/read-budget-guard.sh"
           }
         ]
       },
@@ -174,23 +171,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/role-enforcement.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/role-enforcement.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/skills/eng-planning/scripts/eng-planning-write-gate.sh"
+            "command": "/Users/yklin/.claude/skills/eng-planning/scripts/eng-planning-write-gate.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/skills/lead-orchestrator/scripts/validate-artifact.sh"
+            "command": "/Users/yklin/.claude/skills/lead-orchestrator/scripts/validate-artifact.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/skills/prd-writer/scripts/prd-writer-write-gate.sh"
+            "command": "/Users/yklin/.claude/skills/prd-writer/scripts/prd-writer-write-gate.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/doc-placement-guard.sh"
           }
         ]
       },
@@ -199,11 +200,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/role-enforcement.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/role-enforcement.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/qa-artifact-ownership-guard.sh"
           }
         ]
       },
@@ -212,15 +213,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/spine-tap.sh"
+            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/task-spec-gate.sh"
-          },
-          {
-            "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/multi-agent-auq-gate.sh"
+            "command": "/Users/yklin/.claude/scripts/task-spec-gate.sh"
           },
           {
             "type": "command",
@@ -229,34 +226,7 @@
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/codex-cli-guard.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "__HOME__/.claude/scripts/orchestrator-context-guard.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "__HOME__/.claude/scripts/orchestrator-context-guard.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "__HOME__/.claude/scripts/orchestrator-context-guard.sh"
+            "command": "/Users/yklin/.claude/scripts/codex-cli-guard.sh"
           }
         ]
       },
@@ -265,7 +235,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/episodic-plan-path-gate.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/episodic-plan-path-gate.sh"
           }
         ]
       },
@@ -274,7 +244,46 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/autonomous-push-guard.sh"
+            "command": "/Users/yklin/.claude/scripts/autonomous-push-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/model-role-guard.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/read-budget-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Workflow",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/workflow-model-guard.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/headless-bedrock-guard.sh",
+            "timeout": 10
           }
         ]
       }
@@ -285,11 +294,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/spine-tap.sh"
+            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/post-agent-audit.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/post-agent-audit.sh"
           },
           {
             "type": "command",
@@ -303,7 +312,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/activate-on-orchestrator.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/activate-on-orchestrator.sh"
           }
         ]
       },
@@ -312,15 +321,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/spine-tap.sh"
+            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/incident-freeze-detector.sh"
+            "command": "/Users/yklin/.claude/scripts/incident-freeze-detector.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/evidence-ledger.sh"
+            "command": "/Users/yklin/.claude/scripts/evidence-ledger.sh"
           }
         ]
       },
@@ -329,7 +338,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/spine-tap.sh"
+            "command": "/Users/yklin/.claude/scripts/spine-tap.sh"
           }
         ]
       },
@@ -338,11 +347,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/evidence-ledger.sh"
+            "command": "/Users/yklin/.claude/scripts/evidence-ledger.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/harness-change-flag.sh"
+            "command": "/Users/yklin/.claude/scripts/harness-change-flag.sh"
           }
         ]
       },
@@ -351,20 +360,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/evidence-ledger.sh"
+            "command": "/Users/yklin/.claude/scripts/evidence-ledger.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/harness-change-flag.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "AskUserQuestion",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/auq-witness.sh"
+            "command": "/Users/yklin/.claude/scripts/harness-change-flag.sh"
           }
         ]
       },
@@ -373,7 +373,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/autonomous-secret-scan.sh"
+            "command": "/Users/yklin/.claude/scripts/autonomous-secret-scan.sh"
           }
         ]
       },
@@ -382,7 +382,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/autonomous-secret-scan.sh"
+            "command": "/Users/yklin/.claude/scripts/autonomous-secret-scan.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Bash|Grep|Glob|Agent|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/read-meter.sh"
           }
         ]
       }
@@ -393,19 +402,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/notify.sh 'Task finished'"
+            "command": "/Users/yklin/.claude/scripts/notify.sh 'Task finished'"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/auto-journal.sh"
+            "command": "/Users/yklin/.claude/scripts/auto-journal.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/completion-claim-guard.sh"
+            "command": "/Users/yklin/.claude/scripts/completion-claim-guard.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/completion-gate-sentinel-check.sh",
+            "command": "/Users/yklin/.claude/scripts/governance/completion-gate-sentinel-check.sh",
             "timeout": 10000
           },
           {
@@ -415,19 +424,24 @@
           },
           {
             "type": "command",
-            "command": "bash __HOME__/.claude/scripts/analysis-reflex.sh"
+            "command": "bash /Users/yklin/.claude/scripts/analysis-reflex.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/harness-selfcheck.sh"
+            "command": "/Users/yklin/.claude/scripts/harness-selfcheck.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/harness-selfcheck-autonomous.sh"
+            "command": "/Users/yklin/.claude/scripts/harness-selfcheck-autonomous.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/heartbeat-stop-warn.sh"
+            "command": "/Users/yklin/.claude/scripts/heartbeat-stop-warn.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/ste-lint.sh",
+            "timeout": 15
           }
         ]
       }
@@ -438,11 +452,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/governance/governance-cleanup.sh"
+            "command": "/Users/yklin/.claude/scripts/governance/governance-cleanup.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/pm-send-synthesize-hook.sh"
+            "command": "/Users/yklin/.claude/scripts/pm-send-synthesize-hook.sh"
           }
         ]
       }
@@ -453,7 +467,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/notify.sh 'Needs your input' Basso"
+            "command": "/Users/yklin/.claude/scripts/notify.sh 'Needs your input' Basso"
           }
         ]
       }
@@ -464,7 +478,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/session-start.sh"
+            "command": "/Users/yklin/.claude/scripts/session-start.sh"
           }
         ]
       }
@@ -475,15 +489,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/correction-capture.sh"
+            "command": "/Users/yklin/.claude/scripts/correction-capture.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/skill-retrieve.sh"
+            "command": "/Users/yklin/.claude/scripts/skill-retrieve.sh"
           },
           {
             "type": "command",
-            "command": "__HOME__/.claude/scripts/codex-cli-nudge.sh"
+            "command": "/Users/yklin/.claude/scripts/codex-cli-nudge.sh"
           }
         ]
       }
@@ -491,7 +505,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "__HOME__/.claude/scripts/statusline.sh"
+    "command": "/Users/yklin/.claude/scripts/statusline.sh"
   },
   "enabledPlugins": {
     "superpowers@superpowers-marketplace": false,
@@ -501,7 +515,9 @@
     "code-simplifier@claude-plugins-official": true,
     "code-review-graph@code-review-graph": true,
     "codex@openai-codex": true,
-    "typescript-lsp@claude-plugins-official": true
+    "typescript-lsp@claude-plugins-official": true,
+    "typesafe@typesafe-ai": true,
+    "pendo-analytics@pendo-plugins": true
   },
   "extraKnownMarketplaces": {
     "code-review-graph": {
@@ -514,6 +530,18 @@
       "source": {
         "source": "git",
         "url": "https://github.com/openai/codex-plugin-cc.git"
+      }
+    },
+    "typesafe-ai": {
+      "source": {
+        "source": "github",
+        "repo": "typesafe-ai/skills"
+      }
+    },
+    "pendo-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "pendo-io/claude-pendo-plugin"
       }
     }
   },
@@ -563,8 +591,19 @@
     ]
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "medium",
-  "autoUpdatesChannel": "stable",
+  "effortLevel": "high",
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "medium"
+    },
+    "claude-opus-5": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    }
+  },
+  "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,

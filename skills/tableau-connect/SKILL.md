@@ -1,10 +1,10 @@
 ---
 name: tableau-connect
-description: "Connect Claude Code to Acme's Tableau Cloud (site acme1) via the official @tableau/mcp-server using a Personal Access Token. Use to query BI data (VizQL), metadata/lineage (GraphQL), content (REST), and Pulse metrics."
+description: "Connect Claude Code to Diligent's Tableau Cloud (site diligent1) via the official @tableau/mcp-server using a Personal Access Token. Use to query BI data (VizQL), metadata/lineage (GraphQL), content (REST), and Pulse metrics."
 ---
 
 <!-- ABOUTME:
-  tableau-connect - one-time bootstrap that wires Claude Code to Acme's Tableau Cloud.
+  tableau-connect - one-time bootstrap that wires Claude Code to Diligent's Tableau Cloud.
   Registers the official Tableau MCP server (@tableau/mcp-server, PAT auth) with `claude mcp add`,
   pinned to Homebrew node@24 (the server needs node>=22.7.5; default node here is v20).
   The PAT lives in ~/.secrets/tableau.env (chmod 600), never in this repo, git, or the chat.
@@ -13,8 +13,8 @@ description: "Connect Claude Code to Acme's Tableau Cloud (site acme1) via the o
 
 # tableau-connect
 
-Connect Claude Code to **Acme's Tableau Cloud** (`https://prod-useast-a.online.tableau.com`,
-site `acme1`) through Tableau's **official** MCP server. Once connected, the Tableau MCP
+Connect Claude Code to **Diligent's Tableau Cloud** (`https://prod-useast-a.online.tableau.com`,
+site `diligent1`) through Tableau's **official** MCP server. Once connected, the Tableau MCP
 tools (data queries, metadata, content, Pulse) are available directly in the session.
 CLI: `~/.claude/skills/tableau-connect/bin/tableau`.
 
@@ -71,7 +71,7 @@ through the MCP tools, not this CLI.
   you run parallel agents against Tableau, mint a second PAT.
 - **VizQL availability:** requires published datasources and (on some tiers) a Data
   Management license. If VizQL tools 403/return empty, check the site license with an admin.
-- **Site-scoped:** the PAT is valid only for site `acme1`; cross-site calls return 403.
+- **Site-scoped:** the PAT is valid only for site `diligent1`; cross-site calls return 403.
 
 ## Autonomy note
 This CLI performs read-only auth verification and MCP registration only; it never prints the

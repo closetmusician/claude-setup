@@ -44,7 +44,7 @@ If the report doesn't have Teams post URLs or workarounds, tell the user the rep
 
 For each complaint with Jira tickets, hit the Jira API to get CURRENT status:
 ```bash
-bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN "https://example.atlassian.net/rest/api/3/issue/{KEY}?fields=status,assignee,priority"'
+bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/issue/{KEY}?fields=status,assignee,priority"'
 ```
 
 Compare against what the report says. If status has changed (e.g. ticket moved from Backlog to In Dev since the report was written), use the CURRENT status in the reply.

@@ -304,7 +304,7 @@ line in each agent block below; do NOT downgrade the two opus personas:**
   REQUIRES_DECISION (needs PM input). Include proposed text for SPECIFIABLE items.
 
 #### Agent 4: Customer Expert (sonnet)
-- **Focus:** Persona coverage for Acme Boards' 3 core personas
+- **Focus:** Persona coverage for Diligent Boards' 3 core personas
 - **Model:** sonnet
 - **Output file:** `.prd-review/<slug>/reviewer-4-customer-expert.md`
 - **Evaluates against:**

@@ -239,7 +239,7 @@ reusing a captured browser session. CLI: `~/.claude/skills/gong-connect/bin/gong
   profile usually makes re-login silent — no MFA re-type).
 - storageState = live credential. Kept in `~/.secrets/websess` (chmod 600), never in a repo.
 - ToS/policy: automates your own provisioned access via Gong's INTERNAL API, which their
-  terms gate behind the admin API key. Use within Acme policy; throttle requests.
+  terms gate behind the admin API key. Use within Diligent policy; throttle requests.
 
 ## Autonomy note
 This CLI is pre-authorized for autonomous execution via settings.json permissions

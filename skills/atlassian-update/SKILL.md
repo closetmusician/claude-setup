@@ -39,8 +39,8 @@ ensures every marker survives the update.
 ## Prerequisites
 
 - Atlassian API connectivity established (run `/atlassian-connect` first if needed)
-- Auth: Basic auth with `dev@example.com:$ATLASSIAN_API_TOKEN`
-- Base URL: `https://example.atlassian.net`
+- Auth: Basic auth with `yklin@diligent.com:$ATLASSIAN_API_TOKEN`
+- Base URL: `https://diligentbrands.atlassian.net`
 
 ## Inputs
 

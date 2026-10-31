@@ -4,6 +4,7 @@
 - Multi-step tasks: state a brief plan with a verification per step ("do X → verify: Y"). Turn vague asks into verifiable goals ("fix the bug" → "write a test that reproduces it, make it pass").
 - DRY: flag repetition aggressively.
 - Explicit > clever. "Engineered enough" — not fragile, not over-abstracted.
+- Size self-check before handing code back: if it could be half the lines and still read clearly, rewrite it. Ask "would a senior engineer call this overcomplicated?" — if yes, simplify.
 
 ## Code Style
 - MATCH surrounding style (consistency > standards). NO manual whitespace changes.

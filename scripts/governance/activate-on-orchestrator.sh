@@ -10,6 +10,7 @@ trap 'exit 0' ERR
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/project-root.sh"
+source "${SCRIPT_DIR}/lib/workspace-kind.sh"
 # Pillar I emit — purely additive; fail-open via emit_event design + || true guard.
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/emit-event.sh" 2>/dev/null || true
@@ -23,6 +24,13 @@ INPUT=$(cat)
 SKILL_NAME=$(echo "$INPUT" | jq -r '.tool_input.skill // empty' 2>/dev/null)
 
 if [[ "$SKILL_NAME" == *"lead-orchestrator"* ]]; then
+  # Only activate governance in VIBE repos (.claude/phase.json).
+  # Non-VIBE repos (docs workspaces, plain code repos) spawn freely (REPORT.md §4g, D2).
+  if ! is_vibe_repo "$PWD"; then
+    echo "governance: lead-orchestrator called in non-VIBE repo, sentinel not activated" >&2
+    exit 0
+  fi
+
   GOV_DIR="$(get_governance_state_dir)"
   mkdir -p "$GOV_DIR"
   touch "$GOV_DIR/.active"

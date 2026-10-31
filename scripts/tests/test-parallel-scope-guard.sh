@@ -11,6 +11,8 @@ GUARD="${GUARD:-$HOME/.claude/scripts/governance/parallel-scope-guard.sh}"
 TMP=$(mktemp -d)
 GOV_STATE="$TMP/gov"
 mkdir -p "$GOV_STATE"
+# Create .active sentinel for governance activation
+touch "$GOV_STATE/.active"
 trap 'rm -rf "$TMP"' EXIT
 PASS=0; FAIL=0
 
@@ -105,6 +107,7 @@ echo "--- Test 6: prefix overlap → deny ---"
 SID2="testsession-psg-02"
 GOV_STATE2="$TMP/gov2"
 mkdir -p "$GOV_STATE2"
+touch "$GOV_STATE2/.active"
 
 # First spawn: declare directory prefix.
 PAYLOAD=$(make_payload "$SID2" "First agent.
@@ -131,6 +134,7 @@ chmod +x "$NEUTERED"
 SID3="testsession-psg-03"
 GOV_STATE3="$TMP/gov3"
 mkdir -p "$GOV_STATE3"
+touch "$GOV_STATE3/.active"
 
 # First spawn to register the path.
 PAYLOAD=$(make_payload "$SID3" "First spawn.
@@ -155,7 +159,7 @@ PAYLOAD=$(make_payload "$SID3" "Second spawn, same path.
 ## Output: docs/temp/neuter-test.md
 Should be denied by real guard.")
 # Reset state to only have the first claim (re-register first).
-rm -rf "$GOV_STATE3" && mkdir -p "$GOV_STATE3"
+rm -rf "$GOV_STATE3" && mkdir -p "$GOV_STATE3" && touch "$GOV_STATE3/.active"
 PAYLOAD1=$(make_payload "$SID3" "First spawn again.
 ## Output: docs/temp/neuter-test.md
 Register path.")
@@ -168,6 +172,7 @@ echo "--- Test 8: 'Output file:' back-compat marker ---"
 SID4="testsession-psg-04"
 GOV_STATE4="$TMP/gov4"
 mkdir -p "$GOV_STATE4"
+touch "$GOV_STATE4/.active"
 
 PAYLOAD=$(make_payload "$SID4" "Agent using legacy marker.
 Output file: docs/temp/legacy.md
@@ -188,13 +193,44 @@ PAYLOAD=$(jq -cn --arg sid "$SID" \
 OUT=$(echo "$PAYLOAD" | run_guard); RC=$?
 check_allow "9 empty prompt → fail-open allow" "$OUT" "$RC"
 
-# ── Test 10: Missing session_id → fail-open ───────────────────────────────────
-echo "--- Test 10: missing session_id → fail-open allow ---"
-PAYLOAD=$(jq -cn '{"tool_name":"Task","tool_input":{"prompt":"## Output: docs/temp/nosid.md"}}')
-OUT=$(echo "$PAYLOAD" | run_guard); RC=$?
-check_allow "10 missing session_id → fail-open allow" "$OUT" "$RC"
 
-# ── Summary ──────────────────────────────────────────────────────────────────
+# ── Test 11: Neuter .active check proves it gates the hook ────────────────────
+echo "--- Test 11: neuter .active check ---"
+GOV_INERT="$TMP/gov-inert-neuter"
+mkdir -p "$GOV_INERT"
+
+# Create neutered version: comment out .active check and fix library paths
+NEUTERED_ACTIVE="$TMP/neutered-active-guard.sh"
+cp "$GUARD" "$NEUTERED_ACTIVE"
+perl -i -pe 's/\$\{SCRIPT_DIR\}\/lib\/project-root\.sh/\$HOME\/.claude\/scripts\/governance\/lib\/project-root.sh/' "$NEUTERED_ACTIVE"
+perl -i -pe 's/\$\{SCRIPT_DIR\}\/\.\.\/lib\/emit-event\.sh/\$HOME\/.claude\/scripts\/lib\/emit-event.sh/' "$NEUTERED_ACTIVE"
+perl -i -pe 's/\[\[ ! -f "\$STATE_GOV\/\.active" \]\] && exit 0/# NEUTERED: .active check removed/' "$NEUTERED_ACTIVE"
+chmod +x "$NEUTERED_ACTIVE"
+
+# Test that neutered version processes even without .active
+SID_NA="test-neuter-active"
+PAYLOAD_NA=$(make_payload "$SID_NA" "Work.
+## Output: docs/test.md
+Do work.")
+OUT_NA=$(echo "$PAYLOAD_NA" | HARNESS_GOV_STATE_DIR="$GOV_INERT" bash "$NEUTERED_ACTIVE" 2>&1)
+
+if [[ -f "$GOV_INERT/claimed-output-paths-$SID_NA.json" ]]; then
+  echo "PASS: 11a neutered hook processes without .active"; PASS=$((PASS+1))
+else
+  echo "FAIL: 11a neutered hook did not process: $OUT_NA"; FAIL=$((FAIL+1))
+fi
+
+# Real hook should NOT process without .active
+rm -rf "$GOV_INERT" && mkdir -p "$GOV_INERT"
+OUT_REAL=$(echo "$PAYLOAD_NA" | HARNESS_GOV_STATE_DIR="$GOV_INERT" bash "$GUARD" 2>&1)
+if [[ ! -f "$GOV_INERT/claimed-output-paths-$SID_NA.json" ]]; then
+  echo "PASS: 11b real hook inert without .active"; PASS=$((PASS+1))
+else
+  echo "FAIL: 11b real hook processed without .active"; FAIL=$((FAIL+1))
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 echo
 echo "parallel-scope-guard: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

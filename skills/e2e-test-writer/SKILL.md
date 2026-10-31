@@ -21,7 +21,7 @@ This skill teaches agents to translate PRD requirements, acceptance criteria, an
 | Direction | Format | Location |
 |-----------|--------|----------|
 | **Input** | PRD feature spec, execution plan, task description, or acceptance criteria | `docs/` (plans, contracts, prd) |
-| **Output** | YAML test files following `test-case.schema.yaml` | `app-workspace/e2e/tests/feat-XXX/` |
+| **Output** | YAML test files following `test-case.schema.yaml` | `boardroom-ai/e2e/tests/feat-XXX/` |
 
 One acceptance criterion produces one YAML test file. If a single AC covers multiple concerns (e.g., "user creates item AND sees confirmation AND receives email"), split into focused tests that each verify one observable behavior.
 
@@ -70,7 +70,7 @@ What BE state should this visual_confirm reflect?
 
 ### Step 4: Generate YAML
 
-Follow the schema at `app-workspace/e2e/schemas/test-case.schema.yaml` exactly. Every test file MUST include these fields:
+Follow the schema at `boardroom-ai/e2e/schemas/test-case.schema.yaml` exactly. Every test file MUST include these fields:
 
 | Field | Format | Example |
 |-------|--------|---------|
@@ -558,9 +558,9 @@ expected_outcomes:
 
 | Resource | Path | Purpose |
 |----------|------|---------|
-| YAML Schema | `app-workspace/e2e/schemas/test-case.schema.yaml` | Canonical format definition with all step types |
-| Config / Routes | `app-workspace/e2e/config.py` | All URLs, ports, credentials, route maps |
-| Existing Visual Test | `app-workspace/e2e/visual/p0_action_items.yaml` | Real-world example of a P0 visual test |
+| YAML Schema | `boardroom-ai/e2e/schemas/test-case.schema.yaml` | Canonical format definition with all step types |
+| Config / Routes | `boardroom-ai/e2e/config.py` | All URLs, ports, credentials, route maps |
+| Existing Visual Test | `boardroom-ai/e2e/visual/p0_action_items.yaml` | Real-world example of a P0 visual test |
 | E2E Testing Skill | `e2e-testing` (personal skill) | How to RUN tests (prerequisites, Chrome DevTools, troubleshooting) |
 | E2E QA Runner Skill | `e2e-qa-runner` (personal skill) | Skill for executing generated tests (under construction) |
 | FE Route Map | `config.py` -> `FE_ROUTES` | Singular `/project/{id}`, NOT `/projects/{id}` |

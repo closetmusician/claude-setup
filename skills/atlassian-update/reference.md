@@ -16,7 +16,7 @@
 ## Phase 0: Parse Input
 
 Extract the numeric page ID from the user's input:
-- From URL: `https://example.atlassian.net/wiki/spaces/XXX/pages/PAGE_ID/...` → extract `PAGE_ID`
+- From URL: `https://diligentbrands.atlassian.net/wiki/spaces/XXX/pages/PAGE_ID/...` → extract `PAGE_ID`
 - From raw ID: use directly
 
 ```bash
@@ -30,8 +30,8 @@ echo "URL" | grep -oP '(?<=pages/)\d+'
 ### Step 1.1: Fetch page metadata + body
 
 ```bash
-bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN \
-  "https://example.atlassian.net/wiki/rest/api/content/PAGE_ID?expand=body.storage,version,space" \
+bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
+  "https://diligentbrands.atlassian.net/wiki/rest/api/content/PAGE_ID?expand=body.storage,version,space" \
   > /tmp/confluence-page-PAGE_ID.json'
 ```
 
@@ -72,8 +72,8 @@ with open('/tmp/confluence-markers-PAGE_ID.json', 'w') as f:
 ### Step 1.3: Fetch comment objects (independent verification source)
 
 ```bash
-bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN \
-  "https://example.atlassian.net/wiki/rest/api/content/PAGE_ID/child/comment?expand=extensions.inlineProperties,body.view&limit=100&start=0" \
+bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
+  "https://diligentbrands.atlassian.net/wiki/rest/api/content/PAGE_ID/child/comment?expand=extensions.inlineProperties,body.view&limit=100&start=0" \
   > /tmp/confluence-comments-PAGE_ID.json'
 ```
 
@@ -289,9 +289,9 @@ print(json.dumps(body))
 ")
 
 curl -sf -X PUT \
-  -u dev@example.com:$ATLASSIAN_API_TOKEN \
+  -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
   -H "Content-Type: application/json" \
-  "https://example.atlassian.net/wiki/rest/api/content/$PAGE_ID" \
+  "https://diligentbrands.atlassian.net/wiki/rest/api/content/$PAGE_ID" \
   -d "{
     \"id\": \"$PAGE_ID\",
     \"type\": \"page\",
@@ -323,8 +323,8 @@ Do NOT retry blindly — report and ask.
 ### Step 5.1: Re-fetch and verify markers
 
 ```bash
-bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN \
-  "https://example.atlassian.net/wiki/rest/api/content/PAGE_ID?expand=body.storage,version" \
+bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
+  "https://diligentbrands.atlassian.net/wiki/rest/api/content/PAGE_ID?expand=body.storage,version" \
   > /tmp/confluence-postverify-PAGE_ID.json'
 ```
 
@@ -364,8 +364,8 @@ else:
 ### Step 5.2: Re-fetch comments and verify count
 
 ```bash
-bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN \
-  "https://example.atlassian.net/wiki/rest/api/content/PAGE_ID/child/comment?limit=0" \
+bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
+  "https://diligentbrands.atlassian.net/wiki/rest/api/content/PAGE_ID/child/comment?limit=0" \
   | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
@@ -387,8 +387,8 @@ The correlation table from Phase 1.3 already provides comment text matched to an
 For full untruncated text:
 
 ```bash
-curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN \
-  "https://example.atlassian.net/wiki/rest/api/content/PAGE_ID/child/comment?expand=extensions.inlineProperties,body.view&limit=100&start=0"
+curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
+  "https://diligentbrands.atlassian.net/wiki/rest/api/content/PAGE_ID/child/comment?expand=extensions.inlineProperties,body.view&limit=100&start=0"
 ```
 
 ### Step 6.2: Reply to a comment
@@ -397,9 +397,9 @@ curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN \
 COMMENT_ID=<target_comment_id>
 
 curl -X POST \
-  -u dev@example.com:$ATLASSIAN_API_TOKEN \
+  -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
   -H "Content-Type: application/json" \
-  "https://example.atlassian.net/wiki/rest/api/content" \
+  "https://diligentbrands.atlassian.net/wiki/rest/api/content" \
   -d "{
     \"type\": \"comment\",
     \"container\": {\"id\": \"PAGE_ID\", \"type\": \"page\"},
@@ -421,23 +421,23 @@ Use v2 API (supports resolution status natively):
 COMMENT_ID=<target_comment_id>
 
 # Confirm it exists
-curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN \
-  "https://example.atlassian.net/wiki/api/v2/inline-comments/$COMMENT_ID"
+curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
+  "https://diligentbrands.atlassian.net/wiki/api/v2/inline-comments/$COMMENT_ID"
 
 # Resolve it
 curl -X PUT \
-  -u dev@example.com:$ATLASSIAN_API_TOKEN \
+  -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
   -H "Content-Type: application/json" \
-  "https://example.atlassian.net/wiki/api/v2/inline-comments/$COMMENT_ID" \
+  "https://diligentbrands.atlassian.net/wiki/api/v2/inline-comments/$COMMENT_ID" \
   -d "{\"status\": \"resolved\"}"
 ```
 
 **Fallback** (if v2 returns 404):
 ```bash
 curl -X PUT \
-  -u dev@example.com:$ATLASSIAN_API_TOKEN \
+  -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
   -H "Content-Type: application/json" \
-  "https://example.atlassian.net/wiki/rest/api/content/$COMMENT_ID/property/resolved" \
+  "https://diligentbrands.atlassian.net/wiki/rest/api/content/$COMMENT_ID/property/resolved" \
   -d "{\"key\": \"resolved\", \"value\": {\"status\": true}}"
 ```
 
@@ -465,8 +465,8 @@ If post-verification fails and markers were lost:
 bash -c 'source ~/.zshrc 2>/dev/null
 
 # Fetch the previous version body
-curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN \
-  "https://example.atlassian.net/wiki/rest/api/content/PAGE_ID?expand=body.storage,version&status=historical&version=ORIGINAL_VERSION" \
+curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN \
+  "https://diligentbrands.atlassian.net/wiki/rest/api/content/PAGE_ID?expand=body.storage,version&status=historical&version=ORIGINAL_VERSION" \
   > /tmp/confluence-revert-PAGE_ID.json'
 ```
 

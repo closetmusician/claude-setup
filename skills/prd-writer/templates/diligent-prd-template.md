@@ -1,6 +1,6 @@
-# Acme PRD Template (Compact)
+# Diligent PRD Template (Compact)
 
-Default PRD template — Acme Boards conventions. Apply quality patterns from `quality-patterns.md` throughout.
+Default PRD template — Diligent Boards conventions. Apply quality patterns from `quality-patterns.md` throughout.
 
 **Structural rules:** User pain points live in JTBDs (not Problem Definition). UX Flows section (§3) is organized by JTBD with explicit req ID references — dedicated but mapped, no redundancy. Business rules are specified inline within §2 requirements (simple rules as acceptance criteria, complex cross-cutting rules as dedicated REQ-IDs). Describe once, reference by ID.
 
@@ -257,4 +257,4 @@ Use tables. Include only sections that apply.]
 - **Describe once:** If a behavior is fully specified in a requirement, UX flows reference by ID, not re-describe. Edge flows illustrate rules for stakeholder comprehension.
 - **Tables speak for themselves:** Never follow a table with prose restating its contents.
 - §7 Engineering groups effort estimates and data model together — effort first (the "how big"), data model second (the "what shape").
-- Acme-specific sections (RACI, Settings, Pricing) — omit if using custom template.
+- Diligent-specific sections (RACI, Settings, Pricing) — omit if using custom template.

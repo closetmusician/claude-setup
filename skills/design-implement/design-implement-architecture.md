@@ -166,10 +166,10 @@ src/libs/gc-homepage/
 Add to `src/tsconfig.json`:
 
 ```json
-"@acmecorp/boards-cloud/gc-homepage/core/*": ["features/gc-homepage/core/src/*"],
-"@acmecorp/boards-cloud/gc-homepage/ui/*": ["features/gc-homepage/ui/src/*"],
-"@acmecorp/boards-cloud/gc-homepage-lib/core/*": ["libs/gc-homepage/core/src/*"],
-"@acmecorp/boards-cloud/gc-homepage-lib/ui/*": ["libs/gc-homepage/ui/src/*"],
+"@diligentcorp/boards-cloud/gc-homepage/core/*": ["features/gc-homepage/core/src/*"],
+"@diligentcorp/boards-cloud/gc-homepage/ui/*": ["features/gc-homepage/ui/src/*"],
+"@diligentcorp/boards-cloud/gc-homepage-lib/core/*": ["libs/gc-homepage/core/src/*"],
+"@diligentcorp/boards-cloud/gc-homepage-lib/ui/*": ["libs/gc-homepage/ui/src/*"],
 ```
 
 Convention: feature path uses the feature name, lib path appends `-lib` suffix. Matches the existing `new-homepage` / `new-homepage-lib` pattern.
@@ -213,7 +213,7 @@ Key patterns to match (observed from codebase):
 - `ChangeDetectionStrategy.OnPush` always
 - `standalone: true` for lib components (preferred Angular 20 pattern)
 - Signal-based inputs: `input()`, `input.required()`, `output()`
-- Extends `ComponentBase` from `@acmecorp/boards-cloud/core/core/base/component-base` for presentational components
+- Extends `ComponentBase` from `@diligentcorp/boards-cloud/core/core/base/component-base` for presentational components
 - Extends `ScrollableComponentV2Base` for page-level components that scroll
 - Selector prefix: `bc-<feature-name>-` (e.g., `bc-gc-homepage-action-card`)
 - ABOUTME comment block at file top
@@ -227,8 +227,8 @@ Key patterns to match (observed from codebase):
 
 @use 'styles/mixins' as mixins;
 @use 'styles/media-queries' as media;
-@use '@acmecorp/atlas-design-tokens/dist/themes/lens/scss/core' as core;
-@use '@acmecorp/atlas-design-tokens/dist/themes/lens/scss/semantic' as semantic;
+@use '@diligentcorp/atlas-design-tokens/dist/themes/lens/scss/core' as core;
+@use '@diligentcorp/atlas-design-tokens/dist/themes/lens/scss/semantic' as semantic;
 
 :host {
   @include mixins.component-inline-fill;
@@ -317,9 +317,9 @@ Create `features/<name>/ui/src/<name>.routes.ts`:
 
 ```typescript
 import { Route } from '@angular/router';
-import { path } from '@acmecorp/boards-cloud/core/core/routing/route-template-helper';
+import { path } from '@diligentcorp/boards-cloud/core/core/routing/route-template-helper';
 import { gcHomepageFeaturePathSegment, gcHomepageRoute }
-  from '@acmecorp/boards-cloud/gc-homepage/core/constants/routes.constants';
+  from '@diligentcorp/boards-cloud/gc-homepage/core/constants/routes.constants';
 import { GcHomepageComponent } from './components/gc-homepage/gc-homepage.component';
 
 export function routes(): Route[] {
@@ -338,13 +338,13 @@ Add to `apps/boards-frontend/src/app/app.routes.ts`:
 
 ```typescript
 import { gcHomepageFeaturePathSegment }
-  from '@acmecorp/boards-cloud/gc-homepage/core/constants/routes.constants';
+  from '@diligentcorp/boards-cloud/gc-homepage/core/constants/routes.constants';
 
 // In the routes array:
 {
   path: gcHomepageFeaturePathSegment,
   loadChildren: () =>
-    import('@acmecorp/boards-cloud/gc-homepage/ui/gc-homepage-ui.module')
+    import('@diligentcorp/boards-cloud/gc-homepage/ui/gc-homepage-ui.module')
       .then(m => m.GcHomepageUiModule),
   canActivate: [authGuard, environmentGuard],
   data: { title: $localize`...` },
@@ -421,7 +421,7 @@ Present to the user:
 | `<input type="search">` | Atlas `<atlas-input>` or `<mat-form-field>` |
 | `<button>` | Atlas `<button mat-button>` with Atlas styling |
 | `<a href="#">` with button styling | `<a mat-button>` or `routerLink` |
-| SVG icons inline | Replace with `@acmecorp/atlas-angular-icons` component |
+| SVG icons inline | Replace with `@diligentcorp/atlas-angular-icons` component |
 | `<span class="badge">3</span>` | Atlas badge component if available |
 | Gradient decorative strips | SCSS `::before`/`::after` pseudo-elements with `ai-styles` mixin |
 
@@ -541,7 +541,7 @@ Each directory is an NX project with its own `project.json`, `jest.config.ts`, `
 
 ### 5.2 Import Conventions
 
-All cross-lib imports use the `@acmecorp/boards-cloud/<lib>/<layer>/<path>` pattern defined in `tsconfig.json` `paths`. The skill must:
+All cross-lib imports use the `@diligentcorp/boards-cloud/<lib>/<layer>/<path>` pattern defined in `tsconfig.json` `paths`. The skill must:
 
 1. Add path mappings to `tsconfig.json` for new libs/features
 2. Use these mapped paths in all import statements (never relative paths across project boundaries)
@@ -551,9 +551,9 @@ All cross-lib imports use the `@acmecorp/boards-cloud/<lib>/<layer>/<path>` patt
 
 The skill uses two integration points:
 
-1. **SCSS tokens**: `@use '@acmecorp/atlas-design-tokens/dist/themes/lens/scss/core'` and `semantic`. Every SCSS file that uses spacing, colors, or typography tokens must import these.
+1. **SCSS tokens**: `@use '@diligentcorp/atlas-design-tokens/dist/themes/lens/scss/core'` and `semantic`. Every SCSS file that uses spacing, colors, or typography tokens must import these.
 
-2. **Angular components**: Atlas provides Angular component wrappers (`@acmecorp/atlas-angular-icons` for icons, Atlas components via the Atlas MCP docs). The skill should query the Atlas MCP to check component availability before generating custom implementations.
+2. **Angular components**: Atlas provides Angular component wrappers (`@diligentcorp/atlas-angular-icons` for icons, Atlas components via the Atlas MCP docs). The skill should query the Atlas MCP to check component availability before generating custom implementations.
 
 ### 5.4 Barrel File Generation
 

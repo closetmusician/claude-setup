@@ -46,13 +46,13 @@ fi
 
 if [ -f "$GATE_DRAFT" ]; then
   # The drafting sentinel requires that the subagent prompt references the scaffold or template
-  if ! echo "$PROMPT" | grep -qi "prd-scaffold\|acme-prd-template\|prd-lite-template"; then
+  if ! echo "$PROMPT" | grep -qi "prd-scaffold\|diligent-prd-template\|prd-lite-template"; then
     echo "PRD-WRITER AGENT GATE: Sentinel .gate-prd-draft is active (Step 4 — Draft)."
     echo ""
     echo "Your Agent prompt does NOT reference the PRD scaffold or template."
     echo "You MUST either:"
     echo "  1. Include the scaffold content from ~/.claude/skills/prd-writer/templates/prd-scaffold.md"
-    echo "  2. OR reference acme-prd-template.md in the subagent prompt"
+    echo "  2. OR reference diligent-prd-template.md in the subagent prompt"
     echo ""
     echo "This prevents structural amnesia after long Q&A sessions."
     echo "Re-read SKILL.md Step 4 instructions before spawning the drafting subagent."

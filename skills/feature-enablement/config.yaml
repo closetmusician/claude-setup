@@ -7,7 +7,7 @@
 pm:
   name: ""
   email: ""
-  organization: "Acme Corporation"
+  organization: "Diligent Corporation"
 
 # Input Sources
 input_sources:
@@ -24,8 +24,8 @@ input_sources:
       prompt: "Gong call links (optional, comma-separated URLs)"
       required: false
     - type: "insider_sessions"
-      name: "Acme Insider sessions"
-      prompt: "Acme Insider session transcripts/links (optional)"
+      name: "Diligent Insider sessions"
+      prompt: "Diligent Insider session transcripts/links (optional)"
       required: false
 
   # Design sources
@@ -256,7 +256,7 @@ downstream_assets:
       roadmap_tease: true          # Optional future roadmap box
       print_optimized: true        # CSS for clean printing/PDF
     branding:
-      brand_color: "#d32f2f"       # Default Acme red - customize per org
+      brand_color: "#d32f2f"       # Default Diligent red - customize per org
       brand_rgb: "211, 47, 47"     # RGB for transparency effects
 
   - id: "demo_script"

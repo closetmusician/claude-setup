@@ -14,7 +14,8 @@ the tool's local draft; finish via path 1 then 2; else stop and report (o365-doc
 
 | Operation | Tool | BANNED alternatives |
 |---|---|---|
-| Excel read/write (ALL) | `node ~/Code/pm_os/bin/graph-workbook.js` | pandas, openpyxl, xlrd, xlsxwriter |
+| Excel read/write — file hosted on SharePoint/OneDrive | `node ~/Code/pm_os/bin/graph-workbook.js` | openpyxl/pandas on a downloaded copy that is re-uploaded (breaks co-authoring locks, skips the audit log) |
+| Excel read/write — local file (not in a OneDrive/SharePoint sync folder) | `uv run --with openpyxl` (writes) or `uv run --with pandas --with openpyxl` (analysis); take a byte-copy backup first | graph-workbook.js (needs a URL, cannot open a local path); `~/Code/.venv` (has neither library, verified 2026-09-11) |
 | Download from SharePoint/OneDrive | `node ~/Code/pm_os/bin/graph-file-ops.js download` | requests, wget, curl+parse |
 | Upload to SharePoint/OneDrive | `node ~/Code/pm_os/bin/graph-file-ops.js upload` | requests.post, curl PUT |
 | Word/PPT in-session edits & comments (FIRST path) | pm-os-bridge (Office.js) | raw Graph first-resort, lock clearing, bypass headers |
@@ -26,7 +27,7 @@ the tool's local draft; finish via path 1 then 2; else stop and report (o365-doc
 | Shared doc locking | `node ~/Code/pm_os/bin/sp-checkout.js` | — |
 | Org chart | `node ~/Code/pm_os/bin/graph-org-chart.js` | — |
 | Token routing | `node ~/Code/pm_os/bin/get-foci-token.js --for <alias>` | — |
-| Docs → markdown (PPTX/DOCX/HTML/EPUB…) | `~/Code/.venv/bin/markitdown` | custom zipfile/xml scripts, pandoc |
+| Docs → markdown (PPTX/DOCX/HTML/EPUB…) | `~/Code/PM/.venv/bin/markitdown` (verified 2026-09-20; `~/Code/.venv/bin/markitdown` does NOT exist — that venv has no markitdown, and no `markitdown` is on PATH) | custom zipfile/xml scripts, pandoc |
 | GitHub operations (clone, PRs, issues, CI runs, releases) | `gh` CLI | raw git-over-https URL guessing, scraping github.com, hand-built API curl |
 
 If you're writing custom download logic for a file you intend to parse, you've already made

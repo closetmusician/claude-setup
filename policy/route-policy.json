@@ -78,22 +78,22 @@
     },
     {
       "match": { "subtask_class": "prose-voice" },
-      "tier": "fable",
+      "tier": "opus",
       "reason": "prose-narrative-voice"
     },
     {
       "match": { "subtask_class": "prd-narrative" },
-      "tier": "fable",
+      "tier": "opus",
       "reason": "prd-narrative-writing"
     },
     {
       "match": { "subtask_class": "briefing" },
-      "tier": "fable",
+      "tier": "opus",
       "reason": "briefing-communication"
     },
     {
       "match": { "verb_re": "^(write-prd|brief|narrate|draft-comms|yk-voice|storytell)$" },
-      "tier": "fable",
+      "tier": "opus",
       "reason": "creative-prose-briefing"
     }
   ],

@@ -19,12 +19,17 @@ fi
 # Resolve script directory and source shared helpers
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/project-root.sh"
+source "${SCRIPT_DIR}/lib/workspace-kind.sh"
 # Pillar I emit — purely additive; fail-open via emit_event design + || true guard.
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/emit-event.sh" 2>/dev/null || true
 
 # Governance only active when sentinel exists (created by lead-orchestrator)
 [[ ! -f "$(get_governance_state_dir)/.active" ]] && exit 0
+# The spawn template applies to VIBE repos only (.claude/phase.json); docs workspaces and
+# plain code repos spawn freely (governance-scope-spec.md C3).
+is_vibe_repo "$PWD" || exit 0
+[[ "$(get_workspace_kind "$PWD" 2>/dev/null)" == "code" ]] || exit 0
 
 # ─── Read input ───
 INPUT=$(cat)
@@ -67,9 +72,23 @@ fi
 # Extract text after ## Mandatory Context until next ## header or end
 CONTEXT_SECTION=$(echo "$PROMPT" | sed -n '/^## Mandatory Context/,/^## /{ /^## Mandatory Context/d; /^## /d; p; }')
 
-# Check for at least one spec reference (docs/*.md path or REQ-NNN pattern)
-if ! echo "$CONTEXT_SECTION" | grep -qE '(docs/.*\.md|REQ-[0-9]+)'; then
-  block_and_exit "## Mandatory Context exists but contains no spec references (expected docs/*.md or REQ-NNN pattern)."
+# has_existing_md_ref
+# Purpose: exit 0 when the context names a .md path that exists (absolute or repo-relative).
+# Usage: has_existing_md_ref || block_and_exit "..."
+# Gotchas: lets the orchestrator point at a spec it wrote anywhere, not only under docs/.
+has_existing_md_ref() {
+  local ref root
+  root="$(get_project_root)"
+  while IFS= read -r ref; do
+    [[ -z "$ref" ]] && continue
+    [[ -f "$ref" || -f "$root/$ref" ]] && return 0
+  done < <(echo "$CONTEXT_SECTION" | grep -oE '[A-Za-z0-9_./~-]+\.md' || true)
+  return 1
+}
+
+# Spec reference: docs/*.md path, REQ-NNN, or any existing .md file
+if ! echo "$CONTEXT_SECTION" | grep -qE '(docs/.*\.md|REQ-[0-9]+)' && ! has_existing_md_ref; then
+  block_and_exit "## Mandatory Context exists but contains no spec references (expected docs/*.md, REQ-NNN, or a path to an existing .md spec)."
 fi
 
 # ─── CHECK 2: Requirement Map ───
@@ -111,7 +130,7 @@ fi
 
 # ─── ALL CHECKS PASSED — persist state ───
 # Extract spec references for passthrough
-SPEC_REFS=$(echo "$CONTEXT_SECTION" | grep -oE '(docs/[^ ]*\.md|REQ-[0-9]+)' | jq -R -s 'split("\n") | map(select(length > 0))')
+SPEC_REFS=$(echo "$CONTEXT_SECTION" | { grep -oE '([A-Za-z0-9_./~-]+\.md|REQ-[0-9]+)' || true; } | jq -R -s 'split("\n") | map(select(length > 0))')
 
 echo "$REQ_MAP_JSON" > "${STATE_DIR}/latest-requirement-map.json"
 echo "$SPEC_REFS" > "${STATE_DIR}/latest-passthrough-refs.json"

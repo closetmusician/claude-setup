@@ -15,6 +15,12 @@ if ! command -v jq &>/dev/null; then
   exit 0
 fi
 
+# Only active when governance sentinel exists (lead-orchestrator in VIBE repo).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/project-root.sh"
+STATE_GOV="$(get_governance_state_dir)"
+[[ ! -f "$STATE_GOV/.active" ]] && exit 0
+
 # ─── Read full payload from stdin (never env) ───────────────────────────────
 PAYLOAD="$(cat)"
 

@@ -134,7 +134,7 @@ else
   done
   echo ""
   echo "Fix these issues before writing the PRD."
-  echo "Template: ~/.claude/skills/prd-writer/templates/acme-prd-template.md"
+  echo "Template: ~/.claude/skills/prd-writer/templates/diligent-prd-template.md"
   echo "Scaffold: ~/.claude/skills/prd-writer/templates/prd-scaffold.md"
   exit 2
 fi

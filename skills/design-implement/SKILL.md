@@ -172,10 +172,10 @@ src/libs/<feature-name>/
 Add to `src/tsconfig.json`:
 
 ```json
-"@acmecorp/boards-cloud/<feature>/core/*": ["features/<feature>/core/src/*"],
-"@acmecorp/boards-cloud/<feature>/ui/*": ["features/<feature>/ui/src/*"],
-"@acmecorp/boards-cloud/<feature>-lib/core/*": ["libs/<feature>/core/src/*"],
-"@acmecorp/boards-cloud/<feature>-lib/ui/*": ["libs/<feature>/ui/src/*"]
+"@diligentcorp/boards-cloud/<feature>/core/*": ["features/<feature>/core/src/*"],
+"@diligentcorp/boards-cloud/<feature>/ui/*": ["features/<feature>/ui/src/*"],
+"@diligentcorp/boards-cloud/<feature>-lib/core/*": ["libs/<feature>/core/src/*"],
+"@diligentcorp/boards-cloud/<feature>-lib/ui/*": ["libs/<feature>/ui/src/*"]
 ```
 
 Convention: feature path uses the feature name; lib path appends `-lib` suffix.
@@ -216,7 +216,7 @@ export class <ComponentName>Component {
 - `ChangeDetectionStrategy.OnPush` always.
 - `standalone: true` for lib components (Angular 20 default).
 - Signal-based inputs: `input()`, `input.required()`, `output()`.
-- Presentational components extend `ComponentBase` from `@acmecorp/boards-cloud/core/core/base/component-base`.
+- Presentational components extend `ComponentBase` from `@diligentcorp/boards-cloud/core/core/base/component-base`.
 - Page-level components extend `ScrollableComponentV2Base` for scrollable routes.
 - Selector prefix: `bc-<feature-name>-` (e.g., `bc-gc-homepage-action-card`).
 - ABOUTME comment block at file top (5 lines).
@@ -230,8 +230,8 @@ export class <ComponentName>Component {
 
 @use 'styles/mixins' as mixins;
 @use 'styles/media-queries' as media;
-@use '@acmecorp/atlas-design-tokens/dist/themes/lens/scss/core' as core;
-@use '@acmecorp/atlas-design-tokens/dist/themes/lens/scss/semantic' as semantic;
+@use '@diligentcorp/atlas-design-tokens/dist/themes/lens/scss/core' as core;
+@use '@diligentcorp/atlas-design-tokens/dist/themes/lens/scss/semantic' as semantic;
 
 :host {
   @include mixins.component-inline-fill;
@@ -384,7 +384,7 @@ For each CSS custom property in the HTML mock's `:root`, find the closest Atlas 
 | `<input type="search">` | Atlas `<atlas-input>` or `<mat-form-field>` |
 | `<button>` | Atlas `<button mat-button>` with Atlas styling |
 | `<a href="#">` with button styling | `<a mat-button>` or `routerLink` |
-| SVG icons inline | Replace with `@acmecorp/atlas-angular-icons` |
+| SVG icons inline | Replace with `@diligentcorp/atlas-angular-icons` |
 | `<span class="badge">3</span>` | Atlas badge component if available |
 | Gradient decorative strips | SCSS `::before`/`::after` pseudo-elements |
 
@@ -418,9 +418,9 @@ Create `features/<name>/ui/src/<name>.routes.ts`:
 // Lazy-loaded via loadChildren in app.routes.ts.
 
 import { Route } from '@angular/router';
-import { path } from '@acmecorp/boards-cloud/core/core/routing/route-template-helper';
+import { path } from '@diligentcorp/boards-cloud/core/core/routing/route-template-helper';
 import { <featureCamel>FeaturePathSegment, <featureCamel>Route }
-  from '@acmecorp/boards-cloud/<feature>/core/constants/routes.constants';
+  from '@diligentcorp/boards-cloud/<feature>/core/constants/routes.constants';
 import { <PageComponent> } from './components/<page-name>/<page-name>.component';
 
 export function routes(): Route[] {
@@ -439,13 +439,13 @@ Add to `apps/boards-frontend/src/app/app.routes.ts`:
 
 ```typescript
 import { <featureCamel>FeaturePathSegment }
-  from '@acmecorp/boards-cloud/<feature>/core/constants/routes.constants';
+  from '@diligentcorp/boards-cloud/<feature>/core/constants/routes.constants';
 
 // In the routes array:
 {
   path: <featureCamel>FeaturePathSegment,
   loadChildren: () =>
-    import('@acmecorp/boards-cloud/<feature>/ui/<feature>-ui.module')
+    import('@diligentcorp/boards-cloud/<feature>/ui/<feature>-ui.module')
       .then(m => m.<FeaturePascal>UiModule),
   canActivate: [authGuard, environmentGuard],
   data: { title: $localize`<Feature Title>` },

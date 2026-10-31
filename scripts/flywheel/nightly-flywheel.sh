@@ -247,6 +247,7 @@ PYEOF
     continue
   }
 
+  # billing: claude.ai plan (scheduled job, Yu-Kuan 2026-10-25); non-scheduled launches use scripts/lib/claude-bedrock.sh
   # Run write-incapable claude with timeout
   _raw_output=""
   _claude_exit=0

@@ -16,7 +16,7 @@
 
 | Param | Default | Description |
 |---|---|---|
-| `--channel` | AI-AMA (`19:REDACTED-THREAD-ID`, team `2908ba88-e75c-4591-b839-4af4757a7787`) | Teams channel URL(s) or channel-id(s). Accepts 1-N, comma-separated. |
+| `--channel` | AI-AMA (`19:80de9d905a3e4749ade622091c222cc0@thread.tacv2`, team `2908ba88-e75c-4591-b839-4af4757a7787`) | Teams channel URL(s) or channel-id(s). Accepts 1-N, comma-separated. |
 | `--window` | `90d` | Evidence recency window. Only evidence within this window survives to the final report. Older evidence is removed, not flagged. |
 | `--output` | `./channel-research/report.md` | Output file path for the final report |
 | `--temp` | `./channel-research/temp/` | Temp directory for agent intermediates (all agents persist here) |
@@ -165,7 +165,7 @@ The orchestrator must frame the codex prompt to cover these verification axes:
 
 Before declaring done:
 - Every PRD reference must link to a verified Confluence page (search Glean to confirm URL)
-- Every Jira reference must be a working `https://example.atlassian.net/browse/` link
+- Every Jira reference must be a working `https://diligentbrands.atlassian.net/browse/` link
 - Every Teams post reference must be an inline URL, not a "see Teams" hand-wave
 - Workarounds must be concrete actions (not "we should think about...")
 - Evidence older than `--window` must be removed, not just flagged

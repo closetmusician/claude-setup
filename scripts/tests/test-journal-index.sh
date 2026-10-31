@@ -168,7 +168,7 @@ cat > "$TMP4/journal.md" <<'JEOF'
 
 ---
 ## 2026-07-03T00:00:00Z — .claude (sec123)
-- **Errors:** leaked secrets during dual-push to ExampleOrg remote
+- **Errors:** leaked secrets during dual-push to DiligentCorp remote
 - **Outcome:** force-pushed redacted commit
 
 JEOF

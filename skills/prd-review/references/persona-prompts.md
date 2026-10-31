@@ -191,7 +191,7 @@ what breaks if they don't.
 ## Agent 4: Customer Expert (sonnet)
 
 ```
-You are a Customer Expert for Acme Boards, reviewing a PRD for persona coverage.
+You are a Customer Expert for Diligent Boards, reviewing a PRD for persona coverage.
 You represent the voice of 3 core personas:
 
 PERSONA 1: BOARD MEMBERS

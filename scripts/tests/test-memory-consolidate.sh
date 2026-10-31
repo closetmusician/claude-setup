@@ -106,11 +106,11 @@ build_fixture_lessons() {
 - **PAIR-D-NEW**: transcript purge window is now 180 days (cleanupPeriodDays updated 2026-07-03).
   Pre-purge content recoverable via episodic-memory archive at ~/.config/superpowers/.
 
-- **PAIR-E-OLD**: ~/.claude git remote has two push targets: closetmusician and ExampleOrg.
+- **PAIR-E-OLD**: ~/.claude git remote has two push targets: closetmusician and DiligentCorp.
   Both receive every push from the ~/.claude repo.
 
-- **PAIR-E-NEW**: ~/.claude remote push target is closetmusician ONLY. ExampleOrg was removed
-  after the 2026-07-03 secret leak incident. Never re-add ExampleOrg as a push target.
+- **PAIR-E-NEW**: ~/.claude remote push target is closetmusician ONLY. DiligentCorp was removed
+  after the 2026-07-03 secret leak incident. Never re-add DiligentCorp as a push target.
 
 - **NON-SUPERSEDED**: MCP tools require ToolSearch bootstrap before first use. Schemas are
   not in context by default. Always call ToolSearch before any MCP tool invocation.

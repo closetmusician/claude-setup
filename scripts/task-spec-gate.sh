@@ -18,6 +18,10 @@ if [[ "$tool_name" != "Task" ]]; then
   exit 0
 fi
 
+# Spec references are a VIBE rule; outside VIBE repos (.claude/phase.json) allow (governance-scope-spec.md C3).
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/governance/lib/workspace-kind.sh"
+is_vibe_repo "$PWD" || exit 0
+
 # Extract prompt from tool_input.prompt or tool_input.description
 prompt="$(echo "$input" | jq -r '.tool_input.prompt // .tool_input.description // empty')"
 if [[ -z "$prompt" ]]; then

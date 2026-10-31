@@ -47,7 +47,7 @@ Two modes:
 ### Step 1: Verify Atlassian Connectivity
 
 ```bash
-bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN "https://example.atlassian.net/rest/api/3/myself" | head -c 200'
+bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/myself" | head -c 200'
 ```
 
 If this fails, invoke `/atlassian-connect` and return here after.
@@ -64,12 +64,12 @@ Run all of these in parallel:
 
 1. **Fetch target ticket(s):**
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN "https://example.atlassian.net/rest/api/3/issue/{KEY}?fields=summary,status,description,issuetype,assignee" | python3 -m json.tool'
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/issue/{KEY}?fields=summary,status,description,issuetype,assignee" | python3 -m json.tool'
    ```
 
 2. **Fetch children** (if epic or has sub-tasks):
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN -H "Content-Type: application/json" -X POST "https://example.atlassian.net/rest/api/3/search/jql" -d "{\"jql\":\"parent={KEY} ORDER BY key ASC\",\"maxResults\":50,\"fields\":[\"key\",\"summary\",\"status\",\"description\",\"issuetype\",\"assignee\"]}" | python3 -m json.tool'
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN -H "Content-Type: application/json" -X POST "https://diligentbrands.atlassian.net/rest/api/3/search/jql" -d "{\"jql\":\"parent={KEY} ORDER BY key ASC\",\"maxResults\":50,\"fields\":[\"key\",\"summary\",\"status\",\"description\",\"issuetype\",\"assignee\"]}" | python3 -m json.tool'
    ```
 
 3. **Fetch git commits** related to the ticket(s):
@@ -79,7 +79,7 @@ Run all of these in parallel:
 
 4. **Fetch available transitions** for each ticket:
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN "https://example.atlassian.net/rest/api/3/issue/{KEY}/transitions" | python3 -c "
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/issue/{KEY}/transitions" | python3 -c "
    import json, sys
    data = json.load(sys.stdin)
    for t in data.get(\"transitions\", []):
@@ -286,10 +286,10 @@ payload = json.dumps({
 
 result = subprocess.run([
     "curl", "-sf", "-w", "\\n%{http_code}",
-    "-u", f"dev@example.com:{os.environ[\"ATLASSIAN_API_TOKEN\"]}",
+    "-u", f"yklin@diligent.com:{os.environ[\"ATLASSIAN_API_TOKEN\"]}",
     "-H", "Content-Type: application/json",
     "-X", "POST",
-    "https://example.atlassian.net/rest/api/3/issue",
+    "https://diligentbrands.atlassian.net/rest/api/3/issue",
     "-d", payload
 ], capture_output=True, text=True)
 print(result.stdout)
@@ -321,7 +321,7 @@ Priority mapping: P0 → "Highest" or "High", P1 → "Medium", P2 → "Low".
 
 Use issue links to express dependencies:
 ```bash
-bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -w "%{http_code}" -u dev@example.com:$ATLASSIAN_API_TOKEN -H "Content-Type: application/json" -X POST "https://example.atlassian.net/rest/api/3/issueLink" -d "{
+bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -w "%{http_code}" -u yklin@diligent.com:$ATLASSIAN_API_TOKEN -H "Content-Type: application/json" -X POST "https://diligentbrands.atlassian.net/rest/api/3/issueLink" -d "{
   \"type\": {\"name\": \"Blocks\"},
   \"inwardIssue\": {\"key\": \"AIBM3-AAA\"},
   \"outwardIssue\": {\"key\": \"AIBM3-BBB\"}
@@ -411,7 +411,7 @@ def inline_card(url):
     """Renders as a smart link in Jira (commit links, PR links, etc.)"""
     return {"type": "inlineCard", "attrs": {"url": url}}
 
-def commit_link(sha, github_base="https://github.com/ExampleOrg/app-workspace"):
+def commit_link(sha, github_base="https://github.com/DiligentCorp/boardroom-ai"):
     """Create an inline card linking to a GitHub commit"""
     return inline_card(f"{github_base}/commit/{sha}")
 
@@ -447,10 +447,10 @@ adf = {
 payload = json.dumps({"fields": {"description": adf}})
 result = subprocess.run([
     "curl", "-sf", "-w", "\\n%{http_code}",
-    "-u", f"dev@example.com:{os.environ['ATLASSIAN_API_TOKEN']}",
+    "-u", f"yklin@diligent.com:{os.environ['ATLASSIAN_API_TOKEN']}",
     "-H", "Content-Type: application/json",
     "-X", "PUT",  # or POST for create
-    "https://example.atlassian.net/rest/api/3/issue/{KEY}",
+    "https://diligentbrands.atlassian.net/rest/api/3/issue/{KEY}",
     "-d", payload
 ], capture_output=True, text=True)
 lines = result.stdout.strip().split("\\n")
@@ -482,8 +482,8 @@ Key patterns:
 
 ## API Reference
 
-Base URL: `https://example.atlassian.net`
-Auth: Basic — `dev@example.com:$ATLASSIAN_API_TOKEN`
+Base URL: `https://diligentbrands.atlassian.net`
+Auth: Basic — `yklin@diligent.com:$ATLASSIAN_API_TOKEN`
 API version: **v3**
 
 | Operation | Endpoint | Method | Notes |

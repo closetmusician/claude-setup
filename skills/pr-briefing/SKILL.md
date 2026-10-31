@@ -370,7 +370,7 @@ repo-root/
 - **Email:** All email sends go through Resend (`application_emails.py` or `alerts.py`). Never Supabase edge functions. If you see Supabase email code, flag it.
 - **Error handling:** Catch specific exceptions (`TimeoutError`, `AuthenticationError`), never bare `except Exception`. Log the error with `logger.error()` including context.
 - **File headers:** Every `.py` file must start with a 5-line `ABOUTME:` block describing the file's purpose. Check new files for compliance.
-- **Config source:** Deployment-specific defaults come from `.acme/catalog/app-workspace.yaml`. Env vars override. No hardcoded URLs or email addresses.
+- **Config source:** Deployment-specific defaults come from `.diligent/catalog/boardroom-ai.yaml`. Env vars override. No hardcoded URLs or email addresses.
 [Derive these from the actual project. Don't invent generic patterns. If you can't find documented patterns, note "No documented conventions found — infer from existing code style."]
 
 ---

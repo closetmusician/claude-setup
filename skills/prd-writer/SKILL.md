@@ -6,7 +6,7 @@ description: "Write a high-quality, data-driven PRD (Product Requirements Docume
 ## Required Files
 - `references/quality-patterns.md` — Quality patterns with density rules
 - `references/discovery-brief-format.md` — Standalone stakeholder pitch format (Mode C only)
-- `templates/acme-prd-template.md` — Full PRD structure template (Mode A)
+- `templates/diligent-prd-template.md` — Full PRD structure template (Mode A)
 - `templates/prd-lite-template.md` — PRD-Lite 1-pager template (Mode B)
 - `templates/prd-scaffold.md` — TODO-marked scaffold for subagent drafting (prevents structural amnesia)
 - `scripts/validate-prd.sh` — Post-production structural validation (catches missing sections, format violations)
@@ -107,7 +107,7 @@ Based on the user's request, determine which format to use:
 
 **Mode A: Full PRD** (default)
 Trigger: User asks for a "PRD", "spec", "product requirements", or provides enough context for a full document.
-Template: `templates/acme-prd-template.md` (all 12 sections)
+Template: `templates/diligent-prd-template.md` (all 12 sections)
 
 **Mode B: PRD-Lite (1-pager / discovery brief)**
 Trigger: User asks for a "1-pager", "discovery brief", "early-stage doc", or explicitly says they don't have enough data for a full PRD.
@@ -235,7 +235,7 @@ By this point, 15-20+ messages have elapsed since skill load. You MUST re-read t
 **Step 4a: Setup (MANDATORY)**
 1. Create sentinel directory: `mkdir -p docs/.prd-writer`
 2. Create sentinel: `touch docs/.prd-writer/.gate-prd-draft`
-3. Read `templates/acme-prd-template.md` (Mode A) or `templates/prd-lite-template.md` (Mode B) — DO NOT SKIP THIS READ
+3. Read `templates/diligent-prd-template.md` (Mode A) or `templates/prd-lite-template.md` (Mode B) — DO NOT SKIP THIS READ
 4. Read `references/quality-patterns.md`
 
 **Step 4b: Spawn drafting subagent (MANDATORY — prevents context decay)**
@@ -266,7 +266,7 @@ Three hard rules:
 - *Positive example:* Step 5 summary contains a fenced block with `$ validate-prd.sh docs/briefcase-prd.md --mode full` followed by the validator's actual output lines and `exit 0`.
 - *Negative example:* Step 5 summary says "✓ Passed structural validation" with no command output shown — that is a claim, not evidence; the step is incomplete.
 
-If the script itself is missing or crashes (script failure, not validation failure), do not skip validation — manually check the PRD against the section list in `templates/acme-prd-template.md` and the REQ-format rules below, and paste your manual checklist results into the summary, stating that the validator was unavailable.
+If the script itself is missing or crashes (script failure, not validation failure), do not skip validation — manually check the PRD against the section list in `templates/diligent-prd-template.md` and the REQ-format rules below, and paste your manual checklist results into the summary, stating that the validator was unavailable.
 
 **Step 4d: Remove sentinel**
 ```bash

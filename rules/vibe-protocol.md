@@ -22,7 +22,7 @@ Orchestration mechanics + prompt templates: `~/.claude/skills/lead-orchestrator/
 - **R12 STOP Boundaries** — each subagent produces artifact(s), then STOPs; orchestrator decides next spawn.
 - **R13 N=1 Escalation** — one failed fix cycle → STOP and ask Yu-Kuan (message template: manual §11).
 - **R14** — Orchestrator never implements. **R15** — once review artifacts exist: no rebase/force-push, append only.
-- **R16 User Approval Gates** — before: parallel execution, PR creation, final merge, skipping a task, any escalation.
+- **R16 User Approval Gates** — before: PR creation, final merge, skipping a task, any escalation. The kickoff dialog is the approval for parallel work; no further opt-in.
 - **R17 Dependency Verification** — exact package/URL/min-version, verified installable before BUILD; "or equivalent" is a blocker.
 - **R18 Real Testing** — real DB (SavepointConnection), real APIs; mock ONLY external third-party HTTP; mocking a core internal dependency = P0; pristine output; no `git stash` in parallel agents.
 - **R19 Spec-Diff** — completion requires per-requirement file:line evidence; "file exists"/"agent said done" is not evidence.
@@ -57,11 +57,12 @@ For each T-XXX (respecting depends_on):
  10. PASS ⇒ stage explicitly + commit + push; update progress log
 ```
 Severity: P0 = must fix (blocks) · P1 = should fix, escalate if stuck · P2 = log to `docs/backlog.md`.
-Within-task: FOREGROUND sequential. Cross-task independent pipelines: background, artifact-monitored, user-approved (R16). QA artifacts live in `qa/FEAT-XXX/` (+`runs/`); ephemeral — squash-merge removes them.
+Within-task: FOREGROUND sequential. Cross-task independent pipelines: background, artifact-monitored, approved by the kickoff dialog. QA artifacts live in `qa/FEAT-XXX/` (+`runs/`); ephemeral — squash-merge removes them.
 Subagents MUST persist intermediates (notes, partial analyses, digests) to `docs/temp/` or `$STATE` — never hold them only in context; compaction destroys in-context state mid-pipeline.
 
 ## Subagent models per role
 Explore / code-architect / coder / QA = **sonnet**; audit, garry-review, synthesis, final verification = **opus**. Override only on user request.
+Fable is for orchestration and review/critique ONLY — never implementation, never QA execution. Every spawn must name a `model`; an omitted one inherits the parent and is denied. Rule + escape hatches: `~/.claude/rules/model-roles.md`.
 
 ## Roles, subagent/skill mapping, merge flow → lead-orchestrator skill (`~/.claude/skills/lead-orchestrator/SKILL.md`, feature mode = the full VIBE pipeline); escalation template → manual §11.
 Debugging: `/investigate` first; `superpowers:systematic-debugging` only if that plugin is enabled.

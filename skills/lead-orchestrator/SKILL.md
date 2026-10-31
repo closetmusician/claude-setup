@@ -1,6 +1,6 @@
 ---
 name: lead-orchestrator
-description: Coordinates teams of parallel subagents for feature builds, backlog burn-downs, codebase/doc audits, and live-site debugging — with a mandatory independent verifier that RE-RUNS the work before any completion claim reaches the user. Four modes — feature (full TDD/QA pipeline), backlog (light), investigate-audit (fan-out + synthesize), live-debug (reproduce → fix → re-verify). Use when the user says "orchestrate", "act as orchestrator", "spawn agent teams", "max parallel subagents", "work through the backlog", "fan out N agents", or asks to execute a plan/wave file. NOT for a single task with no parallelism (do it directly or spawn one subagent), and NOT for non-engineering content synthesis with nothing to verify (plain parallel Task calls suffice).
+description: Tier 2 only (CLAUDE.md task size tiers). Coordinates teams of parallel subagents for feature builds, backlog burn-downs, codebase/doc audits, and live-site debugging — with a mandatory check, sized by work weight (docs, light code, product code, research), that RE-RUNS the work before any completion claim reaches the user. Four modes — feature (full TDD/QA pipeline), backlog (light), investigate-audit (fan-out + synthesize), live-debug (reproduce → fix → re-verify). Use when the user says "orchestrate", "act as orchestrator", "spawn agent teams", "max parallel subagents", "work through the backlog", "fan out N agents", or asks to execute a plan/wave file. NOT for Tier 0/1 work: a small fix (1-2 files, no new behaviour) runs RED then GREEN in the session, and one medium job gets one worker, and NOT for non-engineering content synthesis with nothing to verify (plain parallel Task calls suffice).
 ---
 
 # Lead Orchestrator
@@ -8,18 +8,31 @@ description: Coordinates teams of parallel subagents for feature builds, backlog
 ## Iron Laws (all modes, no exceptions)
 
 1. **ORCHESTRATOR SPAWNS SUBAGENTS. ORCHESTRATOR NEVER CODES.** About to Edit/Write a `.py`/`.ts`/`.js`/impl file, or open a browser yourself? STOP — spawn the right subagent. "Trivial fix mid-debug" counts (worst audited violations were live-debug: 39 orchestrator edits in one session, 92e76708).
-2. **NOTHING REACHES THE USER UNVERIFIED.** Every mode ends with an independent verifier subagent that RE-RUNS the work (§Verification Stage). No "done / complete / passing / deployed" claim without a `verification.md` behind it.
+2. **NOTHING REACHES THE USER UNVERIFIED.** Every run ends with a check that RE-RUNS the work, sized by weight (§Verification Stage): docs = your own lint/render/link run with its output pasted; light code = 1 sonnet verifier; product code and research = the verifier panel. No "done / complete / passing / deployed" claim without that evidence (`verification.md` for agent checks).
 3. **QA/verification artifacts are SUBAGENT-authored** (§QA Authorship).
 
-Orchestrator tools: Task (spawn) · Read/Grep/Glob (gate checks, digests) · Write (checkpoint, orchestration log ONLY) · Bash (gate/lifecycle commands: test runs for gate checks, mkdir, sentinel touch/rm) · AskUserQuestion.
+Orchestrator tools: Task (spawn) · Read/Grep/Glob (gate checks, digests) · Write (specs, plans, checkpoint, orchestration log; enforced by role-enforcement.sh) · Bash (gate/lifecycle commands: test runs for gate checks, mkdir, sentinel touch/rm) · AskUserQuestion.
 
 ## Step 0 — Pick Mode + Parameters (announce both in your first message)
+
+### Weight and tier check (before mode routing)
+Name the weight and tier first (CLAUDE.md "Task size tiers"). This skill is Tier 2. A Tier 0 or Tier 1 ask leaves the skill.
+
+| Weight | In this skill |
+|---|---|
+| Docs (docs, config, prompts) | `backlog` waves; self-run checks; no QA or verifier agent |
+| Light code (scripts, hooks, tools) | `backlog`; coder writes RED then GREEN; 1 sonnet verifier |
+| Product code | `feature` mode, full pipeline, no shortcuts |
+| Research (audit, RCA, study) | `investigate-audit` |
+
+- A small product fix (1-2 files, no new behaviour) is Tier 0: the session runs RED then GREEN itself, then spawns one opus verifier.
+- A mixed ask splits by weight: the product-code tasks go to `feature`, the rest to `backlog`.
 
 ### Mode routing (first match wins)
 
 | Signal in the ask | Mode |
 |---|---|
-| Implementing spec'd feature tasks — repo has `.claude/phase.json`, or user demands the TDD pipeline | `feature` |
+| Implementing spec'd PRODUCT-code feature tasks — repo has `.claude/phase.json`, or user demands the TDD pipeline | `feature` |
 | A checklist of small independent items: "work through the backlog", batch fixes/chores | `backlog` |
 | Primary output is knowledge, not code: research, audit, synthesis, codebase map, multi-doc review | `investigate-audit` |
 | A running app/site misbehaves; work = reproduce → fix → confirm | `live-debug` |
@@ -32,8 +45,8 @@ If `.claude/phase.json` exists but the ask is clearly non-implementation (audit,
 | Parameter | Default | Override phrases |
 |---|---|---|
 | `parallelism` | # of independent units, cap 10 per wave | "max parallel", "max N agents" set/lift the cap |
-| `question_budget` | 1 batched AskUserQuestion up front | "ask me all questions" = ask until zero ambiguity before dispatch; "don't ask" = 0, state assumptions |
-| `progress_cadence` | one-line note per agent completion, or ~every 5 min in a long wave — unprompted | "report per wave", "quiet" |
+| `question_budget` | Safe part first, then at most 1 batched AskUserQuestion, only for a decision only Yu-Kuan can make | "ask me all questions" = ask until zero ambiguity before dispatch; "don't ask" = 0, state assumptions |
+| `progress_cadence` | one-line note per agent completion, or ~every 5 min in a long wave — unprompted · never poll in a loop shorter than 5 min; completion notices wake you | "report per wave", "quiet" |
 | `model_per_role` | explore/extract = `sonnet` · code = `sonnet` · audit/synthesis/verify = `opus` | "use opus everywhere" etc. |
 | `context_self_contained` | true — do NOT search memory/journal; all context travels inside prompts | "search memory first" = false |
 | `qa_cycles` | feature 2 (VIBE `light` 1) · backlog 1 · investigate-audit 0 · live-debug 1 | "only 1 QA cycle", "skip QA" — the verifier is NOT a QA cycle and NEVER skippable |
@@ -48,9 +61,16 @@ STATE_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.agents/claude-go
 mkdir -p "$STATE_DIR"; touch "$STATE_DIR/.orchestration-active"
 ```
 
-- `.active` is auto-created by the `activate-on-orchestrator.sh` Skill hook — governance hooks (pre-agent-gate, orchestrator-step-gate, post-agent-audit) are LIVE in **every** mode, not just feature.
+- `.active` is auto-created by the `activate-on-orchestrator.sh` Skill hook — governance hooks (pre-agent-gate, orchestrator-step-gate, post-agent-audit, parallel-scope-guard) arm only in VIBE repos (`.claude/phase.json`). Elsewhere the hook creates no `.active`, so spawns need no GOVERNANCE_EXEMPT line.
 - Ensure `.agents/` is in `.gitignore`. Stale `.gate-*` sentinels from a crashed session: `rm` with a warning.
 - `.orchestration-active` is cleared automatically at session end by `governance-cleanup.sh` (SessionEnd hook) — do not `rm` it manually; the ownership guard denies main-thread `rm` on non-`.gate` sentinels.
+
+### Upfront done_when gate (every mode, before the first worker spawn)
+Rework loops were the largest time item in the 2026-10-25 trial (up to 81 min), and most began with a narrowed task split or a wrong diagnosis.
+1. Write `<run dir>/requirements.md`: every part of the ask and the spec as REQ-NN, each with a falsifiable `done_when` line and its weight.
+2. Spawn ONE `opus` coverage check. It reads the ask, the spec and requirements.md, and returns only the gaps: parts of the ask with no REQ, and REQs whose `done_when` cannot fail.
+3. Fix the gaps, then dispatch. Every worker prompt quotes its REQ-NN lines. Every verifier checks against them.
+- Skip the coverage check for a docs-only run; still write requirements.md.
 
 ## Model routing (auto)
 
@@ -76,7 +96,7 @@ emit_event route_decision \
 
 ## Dispatch Protocol (every spawn, every mode)
 
-Build every prompt from this 15-line skeleton (it satisfies `pre-agent-gate.sh`: Mandatory Context + fenced-JSON requirement map + Constraints). Subagents see NO conversation history and do NOT load CLAUDE.md — every rule they must obey travels in the prompt.
+Build every prompt from this 15-line skeleton (it satisfies `pre-agent-gate.sh`, which arms in VIBE repos only: Mandatory Context + fenced-JSON requirement map + Constraints). Subagents see NO conversation history and do NOT load CLAUDE.md — every rule they must obey travels in the prompt.
 
 ````markdown
 You are {ROLE} for {TASK_ID} ({MODE}). {One-line objective + why it matters.}
@@ -94,7 +114,7 @@ You are {ROLE} for {TASK_ID} ({MODE}). {One-line objective + why it matters.}
 - Never `git stash`/reset/restore files you didn't modify. {EXTRA task-specific constraints}
 ````
 
-No spec exists? Point at (or create) a lightweight `docs/*.md` first — bare `NO_SPEC_REQUIRED` is hook-blocked. If `docs/spec-registry.yaml` is missing in a VIBE repo, run `~/.claude/scripts/rebuild-spec-registry.sh`.
+No spec exists? Write a lightweight spec yourself (any existing `.md` path satisfies the gate; in code repos put it under `docs/`) first — bare `NO_SPEC_REQUIRED` is hook-blocked. If `docs/spec-registry.yaml` is missing in a VIBE repo, run `~/.claude/scripts/rebuild-spec-registry.sh`.
 
 Heavyweight roles load a template file instead (skeleton already embedded — Read it, fill ALL `{PLACEHOLDERS}`):
 
@@ -106,6 +126,10 @@ Heavyweight roles load a template file instead (skeleton already embedded — Re
 | Garry-review | inline prompt, first line `GOVERNANCE_EXEMPT` — Architecture / Code Quality / Tests / Performance, P0-P2 findings to run dir | opus |
 
 **GOVERNANCE_EXEMPT rule:** allowed ONLY where a mode section explicitly grants it (backlog + live-debug coder spawns, garry-review inline). NEVER on feature-mode coder/QA spawns. NEVER as a way to dodge the verifier.
+
+**Fresh workers, not resumed ones.** Each stage (RED, GREEN, fix, review, QA, verify) gets a NEW agent with a file handoff: artifact paths, SHAs, the exact items to fix. Do not `SendMessage` a finished worker into its next stage. A resumed worker re-reads its whole history on every turn. In the 2026-10-25 side-by-side runs, cache reads were 44% of cost, and the work after resumes cost $43 of $289 (`docs/learnings/opus5.5/cost-time-breakdown.md`).
+
+**Lean gate checks.** Run each gate (validate-artifact, verify-tdd-evidence, the suite) as one Bash call and read only the exit code and the last lines. Never Read a whole artifact into your own context to clear a gate. Orchestrator turns were the top cost driver and #2 on the critical path in the same runs.
 
 ### When a hook blocks a spawn — fix and re-spawn in the SAME turn
 
@@ -163,7 +187,7 @@ Read `.claude/phase.json` for `vibe_level` (default `full`): `light` = 1 QA cycl
 
 **Artifacts** (`mkdir -p qa/FEAT-XXX/runs`; test code stays in project `tests/`; qa/ dir squashed away at merge): `T-XXX-arch.md`, `-acceptance-tests.md`, `-ready-for-review.md`, `-review-findings.md`, `-cycle-1/2.md`, `-verification.md`, `runs/T-XXX-{red|green|c1|c2}-<timestamp>.txt`.
 
-**Plan Execution (waves):** user points at a plan file with waves/tasks → Read it; auto-detect phase/branch/test dir (don't ask); check `**Reviewed:** YES` or `**Status:** APPROVED` (missing at `full` → AskUserQuestion; at `light` → warn, proceed); build dependency graph; present batches ONCE ("Proceed?"); spawn independent tasks in parallel (one message, respecting `parallelism`); run the per-task loop for each; progress note + confirmation at each wave boundary.
+**Plan Execution (waves):** user points at a plan file with waves/tasks → Read it; auto-detect phase/branch/test dir (don't ask); check `**Reviewed:** YES` or `**Status:** APPROVED` (missing at `full` → AskUserQuestion; at `light` → warn, proceed); build dependency graph; spawn independent tasks in parallel (one message, respecting `parallelism`); run the per-task loop for each; one-line progress note at each wave boundary. Run waves without confirmation; interrupt only for an escalation (N=1 rule) or a decision only Yu-Kuan can make.
 
 ---
 
@@ -176,8 +200,8 @@ Route here when: a list of small, independent items — `docs/backlog.md`, an is
 1. Read the backlog; enumerate items; any item needing design or touching 3+ files with non-obvious integration → escalate or promote to `feature` mode.
 2. **Conflict pre-flight:** group items into waves so no two agents in one wave touch the same files.
 3. Per item, spawn a coder: `templates/coder-prompt.md`, `{MODE}`=backlog, first line `GOVERNANCE_EXEMPT (mode=backlog — no acceptance-test pipeline in this mode; verifier stage still mandatory)`. Without that line the step-gate hook blocks any fix/implement prompt when no acceptance tests exist on disk — that is by design in feature mode and sanctioned-around here. Unit tests are still RED-first; commit per item.
-4. `qa_cycles`=1 (default): after each wave, spawn QA `{QA_PHASE}`=cycle-1 scoped to the wave's diffs — try to break the changed behavior. `qa_cycles`=0 (user said skip QA): skip this step; the verifier below still runs.
-5. **Wave verifier** (`{QA_PHASE}`=verify, opus): re-runs the test suite itself and spec-diffs each item's claim to file:line → `docs/temp/<run-slug>/verification.md`.
+4. Product-code waves only (docs and light-code waves skip this step; their weight check in step 5 still runs). `qa_cycles`=1 (default): after each wave, spawn QA `{QA_PHASE}`=cycle-1 scoped to the wave's diffs — try to break the changed behavior. `qa_cycles`=0 (user said skip QA): skip this step; the verifier below still runs.
+5. **Wave verifier** (`{QA_PHASE}`=verify): re-runs the test suite itself and spec-diffs each item's claim to file:line → `docs/temp/<run-slug>/verification.md`. Model by weight: light code `sonnet`, product code `opus`. A docs-only wave skips the agent; you run the lint/render/link checks and paste the output.
 6. Check off a backlog item ONLY when it is VERIFIED in verification.md — never on a coder's self-report. Progress note per wave; checkpoint after every wave.
 
 ---
@@ -190,6 +214,9 @@ Route here when: the deliverable is knowledge — research studies, adversarial 
 
 1. **Scope statement** (≤2 lines): decomposition + lane count. State it and proceed — it is a statement, not a question (unless destructive work or `question_budget` says ask). "Scope: 6 research lanes → 1 synthesis → 1 verification pass. Proceeding — say stop to adjust."
 2. **Waves of workers** via the inline skeleton; `sonnet` for extraction/search lanes, `opus` for judgment lanes; one output file per agent in `docs/temp/<run-slug>/` (e.g., `wave1-agent3-<topic>.md`).
+   - **Root-cause audits:** split lanes by failure path end to end, not by file, and always give one lane the writers and side effects (draft writers, refreshers, retries, deletions). Evidence: in fix-ctx-002 every workflow lane traced the read path only and missed 4 writer-side causes that the winning run found.
+   - **Repro tests** go in the repo's real test dir, run under its normal test command, use no absolute `/tmp` paths, and fail on an assertion.
+   - **Fix direction:** a proposed fix that weakens a safety check (e.g. narrows a detector) needs an explicit argument; the verifier treats it as BLOCKING otherwise.
 3. **Progress notes** per cadence. Agent returns empty/dies → re-spawn ONCE → still failing: report the hole in the progress note and continue other lanes. Never silently drop a lane.
 4. **Synthesis** (`opus`) writes the draft deliverable. The synthesizer is a PRODUCER — its output gets verified too.
 5. **Verifier** (`{QA_PHASE}`=verify, opus, fresh agent, AFTER synthesis): re-derives claims from primary sources → `verification.md`. Why last: b676137b — every worker was audited, then the synthesizer ran last and hallucinated "no opt-in required" into the final matrix; nobody audited the synthesizer. Also 301c24ba: fabricated $150–300M figure + inaccessible sources reported "confirmed".
@@ -207,7 +234,7 @@ Route here when: a running app/site/service misbehaves and the deliverable is a 
 
 1. **Golden reference FIRST:** pin down "correct" before touching anything — a working environment/commit, a spec quote, or user-stated expected output, plus the exact user-facing URL/command. No reference available → spend one question.
 2. **REPRODUCER subagent** (browser work via the browse skill, `~/.claude/skills/browse/bin/browse`): reproduce on the exact user-facing target; write repro steps + evidence (screenshots/output) to the run dir.
-3. **DIAGNOSER subagent:** root cause with file:line, `/investigate` discipline — no symptom fixes. Small scope → may be the same agent as 2.
+3. **DIAGNOSER subagent:** root cause with file:line, `/investigate` discipline — no symptom fixes. Small scope → may be the same agent as 2. Use `opus`, and never diagnose in your own context. Trace every caller of the faulty path, including skill and doc instructions (pm-login-002: the winning run found that SKILL.md never loaded the saved session; the losing run diagnosed in-session, fixed one file, and missed it).
 4. **FIXER:** `templates/coder-prompt.md`, `{MODE}`=live-debug, `GOVERNANCE_EXEMPT (mode=live-debug — no acceptance-test pipeline; verifier stage still mandatory)`. Root-cause fix + a regression test that is RED on the bug first.
 5. **VERIFIER** (`{QA_PHASE}`=verify): re-executes the ORIGINAL repro steps against the SAME user-facing target (not the fixer's local check — d8450959 "verified 31/31" against the wrong URL), compares to the golden reference, runs the regression test → `verification.md` with command/screenshot evidence.
 6. FAIL → one fix cycle (N=1) → escalate.
@@ -218,14 +245,34 @@ Route here when: a running app/site/service misbehaves and the deliverable is a 
 
 ## Verification Stage (mandatory in EVERY mode — the completion gate)
 
-Before ANY completion claim to the user, spawn ONE fresh verifier: `templates/qa-prompt.md`, `{QA_PHASE}`=verify, model `opus`.
+Before ANY completion claim to the user, run the check that fits the weight:
+
+| Weight | Check |
+|---|---|
+| Docs | you run lint/render/link checks; paste output |
+| Light code | 1 sonnet verifier (`templates/qa-prompt.md`) |
+| Product code, research | the verifier panel below |
+
+For product code and research, spawn the **verifier panel** in ONE message, so the lenses run in parallel. The lead verifier uses `templates/qa-prompt.md`, `{QA_PHASE}`=verify, model `opus`. The other lenses use the inline skeleton:
+
+| Lens | Model | Checks |
+|---|---|---|
+| spec-diff (lead) | opus | every requirement, with evidence |
+| adversarial | opus | edge inputs, false claims |
+| mutation probe | sonnet | break each fix; a test must fail |
+| user-run | sonnet | follow the docs as the user |
+
+- Merge the findings yourself into one BLOCKING list. The panel took 9-11 min wall time in the 2026-10-25 trial and found 22-46 findings per build, so it costs tokens, not time.
+- A panel judges the work on its own terms. It does not replace a correct diagnosis or decomposition at the start (REPORT.md §9).
 
 - **RE-RUN, don't re-read.** "Tests pass" → verifier runs the suite itself. "Code does X" → verifier opens file:line itself. "Deployed/works" → verifier hits the exact URL/command the USER will use. "Source says Y" → verifier opens the source. Producer citations are leads, not evidence.
 - **Producer ≠ verifier.** Whoever wrote the code, tests, or synthesis is a producer; the last producer to touch content can never be the checker.
 - Verdicts: VERIFIED (re-derived, evidence cited) · UNVERIFIED (source/check inaccessible — NEVER upgraded to confirmed) · CONTRADICTED (quote both sides).
 - Output `verification.md` in the run dir: claim table (claim ≤15 words | where | verdict | file:line / URL / command output), counts, BLOCKING list. Sample floor: all claims if ≤15, else all figures/quotes/status claims + a 10-claim random sample (state what was sampled).
-- Verifier reports, never fixes. CONTRADICTED/BLOCKING → producer fix → re-verify only the fixed claims → still failing: escalate with both sides quoted.
-- Your completion report = deliverable paths + counts (N VERIFIED / M UNVERIFIED / 0 CONTRADICTED) + open holes. A completion report without verification.md is a violation (≥9 user-caught fake completions in this skill's history; 46 trust incidents in 6 months harness-wide).
+- Verifier reports, never fixes. CONTRADICTED/BLOCKING → producer fix → re-verify only the fixed claims (round 2, and only for P0/P1 findings; P2 findings go straight to the open items) → still failing: STOP and escalate with both sides quoted. **Hard cap: 2 verifier rounds per request. Never start round 3.**
+- **Scope lock:** the verifier checks the original ask and its `done_when` lines. It opens no new edge-case hunts. Findings outside scope go to the open-items list.
+- **Golden reference:** every verifier prompt names what "correct" is and the exact user-facing target (path, URL or command).
+- Your completion report starts with `Deliverable: <path>` and a state (done / partial / running), then counts (N VERIFIED / M UNVERIFIED / 0 CONTRADICTED) + open holes. A completion report without verification.md is a violation (≥9 user-caught fake completions in this skill's history; 46 trust incidents in 6 months harness-wide).
 - Positive: verifier reruns `make test`, greps the 4 claimed file changes, hits the deployed URL → 12/12 VERIFIED.
 - Negative: verifier "confirms" by reading ready-for-review.md and repeating its claims — that is re-reading, not re-running.
 
@@ -246,7 +293,7 @@ Before ANY completion claim to the user, spawn ONE fresh verifier: `templates/qa
 
 | Sentinel (`$STATE/`) | Set | Cleared | Blocks |
 |---|---|---|---|
-| `.orchestration-active` | run start (all modes) | run end | gates `~/.claude/scripts/orchestrator-context-guard.sh` |
+| `.orchestration-active` | run start (all modes) | run end | gates `~/.claude/scripts/governance/read-budget-guard.sh` and `read-meter.sh` |
 | `.active` | auto (`activate-on-orchestrator.sh` Skill hook) | session end | enables pre-agent-gate / step-gate / post-agent-audit |
 | `.gate-pre-coder` | acceptance-tests.md returned | validated + confirmed RED | coder spawns |
 | `.gate-pre-qa` | ready-for-review.md returned | TDD evidence + suite GREEN | QA/review spawns |

@@ -28,7 +28,7 @@ mkdir -p "${FAKE_SOLO_REPO}"
 (cd "${FAKE_SOLO_REPO}" && git init -q && git remote add closetmusician "https://github.com/closetmusician/dotclaude.git" 2>/dev/null || true)
 
 mkdir -p "${FAKE_CORP_REPO}"
-(cd "${FAKE_CORP_REPO}" && git init -q && git remote add origin "https://github.com/ExampleOrg/hermes.git" 2>/dev/null || true)
+(cd "${FAKE_CORP_REPO}" && git init -q && git remote add origin "https://github.com/DiligentCorp/hermes.git" 2>/dev/null || true)
 
 cleanup() {
   rm -rf "${TMPDIR_TEST}"
@@ -108,11 +108,11 @@ fi
 
 # ── Case 3: AUTONOMOUS_RUN=1, registered, git push to corporate remote → DENY + P0 ─
 echo ""
-echo "--- Case 3: registered + git push to ExampleOrg remote → DENY ---"
+echo "--- Case 3: registered + git push to DiligentCorp remote → DENY ---"
 REG_STATE_3="${TMPDIR_TEST}/state-case3"
 SID_3=$(setup_registered_session "${REG_STATE_3}")
 PAYLOAD=$(jq -cn --arg sid "$SID_3" '{"session_id":$sid,"tool_name":"Bash","tool_input":{"command":"git push origin main"}}')
-# Run from the fake-corp-repo so the guard can detect the ExampleOrg remote.
+# Run from the fake-corp-repo so the guard can detect the DiligentCorp remote.
 OUTPUT=$(cd "${FAKE_CORP_REPO}" && HARNESS_STATE_OVERRIDE="${REG_STATE_3}" AUTONOMOUS_RUN=1 \
   env -u SESSION_ID \
   bash "${GUARD_SCRIPT}" <<< "${PAYLOAD}" 2>/dev/null)
@@ -193,22 +193,22 @@ else
   assert_eq "push via indirection: documented residual (no false-positive)" "PASS" "PASS"
 fi
 
-# ── Case 9 (bonus per spec): corporate remote substring 'acme' → DENY ─────
+# ── Case 9 (bonus per spec): corporate remote substring 'diligent' → DENY ─────
 echo ""
-echo "--- Case 9: 'acme' in remote URL → DENY regardless of branch name ---"
-FAKE_ACME_REPO="${TMPDIR_TEST}/fake-acme-repo"
-mkdir -p "${FAKE_ACME_REPO}"
-(cd "${FAKE_ACME_REPO}" && git init -q && git remote add origin "https://github.com/ExampleOrg/some-repo.git" 2>/dev/null || true)
+echo "--- Case 9: 'diligent' in remote URL → DENY regardless of branch name ---"
+FAKE_DILIGENT_REPO="${TMPDIR_TEST}/fake-diligent-repo"
+mkdir -p "${FAKE_DILIGENT_REPO}"
+(cd "${FAKE_DILIGENT_REPO}" && git init -q && git remote add origin "https://github.com/DiligentCorp/some-repo.git" 2>/dev/null || true)
 REG_STATE_9="${TMPDIR_TEST}/state-case9"
 SID_9=$(setup_registered_session "${REG_STATE_9}")
 PAYLOAD=$(jq -cn --arg sid "$SID_9" '{"session_id":$sid,"tool_name":"Bash","tool_input":{"command":"git push origin feat/safe-branch"}}')
-OUTPUT=$(cd "${FAKE_ACME_REPO}" && HARNESS_STATE_OVERRIDE="${REG_STATE_9}" AUTONOMOUS_RUN=1 \
+OUTPUT=$(cd "${FAKE_DILIGENT_REPO}" && HARNESS_STATE_OVERRIDE="${REG_STATE_9}" AUTONOMOUS_RUN=1 \
   env -u SESSION_ID \
   bash "${GUARD_SCRIPT}" <<< "${PAYLOAD}" 2>/dev/null)
 if printf '%s' "${OUTPUT}" | grep -q 'permissionDecision.*deny'; then
-  assert_eq "acme remote substring: DENY" "PASS" "PASS"
+  assert_eq "diligent remote substring: DENY" "PASS" "PASS"
 else
-  assert_eq "acme remote substring: DENY" "PASS" "FAIL"
+  assert_eq "diligent remote substring: DENY" "PASS" "FAIL"
 fi
 
 # ── SUMMARY ───────────────────────────────────────────────────────────────────

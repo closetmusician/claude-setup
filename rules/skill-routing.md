@@ -21,6 +21,7 @@ broken?" IS /investigate). Plain git ops (commit/push/merge/rebase) are NOT skil
 | Browser navigation, research, scraping, screenshots of external sites | `browse` | qa, qa-only |
 | Debug / "why is this broken" | `investigate` | |
 | Produce evidence-backed status update / "what is the status of X" / "is this done" | `evidence-backed-status` | |
+| Short exec email that is NOT the PM weekly: summary/recommendation to a boss from notes, or one named project team's progress email / "exec email" / "summary email to my boss" | `exec-email` | pm-weekly (the PM weekly status email, own format), evidence-backed-status |
 | Write or debug a hook / "hook not firing" / "hook is silently failing" / author a hook test fixture | `hook-authoring` | |
 | Orchestrate multi-agent work / fan-out / execute a plan via subagents | `lead-orchestrator` — mode-split: the skill itself routes to feature (full VIBE pipeline), backlog, investigate-audit, or live-debug; do not pre-select a mode | |
 | Ship / create PR (then briefing AFTER creation) | `ship`, then `pr-briefing` | |
@@ -38,7 +39,7 @@ broken?" IS /investigate). Plain git ops (commit/push/merge/rebase) are NOT skil
 | Connect to Salesforce / "query Salesforce" / "set up Salesforce MCP" / CRM data — accounts, opportunities, cases (SOQL) | `salesforce-connect` | tableau-connect (that is Tableau BI, not the CRM) |
 | Connect/verify EVERYTHING at once / "connect to everything" / "bring all sources online" / master connect | `connect-all` (invokes glean + gong + tableau + salesforce) | the single-source connect skills (use those to fix one source) |
 
-Tool preference: docs→markdown = `~/Code/.venv/bin/markitdown` (never custom extraction).
+Tool preference: docs→markdown = `~/Code/PM/.venv/bin/markitdown` (never custom extraction).
 GitHub ops = `gh` CLI (see tool-registry).
 
 Hook precedence — `gh pr create`: scripts/skill-routing-guard.sh HARD-denies it (exit 2);

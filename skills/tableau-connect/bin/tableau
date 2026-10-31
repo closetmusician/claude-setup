@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# ABOUTME: tableau-connect CLI — connect Claude Code to Acme's Tableau Cloud.
+# ABOUTME: tableau-connect CLI — connect Claude Code to Diligent's Tableau Cloud.
 # ABOUTME: Registers the official @tableau/mcp-server (PAT auth) with Claude Code and
 # ABOUTME: verifies REST connectivity. Reads the PAT from ~/.secrets, never from args/stdout.
 # ABOUTME: Node<22.7.5 is auto-shimmed to Homebrew node@24 so the MCP server can launch.
 # ABOUTME: On 401 (expired/invalid PAT) it opens the Tableau PAT-settings page to re-mint.
 set -uo pipefail
 
-# --- Config (env-overridable; defaults target Acme Cloud site acme1) -----------
+# --- Config (env-overridable; defaults target Diligent Cloud site diligent1) -----------
 SERVER="${TABLEAU_SERVER:-https://prod-useast-a.online.tableau.com}"
-SITE="${TABLEAU_SITE:-acme1}"
+SITE="${TABLEAU_SITE:-diligent1}"
 CREDS="${TABLEAU_CREDS:-$HOME/.secrets/tableau.env}"   # sourced file: TABLEAU_PAT_NAME, TABLEAU_PAT_VALUE
 API_VER="${TABLEAU_API_VERSION:-3.24}"                 # REST API version for sign-in probe
 MCP_NAME="${TABLEAU_MCP_NAME:-tableau}"
@@ -140,7 +140,7 @@ cmd_status() {
 
 cmd_help() {
   cat >&2 <<'H'
-tableau-connect — connect Claude Code to Acme Tableau Cloud via the official MCP server.
+tableau-connect — connect Claude Code to Diligent Tableau Cloud via the official MCP server.
 
   tableau setup     Verify PAT, register @tableau/mcp-server with Claude Code (do this once).
   tableau connect   Verify the PAT still authenticates (REST sign-in probe).

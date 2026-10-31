@@ -74,7 +74,7 @@ For EACH internal behavior: **RED** — write a unit test, run it, it MUST fail 
 ```markdown
 # {TASK_ID} Ready for Review
 **Verdict:** {DONE | DONE_WITH_CONCERNS (list them) | BLOCKED (why)}
-**ReviewCommit:** <SHA>
+ReviewCommit: <full SHA from `git log -1 --format=%H`; plain line, no bold — validate-artifact.sh matches `ReviewCommit: <hex>`>
 ## TDD Evidence
 | Behavior | RED SHA | GREEN SHA | Test File | Type |
 | User can create X | {ACCEPTANCE_TESTS_RED_SHA} | <impl SHA> | tests/test_x.py | acceptance |

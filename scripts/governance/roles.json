@@ -1,22 +1,11 @@
 {
   "orchestrator": {
-    "description": "Top-level agent that spawns subagents. Never writes implementation.",
+    "description": "Top-level agent that spawns subagents. Writes specs, plans and orchestration docs; workers write everything else.",
     "denied_tools": ["Write", "Edit"],
-    "exceptions": [
-      "logs/",
-      "qa/",
-      "governance/",
-      "/memory/",
-      ".claude/projects/",
-      "/journal/",
-      "/journals/",
-      "settings.json",
-      "settings.local.json",
-      ".claude/settings",
-      "/learnings/",
-      "/learning/",
-      "skills/"
-    ],
-    "safe_bash_prefixes": ["git ", "ls ", "docker ", "curl ", "cat ", "echo ", "mkdir ", "touch ", "rm -f ", "rm ", "gh ", "rtk ", "test ", "bash -n "]
+    "allow_segments": ["logs", "qa", "governance", "memory", "journal", "journals", "learnings", "handoffs", "specs", "skills", ".agents"],
+    "allow_prefixes": ["docs/plans/", ".claude/settings"],
+    "allow_basenames": ["ORCHESTRATION.md", "checkpoint.md", "*spec*.md", "*plan*.md", "*review*.md"],
+    "code_allow_prefixes": ["docs/"],
+    "docs_allow_ext": ["md", "txt", "yaml", "yml", "json"]
   }
 }

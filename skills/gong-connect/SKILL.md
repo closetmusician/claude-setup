@@ -21,6 +21,9 @@ command pops the headed SSO browser BY ITSELF, waits for you to finish SSO/MFA i
 window (polling up to `GONG_LOGIN_TIMEOUT`, default 180s), saves the refreshed session, then
 retries the original command. You never run `gong login` first. Only your one-time SSO/MFA in
 the popped window is required — that can't be removed (no admin key; it rides your own SSO).
+Parallel agents share ONE login: the first stale caller takes a lock (`<state>.login.lock`)
+and pops the window. The others wait, then reuse the saved session. If that login times out,
+they fail with exit 3 and do not pop again.
 Set `GONG_NO_AUTOLOGIN=1` to suppress the pop (e.g. headless cron with no display) — then a
 stale session just exits 3.
 
@@ -57,9 +60,13 @@ stale session just exits 3.
   looks "successful". `gong diag` distinguishes real JSON from an error page.
 - Session expires on idle; on 401/login-HTML the command auto-launches login and retries
   (see Auto-login above). The persistent profile usually makes re-login silent — no MFA re-type.
+- Logged-out `/ajax` calls return HTTP 401, which Chrome shows as its own "HTTP ERROR 401" page
+  with no sign-in text. The login poll therefore accepts only a real JSON body. Before
+  2026-10-08 it accepted that page, saved a logged-out state, and re-popped login on every call.
+  Regression suite: `scripts/tests/test-gong-connect.sh`.
 - storageState = live credential. Kept in `~/.secrets/websess` (chmod 600), never in a repo.
 - ToS/policy: automates your own provisioned access via Gong's INTERNAL API, which their
-  terms gate behind the admin API key. Use within Acme policy; throttle requests.
+  terms gate behind the admin API key. Use within Diligent policy; throttle requests.
 
 ## Autonomy note
 This CLI is pre-authorized for autonomous execution via settings.json permissions

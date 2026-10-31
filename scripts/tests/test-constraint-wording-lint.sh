@@ -8,6 +8,11 @@
 set -uo pipefail
 
 HOOK="${HOOK:-$HOME/.claude/scripts/governance/constraint-wording-lint.sh}"
+TMP=$(mktemp -d)
+GOV_STATE="$TMP/gov"
+mkdir -p "$GOV_STATE"
+touch "$GOV_STATE/.active"
+trap 'rm -rf "$TMP"' EXIT
 PASS=0; FAIL=0
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -28,7 +33,7 @@ make_non_agent_payload() {
 
 # Run hook; returns stdout.
 run_hook() {
-  printf '%s' "$1" | bash "$HOOK"
+  printf '%s' "$1" | HARNESS_GOV_STATE_DIR="$GOV_STATE" bash "$HOOK"
 }
 
 # Check: case name, expected (warn|silent|allow), actual output.
@@ -147,6 +152,17 @@ check "13 agent-no-prompt-field → fail-open silent" silent "$OUT_13"
 # ─── NEUTER-AND-FAIL CHECK ────────────────────────────────────────────────────
 # Temporarily comment out the ABSOLUTE_PATTERNS array in the hook, re-run Test 1,
 # confirm it NO LONGER warns (suite must fail). Then restore.
+# ── Test 14: Hook is inert without .active (not in governed context) ─────────
+echo "--- Test 14: inert without .active ---"
+GOV_STATE_NO_ACTIVE="$TMP/gov-no-active"
+mkdir -p "$GOV_STATE_NO_ACTIVE"
+# Deliberately do NOT create .active
+PAYLOAD_INERT=$(make_agent_payload "Work on task.
+## Constraints
+- MOVES only")
+OUT_INERT=$(printf '%s' "$PAYLOAD_INERT" | HARNESS_GOV_STATE_DIR="$GOV_STATE_NO_ACTIVE" bash "$HOOK")
+check "14 inert-without-active → silent" "silent" "$OUT_INERT"
+
 echo ""
 echo "── Neuter-and-fail check ─────────────────────────────────────────────────"
 
@@ -174,6 +190,42 @@ else
 fi
 
 # ─── Final result ─────────────────────────────────────────────────────────────
+echo ""
+echo "constraint-wording-lint: $PASS passed, $FAIL failed"
+[[ "$FAIL" -eq 0 ]]
+
+# ── Neuter .active check ─────────────────────────────────────────────────────
+echo "--- Neuter .active check ---"
+GOV_INERT="$TMP/gov-inert-neuter"
+mkdir -p "$GOV_INERT"
+
+NEUTERED_ACTIVE="$TMP/neutered-active-cwl.sh"
+cp "$HOOK" "$NEUTERED_ACTIVE"
+perl -i -pe 's/SCRIPT_DIR=.*/SCRIPT_DIR="\$HOME\/.claude\/scripts\/governance"/' "$NEUTERED_ACTIVE"
+perl -i -pe 's/\[\[ ! -f "\$STATE_GOV\/\.active" \]\] && exit 0/# NEUTERED: .active check removed/' "$NEUTERED_ACTIVE"
+chmod +x "$NEUTERED_ACTIVE"
+
+# Neutered should warn even without .active
+PAYLOAD_NA=$(make_agent_payload "Task.
+## Constraints
+- MOVES only")
+OUT_NA=$(printf '%s' "$PAYLOAD_NA" | HARNESS_GOV_STATE_DIR="$GOV_INERT" bash "$NEUTERED_ACTIVE")
+
+if printf '%s' "$OUT_NA" | jq -e '.hookSpecificOutput.additionalContext' &>/dev/null; then
+  echo "PASS: 15a neutered hook warns without .active"; PASS=$((PASS+1))
+else
+  echo "FAIL: 15a neutered hook did not warn: ${OUT_NA:-<empty>}"; FAIL=$((FAIL+1))
+fi
+
+# Real hook should be silent without .active
+OUT_REAL=$(printf '%s' "$PAYLOAD_NA" | HARNESS_GOV_STATE_DIR="$GOV_INERT" bash "$HOOK")
+if [[ -z "$OUT_REAL" ]]; then
+  echo "PASS: 15b real hook silent without .active"; PASS=$((PASS+1))
+else
+  echo "FAIL: 15b real hook warned without .active: $OUT_REAL"; FAIL=$((FAIL+1))
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 echo ""
 echo "constraint-wording-lint: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

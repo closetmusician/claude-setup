@@ -227,7 +227,7 @@ if [ ${#WARNINGS[@]} -gt 0 ]; then
   echo ""
 fi
 
-echo "Template reference: ~/.claude/skills/prd-writer/templates/acme-prd-template.md"
+echo "Template reference: ~/.claude/skills/prd-writer/templates/diligent-prd-template.md"
 echo "Scaffold reference: ~/.claude/skills/prd-writer/templates/prd-scaffold.md"
 
 if [ ${#ERRORS[@]} -gt 0 ]; then

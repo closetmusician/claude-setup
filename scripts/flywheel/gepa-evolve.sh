@@ -23,6 +23,10 @@ TIMEOUT_LIB="${CLAUDE_SCRIPTS}/lib/timeout.sh"
 # Source timeout helper if available
 [[ -f "$TIMEOUT_LIB" ]] && source "$TIMEOUT_LIB"
 
+# ── Source Bedrock helper (non-scheduled manual/standalone launch) ─────────────
+# shellcheck source=../lib/claude-bedrock.sh
+source "$CLAUDE_SCRIPTS/lib/claude-bedrock.sh" 2>/dev/null || exit 0
+
 # ── Configuration ─────────────────────────────────────────────────────────────
 SKILL_PATH="${CLAUDE_DIR}/skills/lead-orchestrator/SKILL.md"
 EVOLVE_MODEL="${GEPA_MODEL:-claude-sonnet-4-5}"
@@ -379,13 +383,18 @@ PYEOF
   local claude_cmd="$CLAUDE_BIN"
   [[ -n "${CLAUDE_SHIM:-}" ]] && claude_cmd="$CLAUDE_SHIM"
 
+  # Map to alias (claude-sonnet-4-5 → sonnet) for claude_bedrock
+  local model_alias="sonnet"
+  [[ "$EVOLVE_MODEL" == *haiku* ]] && model_alias="haiku"
+  [[ "$EVOLVE_MODEL" == *opus* ]] && model_alias="opus"
+
   if declare -f _run_with_timeout >/dev/null 2>&1; then
     raw_output="$(_run_with_timeout "$EVOLVE_TIMEOUT" \
-      "$claude_cmd" -p --model "$EVOLVE_MODEL" \
+      claude_bedrock -p --model "$model_alias" \
       --allowedTools "Read,Grep,Glob" \
       < "$prompt_file" 2>/dev/null)" || claude_exit=$?
   else
-    raw_output="$("$claude_cmd" -p --model "$EVOLVE_MODEL" \
+    raw_output="$(claude_bedrock -p --model "$model_alias" \
       --allowedTools "Read,Grep,Glob" \
       < "$prompt_file" 2>/dev/null)" || claude_exit=$?
   fi

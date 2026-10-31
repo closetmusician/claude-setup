@@ -1,113 +1,86 @@
 #!/usr/bin/env bash
-# ABOUTME: PreToolUse hook enforcing role-based write restrictions on orchestrators.
-# ABOUTME: Blocks Write/Edit/Bash for top-level agents (no agent_id) while allowing subagents.
-# ABOUTME: Exception paths (logs/, qa/, governance/) and safe Bash prefixes bypass the block.
-# ABOUTME: Configuration lives in roles.json alongside this script.
-# ABOUTME: Outputs JSON {"decision":"block","reason":"..."} to block, or exits 0 to allow.
+# ABOUTME: PreToolUse hook (Write/Edit): an orchestrator writes specs, plans and orchestration
+# ABOUTME: docs; workers (agent_id present) write everything else. Armed by $STATE/.active.
+# ABOUTME: Allow lists live in roles.json and depend on workspace kind (code vs docs).
+# ABOUTME: Paths match by whole directory segment, never by substring.
+# ABOUTME: Outputs {"decision":"block","reason":"..."} to block; exit 0 alone allows.
 
 set -euo pipefail
 
 # Safety net: never crash-block the user on hook failure.
 trap 'exit 0' ERR
 
-# Bail gracefully if jq is missing.
 if ! command -v jq &>/dev/null; then
   echo "role-enforcement: jq not found, skipping checks" >&2
   exit 0
 fi
 
-# Resolve per-project governance state directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/project-root.sh"
+source "${SCRIPT_DIR}/lib/workspace-kind.sh"
 
 # Governance only active when sentinel exists (created by lead-orchestrator)
 [[ ! -f "$(get_governance_state_dir)/.active" ]] && exit 0
 
-# ─── Read input ───
 INPUT=$(cat)
 
-# ─── Primary signal: agent_id present = subagent (worker) → always allow ───
-AGENT_ID=$(echo "$INPUT" | jq -r '.agent_id // empty')
-if [[ -n "$AGENT_ID" ]]; then
-  exit 0
-fi
+# ─── Subagent (worker) → always allow ───
+[[ -n "$(echo "$INPUT" | jq -r '.agent_id // empty')" ]] && exit 0
 
-# ─── At this point we are the orchestrator. Load roles config. ───
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROLES_FILE="${SCRIPT_DIR}/roles.json"
+[[ -f "$ROLES_FILE" ]] || { echo "role-enforcement: roles.json missing, allowing" >&2; exit 0; }
 
-if [[ ! -f "$ROLES_FILE" ]]; then
-  echo "role-enforcement: roles.json not found at ${ROLES_FILE}, allowing" >&2
-  exit 0
-fi
-
-# ─── Extract tool info ───
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+jq -e --arg t "$TOOL_NAME" '.orchestrator.denied_tools | index($t)' "$ROLES_FILE" >/dev/null || exit 0
 
-# Only enforce on denied tools for orchestrator role.
-DENIED_TOOLS=$(jq -r '.orchestrator.denied_tools[]' "$ROLES_FILE" 2>/dev/null)
-if [[ -z "$DENIED_TOOLS" ]]; then
-  exit 0
-fi
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+[[ -z "$FILE_PATH" ]] && exit 0
 
-# Check if current tool is in the denied list.
-IS_DENIED=false
-while IFS= read -r denied; do
-  if [[ "$TOOL_NAME" == "$denied" ]]; then
-    IS_DENIED=true
-    break
-  fi
-done <<< "$DENIED_TOOLS"
+# ─── Resolve the file relative to the session's project root ───
+ROOT="$(workspace_root "$PWD")"
+FILE="$(physical_path "$FILE_PATH" "$PWD")"
+REL="$(rel_to_root "$FILE" "$ROOT")" || exit 0   # outside the project: not our concern
+BASE="$(basename "$REL")"
 
-if [[ "$IS_DENIED" == "false" ]]; then
-  exit 0
-fi
+# roles_list <key>
+# Purpose: print one entry per line from .orchestrator.<key> in roles.json.
+# Usage: while IFS= read -r x; do ...; done < <(roles_list allow_prefixes)
+# Gotchas: a missing key prints nothing.
+roles_list() { jq -r --arg k "$1" '.orchestrator[$k] // [] | .[]' "$ROLES_FILE"; }
 
-# ─── Tool is denied for orchestrator. Check exceptions. ───
-
-# Helper: emit block JSON and exit.
-block_and_exit() {
-  local reason="$1"
-  printf '{"decision": "block", "reason": "Role Enforcement: %s"}\n' "$reason"
-  exit 0
+# matches_prefix <key>
+# Purpose: exit 0 when REL starts with any repo-relative prefix listed under <key>.
+# Usage: matches_prefix allow_prefixes && exit 0
+# Gotchas: prefixes end with "/" so "docs/" never matches "docsx/".
+matches_prefix() {
+  local p
+  while IFS= read -r p; do
+    [[ -n "$p" && "$REL" == "$p"* ]] && return 0
+  done < <(roles_list "$1")
+  return 1
 }
 
-# For Write/Edit: check if file_path matches any exception pattern.
-if [[ "$TOOL_NAME" == "Write" || "$TOOL_NAME" == "Edit" ]]; then
-  FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+# ─── Always allowed, any workspace kind ───
+SEGMENTS=()
+while IFS= read -r s; do [[ -n "$s" ]] && SEGMENTS+=("$s"); done < <(roles_list allow_segments)
+[[ ${#SEGMENTS[@]} -gt 0 ]] && has_segment "$REL" "${SEGMENTS[@]}" && exit 0
+matches_prefix allow_prefixes && exit 0
+while IFS= read -r g; do
+  # shellcheck disable=SC2053
+  [[ -n "$g" && "$BASE" == $g ]] && exit 0
+done < <(roles_list allow_basenames)
 
-  if [[ -n "$FILE_PATH" ]]; then
-    # Check exception paths from roles.json.
-    EXCEPTIONS=$(jq -r '.orchestrator.exceptions[]' "$ROLES_FILE" 2>/dev/null)
-    while IFS= read -r exc; do
-      if [[ -n "$exc" ]] && echo "$FILE_PATH" | grep -q "$exc"; then
-        exit 0
-      fi
-    done <<< "$EXCEPTIONS"
-  fi
-
-  block_and_exit "orchestrator cannot use ${TOOL_NAME} on implementation files. Spawn a coder subagent instead."
+# ─── Kind-specific allow lists ───
+KIND="$(get_workspace_kind "$ROOT" 2>/dev/null)"
+if [[ "$KIND" == "code" ]]; then
+  matches_prefix code_allow_prefixes && exit 0
+  ALLOWED="docs/, docs/plans/, qa/, specs/, and *spec*/*plan*/*review*.md files"
+else
+  EXT="$(printf '%s' "${BASE##*.}" | tr '[:upper:]' '[:lower:]')"
+  [[ "$BASE" == *.* ]] && jq -e --arg e "$EXT" '.orchestrator.docs_allow_ext | index($e)' "$ROLES_FILE" >/dev/null && exit 0
+  ALLOWED="md, txt, yaml, yml and json files"
 fi
 
-# For Bash: check if command starts with a safe prefix.
-if [[ "$TOOL_NAME" == "Bash" ]]; then
-  COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-
-  if [[ -z "$COMMAND" ]]; then
-    # No command to evaluate — block defensively.
-    block_and_exit "orchestrator cannot use Bash without a command."
-  fi
-
-  # Check safe prefixes from roles.json.
-  SAFE_PREFIXES=$(jq -r '.orchestrator.safe_bash_prefixes[]' "$ROLES_FILE" 2>/dev/null)
-  while IFS= read -r prefix; do
-    if [[ -n "$prefix" ]] && [[ "$COMMAND" == "${prefix}"* ]]; then
-      exit 0
-    fi
-  done <<< "$SAFE_PREFIXES"
-
-  block_and_exit "orchestrator cannot use Bash for '${COMMAND%%\ *}...'. Only safe commands (git, ls, cat, docker, curl, echo, mkdir, gh, rtk) allowed. Spawn a coder subagent instead."
-fi
-
-# Catch-all for any other denied tool (shouldn't reach here, but defensive).
-block_and_exit "orchestrator cannot use ${TOOL_NAME}. Spawn a coder subagent instead."
+printf '{"decision": "block", "reason": "Role Enforcement: orchestrator cannot %s %s in this %s workspace. The orchestrator may write %s. Delegate this file to a worker (Agent with model sonnet)."}\n' \
+  "$TOOL_NAME" "$REL" "$KIND" "$ALLOWED"
+exit 0

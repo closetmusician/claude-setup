@@ -16,6 +16,10 @@ source "${SCRIPT_DIR}/lib/project-root.sh"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/emit-event.sh" 2>/dev/null || true
 
+# Only active when governance sentinel exists (lead-orchestrator in VIBE repo).
+STATE_GOV="$(get_governance_state_dir)"
+[[ ! -f "$STATE_GOV/.active" ]] && exit 0
+
 # Read the full hook payload from stdin — NEVER from env (identity lesson).
 INPUT=$(cat)
 

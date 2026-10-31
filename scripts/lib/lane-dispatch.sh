@@ -264,6 +264,7 @@ _build_prompt > "$PROMPT_FILE"
 _log "Invoking claude (model=${MODEL}, max=${MAX_MINUTES}min, task=${TASK_ID})"
 
 # ── Invoke claude under gtimeout ─────────────────────────────────────────────────
+# billing: claude.ai plan (scheduled job via night-runner.sh, Yu-Kuan 2026-10-25); non-scheduled launches use scripts/lib/claude-bedrock.sh
 # Purpose: execute the task agent with a hard wall-clock cap.
 # Usage: gtimeout <secs> claude --model <model> -p <prompt>
 # Gotchas: exit code 124 = timeout; output captured for quota-abort scan.

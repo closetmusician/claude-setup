@@ -1,6 +1,6 @@
 ---
 name: feature-enablement
-description: "Generates sales and customer success enablement materials from PRDs, designs, and competitive research. Produces a 7-section messaging foundation document (Command of Message, Solution, Personas, Positioning, Proof, Guardrails, Availability) as the source of truth, then derives downstream assets: battle cards, FAQs, competitive analysis, sales 1-pagers, and demo scripts. Use when a PM or product marketer wants to create enablement docs, sales collateral, battle cards, competitive positioning, demo scripts, or a messaging foundation for a feature — including phrases like 'create enablement docs', 'build a battle card', 'sales 1-pager', 'demo script', or 'competitive positioning'. Supports Confluence PRDs (via atlassian-connect), Gong calls, and Acme Insider sessions as inputs. Commands: init, update, demo, add-competitor, roadmap."
+description: "Generates sales and customer success enablement materials from PRDs, designs, and competitive research. Produces a 7-section messaging foundation document (Command of Message, Solution, Personas, Positioning, Proof, Guardrails, Availability) as the source of truth, then derives downstream assets: battle cards, FAQs, competitive analysis, sales 1-pagers, and demo scripts. Use when a PM or product marketer wants to create enablement docs, sales collateral, battle cards, competitive positioning, demo scripts, or a messaging foundation for a feature — including phrases like 'create enablement docs', 'build a battle card', 'sales 1-pager', 'demo script', or 'competitive positioning'. Supports Confluence PRDs (via atlassian-connect), Gong calls, and Diligent Insider sessions as inputs. Commands: init, update, demo, add-competitor, roadmap."
 ---
 
 # Feature Enablement Generator
@@ -77,7 +77,7 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
    - Figma design links (optional, comma-separated)
    - Target competitors (optional, comma-separated - e.g., "Convene, OnBoard, Board Intelligence")
    - **Gong call links** (optional, comma-separated URLs - for customer validation)
-   - **Acme Insider session transcripts/links** (optional - for proof points)
+   - **Diligent Insider session transcripts/links** (optional - for proof points)
    - **Pricing/packaging details** (optional, can be TBD)
    - Project path (where to create docs, default: `~/feature-enablement-<feature-slug>`)
 
@@ -675,7 +675,7 @@ User: /feature-enablement init
 Claude: What's the feature name?
 User: Task Management
 Claude: PRD URL (Confluence page)?
-User: https://example.atlassian.net/wiki/spaces/BPROG/pages/1234567/
+User: https://diligentbrands.atlassian.net/wiki/spaces/BPROG/pages/1234567/
 Claude: Any Figma design links? (optional, comma-separated)
 User: https://www.figma.com/design/XYZ123/Task-Management
 Claude: Target competitors? (optional, comma-separated)
@@ -712,7 +712,7 @@ User: Add "Increase visibility into cross-team dependencies"
 
 📁 Location: ~/feature-enablement-task-management
 🔗 GitHub: https://github.com/<your-org>/task-management-docs
-📄 PRD: https://example.atlassian.net/wiki/spaces/BPROG/pages/1234567/ (v12)
+📄 PRD: https://diligentbrands.atlassian.net/wiki/spaces/BPROG/pages/1234567/ (v12)
 
 Generated:
 - Overview and synthesis

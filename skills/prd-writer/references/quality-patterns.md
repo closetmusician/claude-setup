@@ -273,7 +273,7 @@ Idle nudge disabled after 3 dismissals. User override in settings.
 Requirement scope paragraphs explain what + how in 2-3 sentences max. Implementation detail of any kind — service internals, data pipelines, algorithms, library-specific patterns, field mappings — belongs in §7 Engineering or the TAR. §1-6 scope paragraphs describe WHAT the user gets and WHY it matters.
 
 ### Rule: Out of Scope Is One Line Each
-**Bad:** "Cross-org intelligence — V1 uses org-specific history only. Anonymized cross-org patterns (leveraging Acme's dataset) is a future exploration pending legal/privacy review."
+**Bad:** "Cross-org intelligence — V1 uses org-specific history only. Anonymized cross-org patterns (leveraging Diligent's dataset) is a future exploration pending legal/privacy review."
 **Good:** "Cross-org intelligence — V1 uses org-specific history only. Cross-org history deferred pending legal/privacy review."
 
 ### Rule: Density Has Boundaries — Protected vs. Safe Targets

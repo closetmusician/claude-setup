@@ -23,6 +23,12 @@ STATE_DIR="${NOCOMMIT_STATE_DIR:-${HOME}/.claude/state}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/emit-event.sh" 2>/dev/null || true
+source "${SCRIPT_DIR}/lib/project-root.sh"
+
+# Only active when governance sentinel exists (lead-orchestrator in VIBE repo).
+STATE_GOV="$(get_governance_state_dir)"
+[[ ! -f "$STATE_GOV/.active" ]] && exit 0
+
 
 # ── Read stdin — identity MUST come from stdin, never env ────────────────────
 INPUT="$(cat)"

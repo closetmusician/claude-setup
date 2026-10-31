@@ -28,7 +28,7 @@ Connects the current session to Atlassian (JIRA + Confluence). Two modes:
 ### Step 1: Check Existing Connectivity
 
 Check both modes:
-- **Direct API:** Run `bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN "https://example.atlassian.net/rest/api/3/myself" | head -c 200'`. If this returns user JSON, direct API is already working.
+- **Direct API:** Run `bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/myself" | head -c 200'`. If this returns user JSON, direct API is already working.
 - **MCP:** Run `claude mcp list 2>&1 | grep -i atlassian`. If healthy, MCP is already configured.
 
 If either is already working, inform the user which mode is active (if both work, Direct API is the active mode for downstream callers) and stop. The contract in "After Success" below applies.
@@ -48,7 +48,7 @@ Examples:
 
 ### Step 3: Resolve User Identity
 
-Yu-Kuan's Atlassian email is `dev@example.com`. Use this as `ATLASSIAN_USER` — do NOT ask.
+Yu-Kuan's Atlassian email is `yklin@diligent.com`. Use this as `ATLASSIAN_USER` — do NOT ask.
 
 ### Step 4: Verify API Token
 
@@ -56,7 +56,7 @@ Run: `bash -c 'source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null; echo
 
 **If token exists**, test it:
 ```bash
-bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -o /dev/null -w "%{http_code}" -u dev@example.com:$ATLASSIAN_API_TOKEN "https://example.atlassian.net/rest/api/3/myself"'
+bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -o /dev/null -w "%{http_code}" -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/myself"'
 ```
 - `200` — token is valid, proceed.
 - `401` or `403` — token is expired/revoked. Tell the user and go to **Step 4a**.
@@ -76,7 +76,7 @@ bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -o /dev/null -w "%{http_code}" -u
    ```
 5. Verify the new token works:
    ```bash
-   curl -sf -o /dev/null -w "%{http_code}" -u dev@example.com:<NEW_TOKEN> "https://example.atlassian.net/rest/api/3/myself"
+   curl -sf -o /dev/null -w "%{http_code}" -u yklin@diligent.com:<NEW_TOKEN> "https://diligentbrands.atlassian.net/rest/api/3/myself"
    ```
    If still failing, inform the user and stop.
 
@@ -86,7 +86,7 @@ Do NOT proceed to Step 5 until a valid token is confirmed.
 
 1. **Verify connectivity:** Run a test call:
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN "https://example.atlassian.net/rest/api/3/myself"'
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/myself"'
    ```
    If this fails, suggest the user check their token, or offer to fall back to MCP mode (Step 2, criterion 2).
 
@@ -94,22 +94,22 @@ Do NOT proceed to Step 5 until a valid token is confirmed.
 
    **JIRA — search issues (v3, POST with JSON body):**
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN -H "Content-Type: application/json" -X POST "https://example.atlassian.net/rest/api/3/search/jql" -d "{\"jql\":\"assignee=currentUser()\",\"maxResults\":10,\"fields\":[\"key\",\"summary\",\"status\"]}"'
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN -H "Content-Type: application/json" -X POST "https://diligentbrands.atlassian.net/rest/api/3/search/jql" -d "{\"jql\":\"assignee=currentUser()\",\"maxResults\":10,\"fields\":[\"key\",\"summary\",\"status\"]}"'
    ```
 
    **JIRA — get issue:**
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN "https://example.atlassian.net/rest/api/3/issue/PROJ-123"'
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/issue/PROJ-123"'
    ```
 
    **Confluence — search:**
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN "https://example.atlassian.net/wiki/rest/api/content/search?cql=type=page+and+text~\"search+term\"&limit=10"'
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/wiki/rest/api/content/search?cql=type=page+and+text~\"search+term\"&limit=10"'
    ```
 
    **Confluence — get page by ID:**
    ```bash
-   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN "https://example.atlassian.net/wiki/rest/api/content/PAGE_ID?expand=body.storage"'
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/wiki/rest/api/content/PAGE_ID?expand=body.storage"'
    ```
 
 3. **Done.** No MCP registration needed. Future skills that need Atlassian should use these curl patterns (see "After Success" contract below).
@@ -163,11 +163,11 @@ Only if a Step 2 criterion selected MCP (user chose it, or direct API failed and
    claude mcp remove atlassian -s project 2>/dev/null || true
 
    claude mcp add -s project \
-     -e JIRA_URL=https://example.atlassian.net \
-     -e JIRA_USERNAME=dev@example.com \
-     -e CONFLUENCE_URL=https://example.atlassian.net \
-     -e CONFLUENCE_USERNAME=dev@example.com \
-     -- atlassian $HOME/.claude/scripts/atlassian-mcp.sh
+     -e JIRA_URL=https://diligentbrands.atlassian.net \
+     -e JIRA_USERNAME=yklin@diligent.com \
+     -e CONFLUENCE_URL=https://diligentbrands.atlassian.net \
+     -e CONFLUENCE_USERNAME=yklin@diligent.com \
+     -- atlassian /Users/yklin/.claude/scripts/atlassian-mcp.sh
    ```
 
    If the project is a git repo, ensure `.mcp.json` is in `.gitignore`.
@@ -182,8 +182,8 @@ Only if a Step 2 criterion selected MCP (user chose it, or direct API failed and
 Once this skill reports success in **Direct API mode**, any skill in the same session (eng-stories Jira delivery, jira-update, pm-jira, atlassian-update) can assume:
 
 - `ATLASSIAN_API_TOKEN` is exported in `~/.zshrc` and validated (HTTP 200 from `/rest/api/3/myself`).
-- The token is NOT in the Claude process environment — every call must source the profile first: `bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u dev@example.com:$ATLASSIAN_API_TOKEN "<url>"'`.
-- Base URL is `https://example.atlassian.net`, user is `dev@example.com`, JIRA API is **v3 only** (see API Reference below — v2 search returns 410).
+- The token is NOT in the Claude process environment — every call must source the profile first: `bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "<url>"'`.
+- Base URL is `https://diligentbrands.atlassian.net`, user is `yklin@diligent.com`, JIRA API is **v3 only** (see API Reference below — v2 search returns 410).
 - Do NOT re-run token setup or invent an auth flow. If a call returns 401/403 mid-task, re-invoke `/atlassian-connect` instead.
 
 If **MCP mode** was chosen instead: the `atlassian` MCP server is registered at project scope; its tools become available after `/mcp` in the current session or automatically on the next session start. Downstream skills should use the MCP tools, not curl.
@@ -194,8 +194,8 @@ Run: `claude mcp remove atlassian -s project`
 
 ## API Reference (for skills using direct mode)
 
-Base URL: `https://example.atlassian.net`
-Auth: Basic auth — `dev@example.com:$ATLASSIAN_API_TOKEN`
+Base URL: `https://diligentbrands.atlassian.net`
+Auth: Basic auth — `yklin@diligent.com:$ATLASSIAN_API_TOKEN`
 API version: **v3** (v2 search endpoint was retired 2025 — returns 410)
 
 | Operation | Endpoint | Notes |

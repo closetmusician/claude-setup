@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# ABOUTME: salesforce-connect CLI — connect Claude Code to Acme's Salesforce org.
+# ABOUTME: salesforce-connect CLI — connect Claude Code to Diligent's Salesforce org.
 # ABOUTME: Logs the official `sf` CLI into the org via browser OAuth (survives Okta SSO/MFA),
 # ABOUTME: then registers the official @salesforce/mcp server (read-only: run_soql_query) with
 # ABOUTME: Claude Code. There is NO secret file — auth lives in the sf CLI's own store.
 # ABOUTME: On a stale session it re-runs the browser login (the analog of tableau's re-mint).
 set -uo pipefail
 
-# --- Config (env-overridable; defaults target Acme's production My Domain) ----------
-# Acme's Lightning URL is https://example.lightning.force.com, so the login host is
-# the My Domain https://acme.my.salesforce.com (Lightning and login share the domain).
-INSTANCE_URL="${SF_INSTANCE_URL:-https://acme.my.salesforce.com}"
-ORG_ALIAS="${SF_ORG_ALIAS:-acme}"                 # local alias the MCP server is pinned to
+# --- Config (env-overridable; defaults target Diligent's production My Domain) ----------
+# Diligent's Lightning URL is https://diligent.lightning.force.com, so the login host is
+# the My Domain https://diligent.my.salesforce.com (Lightning and login share the domain).
+INSTANCE_URL="${SF_INSTANCE_URL:-https://diligent.my.salesforce.com}"
+ORG_ALIAS="${SF_ORG_ALIAS:-diligent}"                 # local alias the MCP server is pinned to
 MCP_NAME="${SF_MCP_NAME:-salesforce}"
 MCP_TOOLS="${SF_MCP_TOOLS:-run_soql_query}"           # read-only surface; widen only on purpose
 NODE24="${SF_NODE_BIN:-/opt/homebrew/opt/node@24/bin/node}"
@@ -139,7 +139,7 @@ cmd_status() {
 
 cmd_help() {
   cat >&2 <<H
-salesforce-connect — connect Claude Code to Acme's Salesforce via the official MCP server.
+salesforce-connect — connect Claude Code to Diligent's Salesforce via the official MCP server.
 
   salesforce setup     Log the sf CLI into the org (browser), register @salesforce/mcp. Do once.
   salesforce connect   Verify the org session still authenticates (no browser unless stale).
