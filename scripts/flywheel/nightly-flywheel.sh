@@ -339,6 +339,17 @@ else
 fi
 
 # =============================================================================
+# STEP 5b: Speed report (docs/learnings/speed/PLAN.md)
+# =============================================================================
+# Purpose: refresh state/speed/latest.md and append history.jsonl for the speed loop.
+# Gotchas: no model call; reads transcripts only. Fail-open like every other step.
+
+_log "[5b/6] Running speed-report"
+python3 "$HOME/.claude/scripts/speed-report.py" --days 7 --save >/dev/null 2>&1 || {
+  _log "  WARN: speed-report exited non-zero — continuing"
+}
+
+# =============================================================================
 # STEP 6: Advance cursor + stamp last-run
 # =============================================================================
 # Purpose: update the cursor to the latest incident ts seen, so next run only
