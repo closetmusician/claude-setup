@@ -26,6 +26,7 @@ make_repos() {
   echo "my name" > "$TMP/src/rules/personal.md"
   echo "code style" > "$TMP/src/rules/code-style.md"
   echo "private plan" > "$TMP/src/docs/plan.md"
+  mkdir -p "$TMP/src/skills/mor-prep"; echo "real report" > "$TMP/src/skills/mor-prep/report.html"
   echo "echo hi" > "$TMP/src/scripts/x.sh"
   mkdir -p "$TMP/src/bin"; echo tool > "$TMP/src/bin/tool"; echo "bin/" > "$TMP/src/.gitignore"
   echo "private readme" > "$TMP/src/README.md"
@@ -49,6 +50,7 @@ want "skill copied"                 '[ -f "$TMP/pub/skills/a/SKILL.md" ]'
 want "ignored-but-tracked bin kept" 'git -C "$TMP/pub" cat-file -e HEAD:bin/tool 2>/dev/null'
 want "rules copied"                 '[ -f "$TMP/pub/rules/code-style.md" ]'
 want "docs not copied"              '[ ! -e "$TMP/pub/docs" ]'
+want "company-data skill not copied" '[ ! -e "$TMP/pub/skills/mor-prep" ]'
 want "personal.md not copied"       '[ ! -e "$TMP/pub/rules/personal.md" ]'
 want "public README kept"           'grep -q "public readme" "$TMP/pub/README.md"'
 want "personal.md.example kept"     '[ -f "$TMP/pub/rules/personal.md.example" ]'

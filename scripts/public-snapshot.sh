@@ -13,8 +13,9 @@ SECRET_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/secret-scan.sh"
 # What goes public. Folders are mirrored from $REF, so a file deleted in main is deleted here too.
 INCLUDE=(.githooks bin evals hooks plugins policy references rules scripts skills tests
          CLAUDE.md RTK.md settings.json litellm_config.yaml skills-lock.json .gitignore)
-# Private files inside an included folder.
-EXCLUDE=(rules/personal.md)
+# Private paths inside an included folder. The two skills hold real customer and revenue
+# exemplars (July 2026 MOR and win-loss reports), so they stay internal.
+EXCLUDE=(rules/personal.md skills/mor-prep skills/winloss-analysis)
 # Public-only files: the newcomer README, the installer and the personal-rules template.
 KEEP=(README.md install.sh rules/personal.md.example)
 # Bearer and AWS secret keys are not in secret-scan.sh's provider list, so check them here.
