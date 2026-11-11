@@ -31,6 +31,7 @@ broken?" IS /investigate). Plain git ops (commit/push/merge/rebase) are NOT skil
 | Map codebase architecture | `codebase-mapping`; session end-bridge → `handoff` | |
 | Orient to the harness / "how does the harness work" / "what skills exist" / "map the harness" / starting fresh on ~/.claude | `harness-orientation` | codebase-mapping (which is for project repos, not the harness itself) |
 | Make Claude faster / "why is Claude slow" / "speed report" / the session-start line says "Run /speed-tune" | `speed-tune` | investigate (which is for a broken product, not harness speed) |
+| Check on running agents during a long run / "check on all agents" / "are the agents stuck" / "push them to finish" / status table with ETA / "/loop 10m" check-ins | `run-watch` (start it with `/loop 10m /run-watch <plan path>`) | evidence-backed-status (a done-claim on a deliverable), lead-orchestrator (which starts the run) |
 | Audit a skill / archive a skill / evaluate skill overlap / create a new skill / "should this skill be kept" | `skill-lifecycle` | |
 | Office/SharePoint doc editing | `o365-doc-edit` (+ rules/tool-registry.md table) | |
 | Mine Teams channels for customer feedback / "what are customers complaining about" / "aggregate feedback" / "research the channel" | `teams-channel-research` | deep-research (which is web-only, not Teams) |

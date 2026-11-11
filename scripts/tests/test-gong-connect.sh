@@ -3,7 +3,8 @@
 # ABOUTME: Bug 2026-10-08: logged-out /ajax calls return HTTP 401, which Chrome renders as its
 # ABOUTME: own error page with no sign-in text. connect and the login poll read that as
 # ABOUTME: "authenticated", so every stale call re-popped login forever. T4-T6: parallel callers
-# ABOUTME: share ONE login. T1/T3 hit REAL Gong; T2/T4-T6 stub only the browser (SSO needs a human).
+# ABOUTME: share ONE login. T7-T13: pool of 10, hang kill, Chrome for Testing, download.
+# ABOUTME: T1/T3 hit REAL Gong; T2/T4-T13 stub only the browser (SSO needs a human).
 
 set -uo pipefail
 
@@ -120,6 +121,135 @@ if [ "$pops" -eq 1 ] && [ "$ok0" -eq 1 ] && [ ! -d "$TMP/t6/state.json.login.loc
   ok "T6 a dead holder's lock is broken and the lock is released after"
 else
   bad "T6 a dead holder's lock is broken (pops=$pops, succeeded=$ok0/1)"
+fi
+
+# Pool, browser and cleanup cases (T7-T13). Stub browser: logs every call as
+# "<session> <idle-ms> <executable> <verb...>" to $STUB_DIR/log. `get text body` returns a
+# transcript JSON after STUB_SLEEP seconds, and tracks how many callers are inside at once.
+# STUB_HANG=1 makes every verb hang (exec sleep, so the timeout kills the sleep itself).
+cat > "$TMP/ab-pool.sh" <<'EOF'
+#!/usr/bin/env bash
+d="$STUB_DIR"; sess="-"; prev=""
+for a in "$@"; do [ "$prev" = "--session" ] && sess="$a"; prev="$a"; done
+echo "$sess ${AGENT_BROWSER_IDLE_TIMEOUT_MS:-unset} ${AGENT_BROWSER_EXECUTABLE_PATH:-unset} $*" >> "$d/log"
+[ "${STUB_HANG:-}" = 1 ] && exec sleep 30
+case "$*" in
+  install) [ -n "${STUB_INSTALL_TO:-}" ] && mkdir -p "$(dirname "$STUB_INSTALL_TO")" \
+             && touch "$STUB_INSTALL_TO" && chmod +x "$STUB_INSTALL_TO" ;;
+  *"get text body"*)
+    touch "$d/active.$$"; ls "$d" | grep -c '^active\.' >> "$d/peak"
+    sleep "${STUB_SLEEP:-0}"; rm -f "$d/active.$$"
+    printf '{"callTitle":"Demo","callCustomers":"Acme","when":"2026-11-01","monologues":[{"timestampStr":"0:01","speakerName":"Ann","text":"hi"}]}' ;;
+esac
+exit 0
+EOF
+chmod +x "$TMP/ab-pool.sh"
+touch "$TMP/fake-cft"; chmod +x "$TMP/fake-cft"
+
+# pool_env <case-dir> — env for a stubbed call: own pool dir, own HOME, fake Chrome for Testing.
+pool_env() {
+  mkdir -p "$1/home"; : >> "$1/log"
+  echo "STUB_DIR=$1 HOME=$1/home AGENT_BROWSER_BIN=$TMP/ab-pool.sh GONG_POOL_DIR=$1/pool \
+GONG_STATE=$1/state.json GONG_PROFILE=$1/profile GONG_NO_AUTOLOGIN=1 GONG_CHROME=$TMP/fake-cft"
+}
+
+# T7 — 14 callers at once: never more than 10 inside the browser together, only the 10
+# pool sessions are used, and every caller still succeeds.
+d="$TMP/t7"; mkdir -p "$d"
+for i in $(seq 14); do
+  ( env $(pool_env "$d") STUB_SLEEP=1 "$GONG" transcript "$i" >/dev/null 2>&1; echo $? > "$d/rc.$i" ) &
+done
+wait
+peak="$(sort -n "$d/peak" | tail -1)"
+sessions="$(awk '{print $1}' "$d/log" | sort -u | tr '\n' ' ')"
+okc="$(cat "$d"/rc.* | grep -cx 0)"
+bad_sess="$(awk '{print $1}' "$d/log" | sort -u | grep -cvE '^gong-pool-([1-9]|10)$')"
+if [ "$peak" -le 10 ] && [ "$okc" -eq 14 ] && [ "$bad_sess" -eq 0 ]; then
+  ok "T7 14 parallel callers share a pool of at most 10 browsers (peak=$peak)"
+else
+  bad "T7 pool of at most 10 (peak=$peak, succeeded=$okc/14, sessions=$sessions)"
+fi
+
+# T8 — a hung browser is killed: gong exits 6 (hung, NOT 3 = logged out, so no login pop)
+# within the command timeout plus the 5s close limit, asks the session to close, and kills
+# the session's daemon from its pid file.
+d="$TMP/t8"; mkdir -p "$d/home/.agent-browser"
+sleep 300 & daemon=$!; disown "$daemon"; echo "$daemon" > "$d/home/.agent-browser/gong-pool-1.pid"
+start=$(date +%s)
+env $(pool_env "$d") STUB_HANG=1 GONG_AB_TIMEOUT=2 "$GONG" transcript 1 >/dev/null 2>&1; rc=$?
+took=$(( $(date +%s) - start ))
+sleep 1
+if [ "$rc" -eq 6 ] && [ "$took" -le 10 ] && grep -q 'gong-pool-1 .* close' "$d/log" \
+   && ! kill -0 "$daemon" 2>/dev/null; then
+  ok "T8 a hung browser is killed and gong exits (rc=$rc in ${took}s)"
+else
+  bad "T8 hung browser killed (rc=$rc, took=${took}s, daemon alive=$(kill -0 "$daemon" 2>/dev/null && echo yes || echo no))"
+  kill "$daemon" 2>/dev/null
+fi
+
+# T9 — every browser call runs Chrome for Testing with an idle shutdown (default 15s).
+d="$TMP/t9"; mkdir -p "$d"
+env $(pool_env "$d") "$GONG" transcript 1 >/dev/null 2>&1
+wrong="$(awk -v exe="$TMP/fake-cft" '$2 != "15000" || $3 != exe' "$d/log" | grep -c .)"
+if [ -s "$d/log" ] && [ "$wrong" -eq 0 ]; then
+  ok "T9 browser calls pin Chrome for Testing and a 15s idle shutdown"
+else
+  bad "T9 Chrome for Testing + idle shutdown ($wrong wrong calls): $(head -3 "$d/log")"
+fi
+
+# T10 — no Chrome for Testing and the install fails: exit 4, the browser never opens.
+d="$TMP/t10"; mkdir -p "$d"
+env $(pool_env "$d") GONG_CHROME= "$GONG" transcript 1 >/dev/null 2>&1; rc=$?
+if [ "$rc" -eq 4 ] && grep -q ' install$' "$d/log" && ! grep -q ' open ' "$d/log"; then
+  ok "T10 a missing Chrome for Testing stops gong instead of using the real Chrome"
+else
+  bad "T10 missing Chrome for Testing (rc=$rc): $(cat "$d/log")"
+fi
+
+# T10b — the one-time install hangs: gong gives up after GONG_INSTALL_TIMEOUT with exit 4.
+d="$TMP/t10b"; mkdir -p "$d"; start=$(date +%s)
+env $(pool_env "$d") GONG_CHROME= STUB_HANG=1 GONG_INSTALL_TIMEOUT=2 "$GONG" transcript 1 >/dev/null 2>&1; rc=$?
+took=$(( $(date +%s) - start ))
+if [ "$rc" -eq 4 ] && [ "$took" -le 6 ]; then
+  ok "T10b a hung Chrome for Testing install times out with exit 4 (${took}s)"
+else
+  bad "T10b hung install times out (rc=$rc in ${took}s)"
+fi
+
+# T11 — no Chrome for Testing yet: gong installs it, then runs with the installed copy.
+d="$TMP/t11"; mkdir -p "$d"
+cft="$d/home/.agent-browser/browsers/chrome-1.0/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+env $(pool_env "$d") GONG_CHROME= STUB_INSTALL_TO="$cft" "$GONG" transcript 1 >/dev/null 2>&1; rc=$?
+if [ "$rc" -eq 0 ] && grep -q ' open ' "$d/log" && grep ' open ' "$d/log" | grep -qF "chrome-1.0/Google"; then
+  ok "T11 gong installs Chrome for Testing when missing and then uses it"
+else
+  bad "T11 install then use (rc=$rc): $(cat "$d/log")"
+fi
+
+# T12 — `gong download` writes each transcript into the working folder and prints the paths.
+d="$TMP/t12"; mkdir -p "$d/work"
+out="$(cd "$d/work" && env $(pool_env "$d") "$GONG" download 111 222 2>/dev/null)"; rc=$?
+if [ "$rc" -eq 0 ] && grep -q 'Ann: hi' "$d/work/gong-111.txt" 2>/dev/null \
+   && jq -e '.monologues' "$d/work/gong-222.json" >/dev/null 2>&1 \
+   && printf '%s' "$out" | grep -q 'gong-111.txt' && printf '%s' "$out" | grep -q 'gong-222.txt'; then
+  ok "T12 download saves gong-<id>.txt and .json in the working folder"
+else
+  bad "T12 download to working folder (rc=$rc, out=$out, files=$(ls "$d/work"))"
+fi
+
+# T13 — pool slots: a dead holder's slot is reclaimed; with every slot held by a live
+# process, a caller gives up after GONG_POOL_WAIT with exit 5.
+d="$TMP/t13"; mkdir -p "$d/pool/slot-1"
+sleep 0 & dead=$!; wait "$dead"; echo "$dead" > "$d/pool/slot-1/pid"
+env $(pool_env "$d") GONG_POOL_SIZE=1 "$GONG" transcript 1 >/dev/null 2>&1; rc_dead=$?
+sleep 300 & live=$!; mkdir -p "$d/pool/slot-1"; echo "$live" > "$d/pool/slot-1/pid"
+start=$(date +%s)
+env $(pool_env "$d") GONG_POOL_SIZE=1 GONG_POOL_WAIT=2 "$GONG" transcript 1 >/dev/null 2>&1; rc_busy=$?
+took=$(( $(date +%s) - start )); kill "$live" 2>/dev/null
+if [ "$rc_dead" -eq 0 ] && [ "$rc_busy" -eq 5 ] && [ "$took" -le 8 ]; then
+  ok "T13 dead slots are reclaimed and a full pool times out with exit 5"
+else
+  bad "T13 slot reclaim / full pool (dead-slot rc=$rc_dead, busy rc=$rc_busy in ${took}s)"
 fi
 
 echo "---"

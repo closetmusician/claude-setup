@@ -27,12 +27,31 @@ they fail with exit 3 and do not pop again.
 Set `GONG_NO_AUTOLOGIN=1` to suppress the pop (e.g. headless cron with no display) — then a
 stale session just exits 3.
 
+## Browsers: own Chrome, pool of 10, no idle leftovers
+- Every browser is **Chrome for Testing** (`~/.agent-browser/browsers/chrome-*`), never your
+  own Chrome app. A hidden copy of your real Chrome stops it opening a window. If no copy is
+  installed, gong runs `agent-browser install` once; if that fails it exits 4. Override:
+  `GONG_CHROME=<path>`.
+- **Pool:** at most `GONG_POOL_SIZE` (10) browsers, named `gong-pool-1`…`10`, however many
+  agents call gong at once. Extra callers wait up to `GONG_POOL_WAIT` (900s), then exit 5.
+  A finished call frees its slot at once, so the next call reuses the warm browser. A
+  crashed caller's slot is reclaimed. Slots live in `~/.cache/gong-connect/pool`.
+- **Idle shutdown:** a browser with no command for `GONG_IDLE_SECS` (15s) shuts down by
+  itself, daemon and Chrome both.
+- **Hangs:** each browser command has a `GONG_AB_TIMEOUT` (90s) limit. On timeout gong
+  kills that browser's daemon and Chrome, and exits 6 (not 3, so no login pop).
+- For batches, pass many IDs to ONE `gong download` call: one slot, one warm browser.
+
 ## Commands
 - `gong login` — pop headed browser, complete SSO, auto-save once authenticated (no keypress).
 - `gong connect` — verify the saved session still authenticates.
 - `gong calls [N]` — fast recent-call list (id / start / account / owner / title).
 - `gong allcalls [pages] [size]` — paginate over ALL calls (id / title) via the search POST.
 - `gong transcript <call-id>` — full speaker-attributed transcript.
+- `gong download <call-id>...` — save each transcript as `gong-<id>.txt` (readable) and
+  `gong-<id>.json` (raw) in the working folder (or `GONG_OUT_DIR`), print each .txt path,
+  and free the browser. Use this to review transcripts: process the files, not the browser.
+  An existing .txt is skipped, so a re-run only fetches what is missing.
 - `gong mine <keyword> [N]` — full-history keyword search across the first N calls' transcripts.
 - `gong raw <path>` — GET any internal path (e.g. `/ajax/get-call-spotlight?call-id=...`).
 - `gong diag` — dump the CSRF token + search POST status/body (for debugging `allcalls`).

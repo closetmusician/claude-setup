@@ -9,31 +9,124 @@ BASE="${GONG_BASE:-https://us-10290.app.gong.io}"
 WS="${GONG_WORKSPACE_ID:-3714020874996502528}"
 STATE="${GONG_STATE:-$HOME/.secrets/websess/gong.state.json}"
 PROFILE="${GONG_PROFILE:-$HOME/.secrets/websess/gong-profile}"
-SESSION="${GONG_SESSION:-gong-$$}"
+SESSION="${GONG_SESSION:-}"
 AB="${AGENT_BROWSER_BIN:-agent-browser}"
+AB_TIMEOUT="${GONG_AB_TIMEOUT:-90}"
+POOL_DIR="${GONG_POOL_DIR:-$HOME/.cache/gong-connect/pool}"
+POOL_SIZE="${GONG_POOL_SIZE:-10}"
 LOCK="$STATE.login.lock"
 STATE_MTIME0="$(stat -f %m "$STATE" 2>/dev/null || echo 0)"
 LOCK_HELD=0
+SLOT=""
+# A browser with no command for this long shuts itself down (daemon and Chrome).
+export AGENT_BROWSER_IDLE_TIMEOUT_MS=$(( ${GONG_IDLE_SECS:-15} * 1000 ))
 
+# cleanup — release the login lock and this process's pool slot.
+# Purpose: a finished job hands its warm browser straight to the next waiting job.
+# Usage: EXIT trap. Gotcha: the browser is NOT closed here; the idle timeout above shuts
+#   it down if no job picks it up. INT/TERM/HUP exit explicitly so this trap always runs.
 cleanup() {
   [ "$LOCK_HELD" = 1 ] && rm -rf "$LOCK"
-  "$AB" --session "$SESSION" close >/dev/null 2>&1 || true
-  local pid_file="$HOME/.agent-browser/${SESSION}.pid"
-  if [ -f "$pid_file" ]; then
-    kill "$(cat "$pid_file")" 2>/dev/null || true
-    rm -f "$HOME/.agent-browser/${SESSION}".{pid,engine,stream,version,sock} 2>/dev/null || true
-  fi
+  [ -n "$SLOT" ] && [ "$(cat "$SLOT/pid" 2>/dev/null)" = "$$" ] && rm -rf "$SLOT"
 }
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+
+# kill_session <name> — close one browser session, then hard-kill whatever is left.
+# Purpose: a hung browser must not linger as an orphaned Chrome.
+# Usage: called by ab() after a timeout. Gotcha: `close` gets its own 5s limit; the daemon
+#   then dies with its whole process tree (Chrome and its helpers) via the pid file.
+kill_tree() { local c; for c in $(pgrep -P "$1"); do kill_tree "$c"; done; kill -9 "$1" 2>/dev/null; }
+kill_session() {
+  local s="$1" pid_file="$HOME/.agent-browser/$1.pid"
+  perl -e 'alarm shift; exec @ARGV or exit 127' 5 "$AB" --session "$s" close >/dev/null 2>&1
+  if [ -f "$pid_file" ]; then
+    kill_tree "$(cat "$pid_file")"
+    rm -f "$HOME/.agent-browser/$s".{pid,engine,stream,version,sock} 2>/dev/null
+  fi
+}
+
+# ab <agent-browser args...> — run one browser command with a hard time limit.
+# Purpose: every browser call goes through here, so no call can hang forever.
+# Usage: exactly like agent-browser. Gotcha: perl's alarm survives exec, so SIGALRM kills
+#   the agent-browser client itself (exit 142); the session named in the args is then killed.
+ab() {
+  local rc a prev="" s=""
+  perl -e 'alarm shift; exec @ARGV or exit 127' "$AB_TIMEOUT" "$AB" "$@"; rc=$?
+  if [ "$rc" -eq 142 ]; then
+    for a in "$@"; do [ "$prev" = "--session" ] && s="$a"; prev="$a"; done
+    echo "[gong-connect] Browser command timed out after ${AB_TIMEOUT}s; killing session $s." >&2
+    [ -n "$s" ] && kill_session "$s"
+  fi
+  return "$rc"
+}
+
+# use_chrome_for_testing — pin agent-browser to Chrome for Testing, never the user's Chrome.
+# Purpose: a hidden copy of the real Chrome app blocks the user from opening their own.
+# Usage: once per run. GONG_CHROME overrides the path. Gotcha: if no copy exists it runs
+#   `agent-browser install` once (GONG_INSTALL_TIMEOUT limit, 600s); if that fails it returns 4
+#   rather than fall back to the real Chrome.
+find_chrome_for_testing() {
+  ls -d "$HOME"/.agent-browser/browsers/chrome-*/"Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" 2>/dev/null | sort -V | tail -1
+}
+use_chrome_for_testing() {
+  local exe="${GONG_CHROME:-}"
+  if [ -z "$exe" ]; then
+    exe="$(find_chrome_for_testing)"
+    if [ -z "$exe" ]; then
+      echo "[gong-connect] Installing Chrome for Testing (one time)…" >&2
+      perl -e 'alarm shift; exec @ARGV or exit 127' "${GONG_INSTALL_TIMEOUT:-600}" "$AB" install >&2
+      exe="$(find_chrome_for_testing)"
+    fi
+  fi
+  if [ -z "$exe" ] || [ ! -x "$exe" ]; then
+    echo "[gong-connect] Chrome for Testing not found${exe:+ at $exe}. Run: agent-browser install" >&2
+    return 4
+  fi
+  export AGENT_BROWSER_EXECUTABLE_PATH="$exe"
+}
+
+# pool_acquire — take one of POOL_SIZE browser slots; sets SESSION=gong-pool-<n>.
+# Purpose: cap Gong at POOL_SIZE browsers (default 10) however many callers run at once.
+# Usage: once per run, before any browser call. Waits up to GONG_POOL_WAIT seconds (900).
+# Gotchas: a slot is a mkdir dir holding the holder's PID; a dead holder's slot is
+#   reclaimed. A slot with no PID yet is mid-claim, so it counts as busy. Returns 5 on timeout.
+pool_acquire() {
+  local waited=0 cap="${GONG_POOL_WAIT:-900}" said=0 i slot holder
+  mkdir -p "$POOL_DIR" || return 5
+  while :; do
+    for i in $(seq "$POOL_SIZE"); do
+      slot="$POOL_DIR/slot-$i"
+      if mkdir "$slot" 2>/dev/null; then
+        echo $$ > "$slot/pid"; SLOT="$slot"; SESSION="gong-pool-$i"; return 0
+      fi
+      holder="$(cat "$slot/pid" 2>/dev/null || true)"
+      if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null \
+         && [ "$(cat "$slot/pid" 2>/dev/null)" = "$holder" ]; then
+        rm -rf "$slot"
+      fi
+    done
+    if [ "$waited" -ge "$cap" ]; then
+      echo "[gong-connect] All $POOL_SIZE browsers stayed busy for ${cap}s; giving up." >&2
+      return 5
+    fi
+    [ "$said" = 0 ] && echo "[gong-connect] All $POOL_SIZE browsers busy; waiting for one…" >&2
+    said=1; sleep 1; waited=$((waited + 1))
+  done
+}
 
 # gfetch <path> — load saved state into a headless session, GET the URL, print body text.
 # Single choke point for authenticated reads so expiry is handled once. Exit 3 = logged out.
+# Exit 6 = the browser hung and was killed (not a logout, so no login pop).
 # Gotcha: logged-out /ajax calls return HTTP 401, which Chrome shows as its own error page
 #   ("HTTP ERROR 401", no sign-in text) — hence that marker in the regex.
 gfetch() {
   local path="$1" body
-  "$AB" --state "$STATE" --session "$SESSION" open "$BASE$path" >/dev/null 2>&1 || true
-  body="$("$AB" --session "$SESSION" get text body 2>/dev/null || true)"
+  ab --state "$STATE" --session "$SESSION" open "$BASE$path" >/dev/null 2>&1
+  [ $? -eq 142 ] && return 6
+  body="$(ab --session "$SESSION" get text body 2>/dev/null)"
+  [ $? -eq 142 ] && return 6
   if [ -z "$body" ] || printf '%s' "$body" | head -c 300 | grep -qiE 'welcome/sign|sign-in|<!doctype|<html|HTTP ERROR 401'; then
     return 3
   fi
@@ -46,7 +139,7 @@ gfetch() {
 # your tenant differs, capture a real search via `agent-browser network har` and adjust.
 gpost_results() {
   local ps="$1" off="$2" js
-  "$AB" --state "$STATE" --session "$SESSION" open "$BASE/" >/dev/null 2>&1 || true
+  ab --state "$STATE" --session "$SESSION" open "$BASE/" >/dev/null 2>&1 || true
   js="$(cat <<JS
 (async () => {
   const raw = await fetch('/ajax/common/rtkn', {credentials:'include'}).then(r=>r.text());
@@ -62,10 +155,13 @@ gpost_results() {
 })()
 JS
 )"
-  "$AB" --session "$SESSION" eval "$js" 2>/dev/null
+  ab --session "$SESSION" eval "$js" 2>/dev/null
 }
 
 need_auth_msg() { printf '%s\n' "[gong-connect] Session expired or not authenticated." >&2; }
+
+# fetch_fail <rc> — report a failed gfetch and pass its code on: 3 = logged out, 6 = hung.
+fetch_fail() { [ "$1" -eq 3 ] && need_auth_msg; return "$1"; }
 
 # cmd_login — headed SSO once, then persist cookies+storage.
 # Purpose: pop the browser and save the session automatically once SSO succeeds.
@@ -78,18 +174,18 @@ need_auth_msg() { printf '%s\n' "[gong-connect] Session expired or not authentic
 cmd_login() {
   mkdir -p "$(dirname "$STATE")" && chmod 700 "$(dirname "$STATE")" 2>/dev/null || true
   echo "[gong-connect] Opening headed browser at $BASE — complete SSO/MFA in the window." >&2
-  "$AB" --headed --profile "$PROFILE" --session gong-login open "$BASE/" >/dev/null 2>&1 || true
+  ab --headed --profile "$PROFILE" --session gong-login open "$BASE/" >/dev/null 2>&1 || true
   local waited=0 timeout="${GONG_LOGIN_TIMEOUT:-180}" step=4 tmp="$STATE.tmp.$$" body
   echo "[gong-connect] Waiting for SSO to complete (up to ${timeout}s)…" >&2
   while [ "$waited" -lt "$timeout" ]; do
     sleep "$step"; waited=$((waited + step))
-    "$AB" --session gong-login state save "$tmp" >/dev/null 2>&1 || continue
+    ab --session gong-login state save "$tmp" >/dev/null 2>&1 || continue
     [ -s "$tmp" ] || continue
-    "$AB" --state "$tmp" --session "$SESSION" open "$BASE/ajax/home/calls/company-calls?workspace-id=$WS" >/dev/null 2>&1 || true
-    body="$("$AB" --session "$SESSION" get text body 2>/dev/null || true)"
+    ab --state "$tmp" --session "$SESSION" open "$BASE/ajax/home/calls/company-calls?workspace-id=$WS" >/dev/null 2>&1 || true
+    body="$(ab --session "$SESSION" get text body 2>/dev/null || true)"
     if printf '%s' "$body" | jq -e . >/dev/null 2>&1; then
       mv -f "$tmp" "$STATE"; chmod 600 "$STATE" 2>/dev/null || true
-      "$AB" --session gong-login close >/dev/null 2>&1 || true
+      ab --session gong-login close >/dev/null 2>&1 || true
       echo "[gong-connect] Authenticated — saved session state -> $STATE" >&2
       return 0
     fi
@@ -127,14 +223,14 @@ cmd_login_once() {
 }
 
 cmd_connect() {
-  if gfetch "/ajax/home/calls/company-calls?workspace-id=$WS" >/dev/null 2>&1; then
-    echo "[gong-connect] Authenticated OK  ($BASE, ws=$WS)"; else need_auth_msg; return 3; fi
+  gfetch "/ajax/home/calls/company-calls?workspace-id=$WS" >/dev/null 2>&1 || { fetch_fail $?; return; }
+  echo "[gong-connect] Authenticated OK  ($BASE, ws=$WS)"
 }
 
 # cmd_calls [N] — fast recent-call list from the home endpoint (NOT full history; see allcalls).
 cmd_calls() {
   local limit="${1:-20}" body
-  body="$(gfetch "/ajax/home/calls/company-calls?workspace-id=$WS")" || { need_auth_msg; return 3; }
+  body="$(gfetch "/ajax/home/calls/company-calls?workspace-id=$WS")" || { fetch_fail $?; return; }
   printf '%s' "$body" | jq -r '
     [.. | objects | select(.id? and .title?)] | unique_by(.id) | .[]
     | "\(.id)\t\(.startTime // "")\t\((.crmData.accounts[0].name) // "-")\t\(.owner // "-")\t\(.title)"' | head -n "$limit"
@@ -155,13 +251,36 @@ cmd_allcalls() {
   done
 }
 
+# format_transcript — transcript JSON on stdin -> "# title" line, then one line per monologue.
+format_transcript() {
+  jq -r '
+    "# " + (.callTitle // "call") + "  (" + (.callCustomers // "") + ", " + (.when // "") + ")",
+    (.monologues[]? | "[\(.timestampStr // (.timestamp|tostring))] \(.speakerName // "?"): \(.text // "")")'
+}
+
 # cmd_transcript <call-id> — full speaker-attributed transcript for one call.
 cmd_transcript() {
   local id="${1:?usage: gong transcript <call-id>}" body
-  body="$(gfetch "/call/detailed-transcript?call-id=$id")" || { need_auth_msg; return 3; }
-  printf '%s' "$body" | jq -r '
-    "# " + (.callTitle // "call") + "  (" + (.callCustomers // "") + ", " + (.when // "") + ")",
-    (.monologues[]? | "[\(.timestampStr // (.timestamp|tostring))] \(.speakerName // "?"): \(.text // "")")'
+  body="$(gfetch "/call/detailed-transcript?call-id=$id")" || { fetch_fail $?; return; }
+  printf '%s' "$body" | format_transcript
+}
+
+# cmd_download <call-id>... — save each transcript as gong-<id>.json (raw) and gong-<id>.txt
+# (readable) in GONG_OUT_DIR, default the working folder. Prints each .txt path.
+# Purpose: grab the file and free the browser at once; processing happens on disk, not in it.
+# Gotcha: a .txt that already exists is skipped, so a retry after re-login does not re-fetch.
+cmd_download() {
+  [ "$#" -ge 1 ] || { echo "usage: gong download <call-id>..." >&2; return 1; }
+  local out="${GONG_OUT_DIR:-$PWD}" id body
+  mkdir -p "$out" || return 1
+  for id in "$@"; do
+    if [ ! -s "$out/gong-$id.txt" ]; then
+      body="$(gfetch "/call/detailed-transcript?call-id=$id")" || { fetch_fail $?; return; }
+      printf '%s' "$body" > "$out/gong-$id.json"
+      format_transcript < "$out/gong-$id.json" > "$out/gong-$id.txt" || return 1
+    fi
+    echo "$out/gong-$id.txt"
+  done
 }
 
 # cmd_mine <keyword> [maxcalls] — full-history keyword search: page through all calls, pull
@@ -186,13 +305,13 @@ cmd_mine() {
   return 0
 }
 
-cmd_raw() { gfetch "${1:?usage: gong raw <path>}" || { need_auth_msg; return 3; }; }
+cmd_raw() { gfetch "${1:?usage: gong raw <path>}" || { fetch_fail $?; return; }; }
 
 # cmd_diag — one-shot dump of the CSRF token + search POST so the full-corpus path (allcalls)
 # can be debugged without a browser capture. Prints rtkn status/value (truncated), the
 # results POST status, and the first ~700 chars of its body.
 cmd_diag() {
-  "$AB" --state "$STATE" --session "$SESSION" open "$BASE/" >/dev/null 2>&1 || true
+  ab --state "$STATE" --session "$SESSION" open "$BASE/" >/dev/null 2>&1 || true
   local js
   js="$(cat <<JS
 (async () => {
@@ -210,13 +329,14 @@ cmd_diag() {
 })()
 JS
 )"
-  "$AB" --session "$SESSION" eval "$js" 2>&1 | head -c 1300
+  ab --session "$SESSION" eval "$js" 2>&1 | head -c 1300
   echo
 }
 
 usage() { printf '%s\n' "gong-connect — headless Gong access (no admin key)" \
-  "  gong login | connect | calls [N] | allcalls [pages] [size] | transcript <id> | mine <kw> [N] | raw <path> | diag" \
-  "  env: GONG_BASE GONG_WORKSPACE_ID GONG_STATE GONG_PROFILE GONG_SESSION GONG_LOGIN_TIMEOUT GONG_NO_AUTOLOGIN" >&2; }
+  "  gong login | connect | calls [N] | allcalls [pages] [size] | transcript <id> | download <id>... | mine <kw> [N] | raw <path> | diag" \
+  "  env: GONG_BASE GONG_WORKSPACE_ID GONG_STATE GONG_PROFILE GONG_SESSION GONG_LOGIN_TIMEOUT GONG_NO_AUTOLOGIN" \
+  "       GONG_OUT_DIR GONG_POOL_SIZE GONG_POOL_WAIT GONG_POOL_DIR GONG_IDLE_SECS GONG_AB_TIMEOUT GONG_CHROME" >&2; }
 
 # run_cmd — dispatch one data command. Returns 3 when the session is stale (need_auth_msg).
 run_cmd() {
@@ -225,6 +345,7 @@ run_cmd() {
     calls) shift; cmd_calls "$@" ;;
     allcalls) shift; cmd_allcalls "$@" ;;
     transcript) shift; cmd_transcript "$@" ;;
+    download) shift; cmd_download "$@" ;;
     mine|search) shift; cmd_mine "$@" ;;
     raw) shift; cmd_raw "$@" ;;
     diag) cmd_diag ;;
@@ -237,15 +358,21 @@ run_cmd() {
 # the user running `gong login` first. Set GONG_NO_AUTOLOGIN=1 to disable (e.g. headless cron).
 # Parallel callers share one login (cmd_login_once). The retry closes this process's browser
 # first, so it starts fresh from the refreshed state file.
+# Before any browser call: pin Chrome for Testing (exit 4 if missing) and take a pool slot
+# (exit 5 if the pool stays full). GONG_SESSION set = use that session, outside the pool.
+case "${1:-}" in
+  ""|-h|--help|help) usage; exit 1 ;;
+esac
+use_chrome_for_testing || exit 4
+[ -z "$SESSION" ] && { pool_acquire || exit 5; }
 case "${1:-}" in
   login) cmd_login ;;
-  "") usage; exit 1 ;;
   *)
     run_cmd "$@"; rc=$?
     if [ "$rc" -eq 3 ] && [ "${GONG_NO_AUTOLOGIN:-}" != "1" ]; then
       echo "[gong-connect] Session stale — launching login automatically…" >&2
       cmd_login_once || exit 3
-      "$AB" --session "$SESSION" close >/dev/null 2>&1 || true
+      ab --session "$SESSION" close >/dev/null 2>&1 || true
       run_cmd "$@"
     else
       exit "$rc"
