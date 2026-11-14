@@ -171,21 +171,25 @@ fetch_fail() { [ "$1" -eq 3 ] && need_auth_msg; return "$1"; }
 #   only once the snapshot really authenticates. Times out after GONG_LOGIN_TIMEOUT (180s).
 #   "Authenticates" = the probe returns real JSON; a 401 error page or sign-in page is not.
 #   The snapshot path is per-process so parallel callers cannot move each other's file.
+#   Every gong-login call passes the same $login options. With AGENT_BROWSER_EXECUTABLE_PATH
+#   set, agent-browser re-sends launch options on each command and restarts Chrome if they
+#   differ, so a bare call would swap the SSO window for a headless one (bug 2026-11-13).
 cmd_login() {
+  local login=(--headed --profile "$PROFILE" --session gong-login)
   mkdir -p "$(dirname "$STATE")" && chmod 700 "$(dirname "$STATE")" 2>/dev/null || true
   echo "[gong-connect] Opening headed browser at $BASE — complete SSO/MFA in the window." >&2
-  ab --headed --profile "$PROFILE" --session gong-login open "$BASE/" >/dev/null 2>&1 || true
+  ab "${login[@]}" open "$BASE/" >/dev/null 2>&1 || true
   local waited=0 timeout="${GONG_LOGIN_TIMEOUT:-180}" step=4 tmp="$STATE.tmp.$$" body
   echo "[gong-connect] Waiting for SSO to complete (up to ${timeout}s)…" >&2
   while [ "$waited" -lt "$timeout" ]; do
     sleep "$step"; waited=$((waited + step))
-    ab --session gong-login state save "$tmp" >/dev/null 2>&1 || continue
+    ab "${login[@]}" state save "$tmp" >/dev/null 2>&1 || continue
     [ -s "$tmp" ] || continue
     ab --state "$tmp" --session "$SESSION" open "$BASE/ajax/home/calls/company-calls?workspace-id=$WS" >/dev/null 2>&1 || true
     body="$(ab --session "$SESSION" get text body 2>/dev/null || true)"
     if printf '%s' "$body" | jq -e . >/dev/null 2>&1; then
       mv -f "$tmp" "$STATE"; chmod 600 "$STATE" 2>/dev/null || true
-      ab --session gong-login close >/dev/null 2>&1 || true
+      ab "${login[@]}" close >/dev/null 2>&1 || true
       echo "[gong-connect] Authenticated — saved session state -> $STATE" >&2
       return 0
     fi

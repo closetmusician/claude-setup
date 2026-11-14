@@ -70,7 +70,7 @@ cat > "$TMP/ab-sso.sh" <<'EOF'
 #!/usr/bin/env bash
 d="$STUB_DIR"
 case "$*" in
-  *--headed*) echo pop >> "$d/pops"
+  *--headed*" open "*) echo pop >> "$d/pops"
     [ "$STUB_SSO" = ok ] && { ( sleep 2; touch "$d/authed" ) >/dev/null 2>&1 & } ;;
   *"state save"*) printf '{"cookies":[],"origins":[]}' > "${@: -1}" ;;
   *"get text body"*)
@@ -250,6 +250,31 @@ if [ "$rc_dead" -eq 0 ] && [ "$rc_busy" -eq 5 ] && [ "$took" -le 8 ]; then
   ok "T13 dead slots are reclaimed and a full pool times out with exit 5"
 else
   bad "T13 slot reclaim / full pool (dead-slot rc=$rc_dead, busy rc=$rc_busy in ${took}s)"
+fi
+
+# T14 — bug 2026-11-13: with AGENT_BROWSER_EXECUTABLE_PATH exported, agent-browser sends its
+# launch options on EVERY command and restarts Chrome when they differ. A bare `state save` on
+# gong-login swapped the headed SSO window for a headless one ~4s in, so login never finished.
+# Every gong-login call must repeat --headed --profile. Stub logs args and returns JSON.
+d="$TMP/t14"; mkdir -p "$d"
+cat > "$d/ab.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "$*" >> "$STUB_LOG"
+case "$*" in
+  *"state save"*) printf '{"cookies":[],"origins":[]}' > "${@: -1}" ;;
+  *"get text body"*) printf '{"calls":[]}' ;;
+esac
+exit 0
+EOF
+chmod +x "$d/ab.sh"; : > "$d/log"
+STUB_LOG="$d/log" AGENT_BROWSER_BIN="$d/ab.sh" GONG_CHROME="$TMP/fake-cft" GONG_POOL_DIR="$d/pool" \
+  GONG_STATE="$d/state.json" GONG_PROFILE="$d/profile" GONG_LOGIN_TIMEOUT=8 "$GONG" login >/dev/null 2>&1; rc=$?
+login_calls="$(grep -c -- '--session gong-login' "$d/log")"
+bare_calls="$(grep -- '--session gong-login' "$d/log" | grep -v -- "--headed --profile $d/profile" | grep -c .)"
+if [ "$rc" -eq 0 ] && [ "$login_calls" -ge 3 ] && [ "$bare_calls" -eq 0 ]; then
+  ok "T14 every gong-login browser call keeps --headed --profile"
+else
+  bad "T14 gong-login calls missing --headed --profile (rc=$rc, calls=$login_calls, bare=$bare_calls): $(grep -- '--session gong-login' "$d/log")"
 fi
 
 echo "---"

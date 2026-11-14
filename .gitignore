@@ -95,7 +95,7 @@ schedules.json
 
 # Personal PM/voice skills (symlinked from ~/Code/pm_os — absolute local paths, useless to clone)
 skills/pm-*
-skills/yk-voice.md
+skills/yk-voice/
 skills/ai-leaderboard
 
 # gstack local state
