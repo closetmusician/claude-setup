@@ -23,6 +23,7 @@ broken?" IS /investigate). Plain git ops (commit/push/merge/rebase) are NOT skil
 | Produce evidence-backed status update / "what is the status of X" / "is this done" | `evidence-backed-status` | |
 | Short exec email that is NOT the PM weekly: summary/recommendation to a boss from notes, or one named project team's progress email / "exec email" / "summary email to my boss" | `exec-email` | pm-weekly (the PM weekly status email, own format), evidence-backed-status |
 | Write or debug a hook / "hook not firing" / "hook is silently failing" / author a hook test fixture | `hook-authoring` | |
+| Build a spec'd feature or multi-file code change (arm D default, owner 2026-11-15) | `lead-orchestrator2` feature mode | lead-orchestrator feature mode (TDD) |
 | Orchestrate multi-agent work / fan-out / execute a plan via subagents | `lead-orchestrator` — mode-split: the skill itself routes to feature (full VIBE pipeline), backlog, investigate-audit, or live-debug; do not pre-select a mode | |
 | Ship / create PR (then briefing AFTER creation) | `ship`, then `pr-briefing` | |
 | Visual QA live site | `design-review`; variants → `design-shotgun`; HTML → `design-html`; Angular impl → `design-implement` | |
@@ -36,6 +37,7 @@ broken?" IS /investigate). Plain git ops (commit/push/merge/rebase) are NOT skil
 | Office/SharePoint doc editing | `o365-doc-edit` (+ rules/tool-registry.md table) | |
 | Mine Teams channels for customer feedback / "what are customers complaining about" / "aggregate feedback" / "research the channel" | `teams-channel-research` | deep-research (which is web-only, not Teams) |
 | Win/loss analysis / "why we win" / "why we lose" / "competitive loss analysis" / refresh a win-loss deck for a new period | `winloss-analysis` | teams-channel-research, deep-research |
+| Write or refresh a Product Council pre-read from a template / "write the product council pre-read" / "draft the council pre-read for <product>" / "refresh the pre-read for <period>" / rebuttal prep notes for a council pre-read | `product-council-preread` | mor-prep (the MOR deck and its root-cause report), winloss-analysis (a stand-alone win/loss study), prd-writer, o365-doc-edit (small edits to a live docx) |
 | Post workarounds to CSMs / "reply to the channel" / "send updates back" / "post responses" | `csm-response` (requires a report from `teams-channel-research` or equivalent) | pm-jira, atlassian-update |
 | Connect to Tableau / "query Tableau" / "set up Tableau MCP" / Tableau BI data, dashboards, metadata, Pulse | `tableau-connect` | gong-connect (that is Gong, not Tableau) |
 | Connect to Salesforce / "query Salesforce" / "set up Salesforce MCP" / CRM data — accounts, opportunities, cases (SOQL) | `salesforce-connect` | tableau-connect (that is Tableau BI, not the CRM) |

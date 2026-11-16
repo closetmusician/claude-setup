@@ -18,8 +18,9 @@ await test('1. Feature mode names the three scripts in order: plan, task, close'
 })
 
 await test('2. The close workflow is mandatory, whatever the task statuses', async () => {
-  assert.match(feature, /ALWAYS launch `lo-feature-close\.js`/)
-  assert.match(feature, /full suite/i)
+  assert.match(feature, /lo-feature-task-d\.js/)
+  assert.match(feature, /close:\s*true/)
+  assert.match(feature, /ALWAYS run the feature close/i)
 })
 
 await test('3. Headless escalate does not end the run before the close workflow', async () => {

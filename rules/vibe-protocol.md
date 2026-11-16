@@ -10,7 +10,7 @@ Orchestration mechanics + prompt templates: `~/.claude/skills/lead-orchestrator/
 ## Hard Gates (non-negotiable)
 - **R0 Zero Assumption** — never guess requirements; AskUserQuestion until explicit.
 - **R1 Spec Wall** — no code without an approved spec in `docs/`.
-- **R2 TDD, two layers** — QA Test Writer commits acceptance tests RED first (sentinel `.gate-pre-coder`); Coder writes unit tests RED → minimal GREEN for both. No evidence & no TDD-EXEMPT ⇒ P0 reject.
+- **R2 Arm D build (owner, 2026-11-15; replaces TDD)** — Codex spec fix + gate, coder writes code only, Codex review with one row per REQ, up to 2 fix rounds (round 2 only for a P0/P1 still open). No RED step, no new tests unless the owner asks. Old text, kept for history: QA Test Writer commits acceptance tests RED first (sentinel `.gate-pre-coder`); Coder writes unit tests RED → minimal GREEN for both. No evidence & no TDD-EXEMPT ⇒ P0 reject.
 - **R3 Mock-First Parallelism** — FE mocks API responses conforming to contract; never block on BE.
 - **R4 QA cycles** — 2 documented passes (`full`) / 1 (`light`) before merge.
 - **R5 Phase Gates** — respect `.claude/phase.json`; no code until phase = BUILD.
@@ -42,6 +42,7 @@ Orchestration mechanics + prompt templates: `~/.claude/skills/lead-orchestrator/
 DISCOVERY (interview/docs only) → ARCHITECTURE_APPROVED (eng-planning: arch, contracts, FEAT docs) → FEATURE_SPECS_APPROVED → BUILD (implementation allowed). Human approval moves to BUILD.
 
 ## Per-Task Loop (skeleton — full mechanics in lead-orchestrator skill)
+Arm D (R2, owner 2026-11-15) is the default per-task loop: `lead-orchestrator2` `lo-feature-task-d.js`. The TDD loop below runs only when the owner asks for TDD on a job.
 ```
 For each T-XXX (respecting depends_on):
   1. ARCHITECT (code-architect; skip if trivial/file-level guidance exists) → STOP

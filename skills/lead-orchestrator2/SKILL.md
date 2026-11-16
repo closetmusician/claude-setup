@@ -1,6 +1,6 @@
 ---
 name: lead-orchestrator2
-description: Workflow variant of lead-orchestrator, under side-by-side trial against it (opus55-rollout, 2026-10-25). Same router, tiers, TDD gates and verifier, but feature, backlog and investigate-audit steps run as Workflow scripts so step order is enforced in code. Trigger ONLY when the user names "lead-orchestrator2" or "/lead-orchestrator2". For every other orchestrate / fan-out / backlog / audit ask, use lead-orchestrator instead; this skill must not take its routing.
+description: The default for building spec'd features and multi-file code changes (owner, 2026-11-15). Feature mode runs arm D as a Workflow script - Codex spec fix, code only, Codex review with one row per REQ, up to 2 fix rounds, no TDD. Also has backlog and investigate-audit workflows. Use for 'build this feature', 'implement the plan', or when the user names lead-orchestrator2. Other orchestrate / fan-out / audit asks still go to lead-orchestrator.
 ---
 
 <!-- ABOUTME: lead-orchestrator2: the workflow-based arm of the lead-orchestrator side-by-side trial. -->
@@ -82,23 +82,26 @@ Workflow({scriptPath: "/Users/yklin/.claude/skills/lead-orchestrator2/workflows/
 ```
 An opus agent maps every spec requirement to the tasks that fully cover it. `fix` = `unmapped` is not empty: widen or add tasks, then launch the plan again (max 2 launches; a second `fix` → name the unmapped requirements in the report and go on). Pass each task its `task_req_maps[task_id]` as `req_map`. Keep `feature_reqs` for F3.
 
-**Step F2: one launch per task.**
+**Step F2: one launch per task (arm D, owner 2026-11-15).**
+The Workflow tool loads a scriptPath only inside the working dir, so copy the script to `<run_dir>/lo-feature-task-d.js` first.
 ```
-Workflow({scriptPath: "/Users/yklin/.claude/skills/lead-orchestrator2/workflows/lo-feature-task.js",
-  args: {repo, feat_id, task_id, spec_path, mini_spec, test_cmd, vibe_level, arch_needed, run_dir, golden_ref,
-         req_map, live_target?, escalate_if?}})
+Workflow({scriptPath: "<run_dir>/lo-feature-task-d.js",
+  args: {repo, feat_id, task_id, task_label, req_ids, requirements, design, run_dir, base_ref, test_env, golden_ref, codex}})
 ```
-`run_dir` is the absolute `qa/FEAT-XXX` path. `golden_ref` says what "correct" is; `live_target` is the exact user-facing command or URL (default `test_cmd`). A task `test_cmd` may run only that task's test files while tasks run in parallel (other tasks' RED tests would fail it). F3 runs the full suite.
+Stages: `armd-spec.sh` (Codex spec fix, one round) → opus resolver only on a P0/P1 → coder (code only) → `armd-review.sh` (Codex review, REQ rows) → opus verifier only on a Codex P0 → fix round 1, round 2 only for a P0/P1 still open → `armd-final.sh`. 3-6 agents per task. Codex checks the spec once. Any P0/P1 left goes to one opus resolver, which settles it in the design from `golden_ref` and the files it names, then the coder starts. Codex is never asked again. P2 points are the coder's choice. The task escalates only if a point needs the owner (spend, outward-facing, or a recorded owner decision). Name the explainer and eng plan paths in `golden_ref`. The TDD script `lo-feature-task.js` stays only for a job where the owner asks for TDD.
+`run_dir` is the absolute `<repo>/qa/FEAT-XXX/<task>` path. It must sit inside the repo, because Codex `--write` can write only there. `golden_ref` says what "correct" is. `codex` is the absolute path to `codex-companion.mjs`.
 
-The script runs, in await order: architect (if `arch_needed`) → QA acceptance-red → **GATE-RED** (validate-artifact.sh exit 0, suite exit non-zero, the tail shows an assertion failure and no collection/import/syntax error, 7-40 hex RED SHA, RED commit touches test files only; else one QA re-run, then escalate) → coder (`MODE=feature`, RED SHA filled, plain `ReviewCommit: <sha>`, SHAs copied from `git log`) → **GATE-GREEN** (validate-artifact.sh, verify-tdd-evidence.sh, suite: all exit 0; else one fix, then escalate) → garry-review (P0/P1 → fix → GATE-GREEN → review, max 1 loop) → QA cycle-1 → cycle-2 (`full` only) → verifier (max 2 rounds). Every findings fix starts with a test-only `FixRed: <sha>` commit that adds a test case or assertion; the fix gate checks it. Each review/QA/verify artifact passes a haiku `validate-artifact.sh` check before the script reads its verdict.
+TDD variant, only when the owner asks for TDD on a job: The script runs, in await order: architect (if `arch_needed`) → QA acceptance-red → **GATE-RED** (validate-artifact.sh exit 0, suite exit non-zero, the tail shows an assertion failure and no collection/import/syntax error, 7-40 hex RED SHA, RED commit touches test files only; else one QA re-run, then escalate) → coder (`MODE=feature`, RED SHA filled, plain `ReviewCommit: <sha>`, SHAs copied from `git log`) → **GATE-GREEN** (validate-artifact.sh, verify-tdd-evidence.sh, suite: all exit 0; else one fix, then escalate) → garry-review (P0/P1 → fix → GATE-GREEN → review, max 1 loop) → QA cycle-1 → cycle-2 (`full` only) → verifier (max 2 rounds). Every findings fix starts with a test-only `FixRed: <sha>` commit that adds a test case or assertion; the fix gate checks it. Each review/QA/verify artifact passes a haiku `validate-artifact.sh` check before the script reads its verdict.
 
-**Step F3: ALWAYS launch `lo-feature-close.js`** after every task launch has returned, whatever the statuses (`complete`, `escalate` or dead). It is not skippable, also not in a headless run.
+**Step F3: ALWAYS run the feature close** after every task launch has returned, whatever the statuses. It is not skippable, also not in a headless run.
+Close = the same arm D workflow with `close: true` (owner, 2026-11-15). It skips spec and code. One read-only Codex review covers the whole feature diff (`base_ref` = BASE_SHA) against every feature REQ. Then up to 2 fix rounds for a P0/P1 with a repro. No suite run, no mutation probe.
 ```
-Workflow({scriptPath: "/Users/yklin/.claude/skills/lead-orchestrator2/workflows/lo-feature-close.js",
-  args: {repo, feat_id, spec_path, run_dir, base_sha: BASE_SHA, test_cmd: <the full suite>, golden_ref,
-         feature_reqs, tasks: [{task_id, status, stage, reason}], live_target?}})
+Workflow({scriptPath: "<run_dir>/lo-feature-task-d.js",
+  args: {close: true, repo, feat_id, task_id: "T-ALL", task_label: "<feature> close", req_ids: <all feature REQs>,
+         requirements, design, run_dir: "<repo>/qa/FEAT-XXX/close", base_ref: BASE_SHA, test_env, golden_ref, codex,
+         unmapped: plan.unmapped.map((q) => q.req_id)}})
 ```
-The script runs: the integrated full suite and, in parallel, a sonnet mutation probe (it disables the core of each fix in a scratch copy; a surviving mutant goes into the fix round, then one re-probe; still alive = a hole) → for tasks that did not complete, an opus review and a QA cycle-1 → one combined coder fix round (escalation reasons, suite failures, P0/P1, QA bugs) and the fix gate → the opus feature verifier over ALL `feature_reqs` → on CONTRADICTED/BLOCKING one fix round → verifier round 2 (cap). It returns `complete` only with no hole; else `partial` with `holes`. Artifacts: `qa/FEAT-XXX/T-ALL-{review-findings,cycle-1,ready-for-review,verification}.md`.
+`complete` = no P0/P1 open after the last review. Else `partial` with the open items. The TDD close `lo-feature-close.js` runs only when the owner asks for TDD on a job.
 
 **Waves:** for a plan file with waves, check `**Reviewed:** YES` / `**Status:** APPROVED` (missing at `full` → AskUserQuestion), build the dependency graph, and launch independent tasks with no file overlap together. Progress note per wave. F3 runs once, after the last wave.
 
@@ -140,7 +143,7 @@ Choice: this mode stays in-session fan-out, exactly as in lead-orchestrator. The
 |---|---|
 | `complete` | Spot-check: the verification file exists and its counts match the return. Commit (stage explicitly: the run dir artifacts + any file the agents left uncommitted; never `git add -A`). Then the `Deliverable:` report. |
 | `partial` (audit holes, backlog items not verified) | Commit what is verified. Report state `partial` with each hole and unverified item named. |
-| `escalate` | Feature task: record it, finish the other tasks, then run F3; the close workflow is the one fix attempt. Other modes, or after F3: N=1 stop. AskUserQuestion with the `stage`, the `reason` and the `last` agent output (fix as suggested / accept as is / stop). Never relaunch the same task on your own. |
+| `escalate` | AskUserQuestion only when the question_budget rule allows it (spend, an outward-facing action, a secret or credential, or a recorded owner decision). Otherwise the session takes the reversible default that keeps the requirements, names it in one line, and goes on. The session may relaunch a task ONCE without asking, after it fixes an infra cause or takes a reversible default. A second escalate on the same task still asks the owner. Feature task: record it, finish the other tasks, then run F3. |
 
 **Headless note:** in a `claude -p` run, or when the user said "do not ask questions", an `escalate` never stalls the run and never ends it early. Commit the task's artifacts, continue the independent tasks, then launch `lo-feature-close.js` (F3) with every task status. Its fix rounds are the one in-session fix attempt. Only its result decides done or partial. A `partial` report names every hole and every unmapped requirement.
 
@@ -168,9 +171,10 @@ The orchestrator NEVER writes `qa/**/T-*-acceptance-tests.md`, `-ready-for-revie
 
 ## Escalation & red flags
 
-- **N=1:** a task that fails more than one fix cycle stops. Structural problems (spec ambiguity, missing deps, wrong architecture) escalate at once.
+- **N=1:** a task that escalates twice asks the owner. Structural problems (missing deps, wrong architecture) escalate at once. In arm D, a spec P0/P1 goes to the opus resolver first; it escalates only if a point needs the owner.
 - **Scope drift:** do not rewrite args mid-run to chase tangents. Re-anchor to the scope statement or ask.
-- STOP if you catch yourself: editing implementation files · writing a qa/ or verification artifact · reporting "complete" without verification.md · skipping the verifier · ending a feature run without `lo-feature-close.js` · relaunching an escalated task without a user decision.
+- **One relaunch rule:** the session may relaunch a task ONCE on its own after fixing an infra cause or taking a reversible default. A second escalate on the same task still asks the owner.
+- STOP if you catch yourself: editing implementation files · writing a qa/ or verification artifact · reporting "complete" without verification.md · skipping the verifier · ending a feature run without `lo-feature-close.js`.
 
 ## Reference
 

@@ -31,8 +31,8 @@ Pick the weight and the tier before you start. Name both in one line, e.g. "Weig
 | Weight | Examples | Checks |
 |---|---|---|
 | Docs | docs, text, plans, config, prompts | lint/render/link check you run; no verifier agent |
-| Light code | scripts, hooks, tools, harness code | failing test first, in-session; 1 sonnet verifier |
-| Product code | app/service code users run | Tier 0-1: failing test first + 1 opus verifier; Tier 2: full pipeline |
+| Light code | scripts, hooks, tools, harness code | arm D: Codex spec fix, code only, Codex review, 1 fix round; no tests (owner, 2026-11-15) |
+| Product code | app/service code users run | Tier 0-1: arm D (opus verifier only on a Codex P0); Tier 2: `/lead-orchestrator2` feature mode (arm D) |
 | Research | audit, RCA, study | `/lead-orchestrator` investigate-audit |
 
 **Tier (by size) sets who does it:**
@@ -41,7 +41,7 @@ Pick the weight and the tier before you start. Name both in one line, e.g. "Weig
 |---|---|---|
 | 0 | A question, a lookup, or a small edit (1-2 files, no new behaviour) | The session does it itself, in the foreground. |
 | 1 | One medium job with no parallel parts | One worker agent, foreground. |
-| 2 | Product-code feature, multi-file product code, or parallel parts | `/lead-orchestrator`. Product code goes through the full feature-mode TDD pipeline, unchanged. |
+| 2 | Product-code feature, multi-file product code, or parallel parts | `/lead-orchestrator2` feature mode: arm D (`lo-feature-task-d.js`). No TDD (owner, 2026-11-15). |
 
 - The full VIBE pipeline is for product code only. Docs and light code in a VIBE repo take the weight row above, not feature mode.
 - A plain answer with no deliverable needs no verifier.

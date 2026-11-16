@@ -18,6 +18,7 @@ IDLE="$TMP/state-idle"; mkdir -p "$IDLE"
 
 CODE="$TMP/app"; new_repo "$CODE" package.json src/a.ts
 DOCS="$TMP/pm"; new_repo "$DOCS" fy27/a.md
+mkdir -p "$CODE/apps/x" && touch "$CODE/apps/x/pyproject.toml"   # monorepo app root
 mkdir -p "$DOCS/.claude"; echo '{"kind":"docs"}' > "$DOCS/.claude/workspace.json"
 
 # w <cwd> <file> [agent_id] → Write payload
@@ -35,6 +36,16 @@ check "code: src/qa_helpers/x.ts denied"    DENY  "$HOOK" "$CODE" "$(w "$CODE" "
 check "code: root notes.md denied"          DENY  "$HOOK" "$CODE" "$(w "$CODE" "$CODE/notes.md")" HARNESS_GOV_STATE_DIR="$ARMED"
 check "code: src/settings.json denied"      DENY  "$HOOK" "$CODE" "$(w "$CODE" "$CODE/src/settings.json")" HARNESS_GOV_STATE_DIR="$ARMED"
 check "code: .claude/settings.local.json allowed" ALLOW "$HOOK" "$CODE" "$(w "$CODE" "$CODE/.claude/settings.local.json")" HARNESS_GOV_STATE_DIR="$ARMED"
+echo "-- monorepo app (prefix matches at any folder boundary) --"
+check "mono: apps/x/docs/temp/run/req.md allowed" ALLOW "$HOOK" "$CODE" "$(w "$CODE" "$CODE/apps/x/docs/temp/run/req.md")" HARNESS_GOV_STATE_DIR="$ARMED"
+check "mono: apps/x/docs/plans/p.md allowed"     ALLOW "$HOOK" "$CODE" "$(w "$CODE" "$CODE/apps/x/docs/plans/p.md")" HARNESS_GOV_STATE_DIR="$ARMED"
+check "mono: apps/x/.claude/settings.json allowed" ALLOW "$HOOK" "$CODE" "$(w "$CODE" "$CODE/apps/x/.claude/settings.json")" HARNESS_GOV_STATE_DIR="$ARMED"
+check "mono: apps/x/src/a.py denied"             DENY  "$HOOK" "$CODE" "$(w "$CODE" "$CODE/apps/x/src/a.py")" HARNESS_GOV_STATE_DIR="$ARMED"
+check "mono: apps/xdocs/a.md denied (no substring bypass)" DENY "$HOOK" "$CODE" "$(w "$CODE" "$CODE/apps/xdocs/a.md")" HARNESS_GOV_STATE_DIR="$ARMED"
+check "mono: apps/x/notdocs/a.md denied"         DENY  "$HOOK" "$CODE" "$(w "$CODE" "$CODE/apps/x/notdocs/a.md")" HARNESS_GOV_STATE_DIR="$ARMED"
+check "mono: src/docs/x.py denied (src is no app root)" DENY "$HOOK" "$CODE" "$(w "$CODE" "$CODE/src/docs/x.py")" HARNESS_GOV_STATE_DIR="$ARMED"
+check "mono: apps/x/src/docs/x.py denied"       DENY  "$HOOK" "$CODE" "$(w "$CODE" "$CODE/apps/x/src/docs/x.py")" HARNESS_GOV_STATE_DIR="$ARMED"
+check "mono: apps/nomarker/docs/a.md denied"    DENY  "$HOOK" "$CODE" "$(w "$CODE" "$CODE/apps/nomarker/docs/a.md")" HARNESS_GOV_STATE_DIR="$ARMED"
 echo "-- docs workspace --"
 check "docs: fy27/claude/spec.md allowed"   ALLOW "$HOOK" "$DOCS" "$(w "$DOCS" "$DOCS/fy27/claude/spec.md")" HARNESS_GOV_STATE_DIR="$ARMED"
 check "docs: fy27/notes.md allowed"         ALLOW "$HOOK" "$DOCS" "$(w "$DOCS" "$DOCS/fy27/notes.md")" HARNESS_GOV_STATE_DIR="$ARMED"

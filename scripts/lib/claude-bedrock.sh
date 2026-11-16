@@ -10,10 +10,13 @@ set -euo pipefail
 
 # Purpose: Export required environment variables for Bedrock access.
 # Usage: Automatically run when sourced or executed.
-# Gotchas: Always sets these three vars; does not preserve existing values.
+# Gotchas: Always sets these four vars; does not preserve existing values.
 export CLAUDE_CODE_USE_BEDROCK=1
 export AWS_PROFILE=dil-team-boards
 export AWS_REGION=us-west-2
+# Subagents spawned with model "sonnet" resolve through this var. Without it, Bedrock's
+# default for the alias is Sonnet 4.5, which costs 1.5x Sonnet 5.5 (token study 2026-11-13).
+export ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-5-5
 
 # Purpose: Map model alias to full Bedrock ID, strip [1m] suffix if present.
 # Usage: model_id="$(map_model_alias opus)"
@@ -26,7 +29,10 @@ map_model_alias() {
     opus|claude-opus-5-5)
       echo "us.anthropic.claude-opus-5-5"
       ;;
-    sonnet|claude-sonnet-5)
+    sonnet|claude-sonnet-5-5)
+      echo "us.anthropic.claude-sonnet-5-5"
+      ;;
+    claude-sonnet-5)
       echo "us.anthropic.claude-sonnet-5"
       ;;
     haiku|claude-haiku-4-5)

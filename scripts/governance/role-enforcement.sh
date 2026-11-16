@@ -49,14 +49,33 @@ BASE="$(basename "$REL")"
 roles_list() { jq -r --arg k "$1" '.orchestrator[$k] // [] | .[]' "$ROLES_FILE"; }
 
 # matches_prefix <key>
-# Purpose: exit 0 when REL starts with any repo-relative prefix listed under <key>.
+# Purpose: exit 0 when REL starts with a prefix listed under <key>, either at the git root
+#   or at a monorepo app root (apps/x/docs/...). REL is relative to the git root.
 # Usage: matches_prefix allow_prefixes && exit 0
-# Gotchas: prefixes end with "/" so "docs/" never matches "docsx/".
+# Gotchas: prefixes end with "/" so "docs/" never matches "docsx/". A nested match counts
+#   only when the folder above the prefix is an app root, so src/docs/x.py stays denied.
 matches_prefix() {
-  local p
+  local p parent
   while IFS= read -r p; do
-    [[ -n "$p" && "$REL" == "$p"* ]] && return 0
+    [[ -z "$p" ]] && continue
+    [[ "$REL" == "$p"* ]] && return 0
+    if [[ "$REL" == */"$p"* ]]; then
+      parent="${REL%%/"$p"*}"
+      is_app_root "$ROOT/$parent" && return 0
+    fi
   done < <(roles_list "$1")
+  return 1
+}
+
+# is_app_root <dir>
+# Purpose: exit 0 when <dir> holds its own project marker (a monorepo app or package).
+# Usage: is_app_root "$ROOT/apps/x" && echo app
+# Gotchas: the marker list is fixed here; add a marker when a new stack shows up.
+is_app_root() {
+  local m
+  for m in pyproject.toml package.json go.mod Cargo.toml .claude; do
+    [[ -e "$1/$m" ]] && return 0
+  done
   return 1
 }
 

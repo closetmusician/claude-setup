@@ -135,3 +135,6 @@ docs/plans/harness/fable/evidence/II-4-reflex.log
 # Ad-hoc pre-change config snapshots (git already versions these; 2026-07-26 copy
 # also carried a live sk-ccr- token, so never commit this class of dir)
 /backup-20*/
+
+# Token study call tables: session and message ids from transcripts (regenerate with docs/learnings/tokens/scripts/ledger*.py)
+docs/learnings/tokens/data/

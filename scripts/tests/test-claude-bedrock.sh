@@ -66,12 +66,19 @@ test_start "Alias opus → us.anthropic.claude-opus-5-5"
   claude_bedrock opus | grep -q 'us.anthropic.claude-opus-5-5'
 ) && test_pass || test_fail "opus alias not mapped"
 
-test_start "Alias sonnet → us.anthropic.claude-sonnet-5"
+test_start "Alias sonnet → us.anthropic.claude-sonnet-5-5 (exact)"
 (
   # shellcheck source=/dev/null
   source "$CLAUDE_BEDROCK_SH"
-  claude_bedrock sonnet | grep -q 'us.anthropic.claude-sonnet-5'
-) && test_pass || test_fail "sonnet alias not mapped"
+  [ "$(map_model_alias sonnet)" = "us.anthropic.claude-sonnet-5-5" ]
+) && test_pass || test_fail "sonnet alias not mapped to Sonnet 5.5"
+
+test_start "Sourcing exports ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-5-5 (subagent 'sonnet' alias)"
+(
+  # shellcheck source=/dev/null
+  source "$CLAUDE_BEDROCK_SH"
+  [ "${ANTHROPIC_DEFAULT_SONNET_MODEL:-}" = "us.anthropic.claude-sonnet-5-5" ]
+) && test_pass || test_fail "ANTHROPIC_DEFAULT_SONNET_MODEL not exported"
 
 test_start "Alias haiku → us.anthropic.claude-haiku-4-5-20251001-v1:0"
 (
