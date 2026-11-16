@@ -31,7 +31,7 @@ Pick the weight and the tier before you start. Name both in one line, e.g. "Weig
 | Weight | Examples | Checks |
 |---|---|---|
 | Docs | docs, text, plans, config, prompts | lint/render/link check you run; no verifier agent |
-| Light code | scripts, hooks, tools, harness code | arm D: Codex spec fix, code only, Codex review, 1 fix round; no tests (owner, 2026-11-15) |
+| Light code | scripts, hooks, tools, harness code | arm D: Codex spec fix, code only, Codex review, up to 2 fix rounds (round 2 only for a P0/P1 still open); no tests (owner, 2026-11-15) |
 | Product code | app/service code users run | Tier 0-1: arm D (opus verifier only on a Codex P0); Tier 2: `/lead-orchestrator2` feature mode (arm D) |
 | Research | audit, RCA, study | `/lead-orchestrator` investigate-audit |
 
