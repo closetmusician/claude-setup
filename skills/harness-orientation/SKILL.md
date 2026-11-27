@@ -85,9 +85,10 @@ Do NOT duplicate their content; reference by path and read on the trigger.
   secret-leak incident. **Probe it's active:** `git config core.hooksPath`
   (must print `.githooks`, else the gate does nothing).
 - `~/.claude/scripts/autonomous-push-guard.sh` — blocks push outside sanctioned
-  solo-owned repos. Push main to the `diligent` remote, and a secret-free copy to
-  the public `origin` remote through `scripts/public-snapshot.sh`. Never push
-  private main to `origin` (`MEMORY.md` feedback_push_target_closetmusician).
+  solo-owned repos. Push to three remotes: main to `diligent` (through a PR), full
+  main to the private `personal` remote, and a secret-free copy to the public
+  `origin` remote through `scripts/public-snapshot.sh`. Never push private main to
+  `origin` (`MEMORY.md` feedback_push_target_closetmusician).
 - `rules/protected-files.md` — 11 named files that must not be deleted/emptied
   (CLAUDE.md, the four operating files, code-style, tool-registry, etc.).
 

@@ -1,6 +1,6 @@
 ---
 name: csm-response
-description: "Draft and post CSM-facing workaround replies into the original Teams channel threads, from a complaint report made by teams-channel-research. Use on \"post workarounds to CSMs\", \"reply to the channel\", \"send updates back\", \"post responses\", or /csm-response. It always pauses for owner approval before it posts. NOT for Jira work (pm-jira) or Confluence edits (atlassian-update)."
+description: "Draft and post CSM-facing workaround replies into the original Teams channel threads, from a complaint report made by teams-channel-research. Use on \"post workarounds to CSMs\", \"reply to the channel\", \"send updates back\", \"post responses\", or /csm-response. It always pauses for owner approval before it posts. NOT for Jira work (pm-jira) or Confluence edits (atlassian-update). NOT for an escalation reply (research, then a reply to blame, a complaint or a challenge): use escalation."
 ---
 
 # CSM Response

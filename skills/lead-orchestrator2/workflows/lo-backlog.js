@@ -3,7 +3,7 @@ export const meta = {
   description: 'backlog wave: one coder per item, QA cycle-1 over the wave, then the wave verifier (always)',
   whenToUse: 'lead-orchestrator2 backlog mode, one wave per launch',
   phases: [
-    { title: 'Coders', detail: 'one sonnet coder per item, RED-first unit tests', model: 'sonnet' },
+    { title: 'Coders', detail: 'one sonnet coder per item, new tests only when the item asks', model: 'sonnet' },
     { title: 'QA', detail: 'cycle-1 over the wave diffs (qa_cycles >= 1)', model: 'sonnet' },
     { title: 'Verify', detail: 'wave verifier, always runs, max 2 rounds', model: 'opus' },
   ],
@@ -62,7 +62,7 @@ const coderPrompt = (it, note) => [
   `- {ESCALATION_CONDITIONS} = the item needs design, or touches files beyond: ${it.files.join(', ')}`,
   `- {TASK_DESCRIPTION} = ${it.description}`,
   `Work in ${A.repo}. Touch only these files and their tests: ${it.files.join(', ')}. Other agents share this tree.`,
-  `Unit tests RED-first, commit per item. Write ${readyFile(it)}.`,
+  `Owner rule (arm D): write NO new tests and skip the template's RED steps, unless the item text asks for tests. Keep the existing tests passing. Commit per item. Write ${readyFile(it)}.`,
   note ? `FIX ROUND: ${note}` : '',
 ].join('\n')
 

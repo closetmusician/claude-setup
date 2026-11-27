@@ -85,7 +85,6 @@ or invoking other gstack skills, use the `/gstack-` prefix (e.g., `/gstack-qa` i
 of `/qa`, `/gstack-ship` instead of `/ship`). Disk paths are unaffected — always use
 `~/.claude/skills/[skill-name]/SKILL.md` for reading skill files.
 
-If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running gstack v{to} (just updated!)" and continue.
 
 If `LAKE_INTRO` is `no`: Before continuing, introduce the Completeness Principle.
 Tell the user: "gstack follows the **Boil the Lake** principle — always do the complete
@@ -183,9 +182,6 @@ Key routing rules:
 - QA, test the site, find bugs → invoke qa
 - Code review, check my diff → invoke review
 - Update docs after shipping → invoke document-release
-- Weekly retro → invoke retro
-- Design system, brand → invoke design-consultation
-- Visual audit, design polish → invoke design-review
 - Architecture review → invoke plan-eng-review
 ```
 
@@ -1090,7 +1086,7 @@ Evaluate:
 **STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY. If no issues or fix is obvious, state what you'll do and move on — don't waste a question. Do NOT proceed until user responds.
 
 ### Section 11: Design & UX Review (skip if no UI scope detected)
-The CEO calling in the designer. Not a pixel-level audit — that's /plan-design-review and /design-review. This is ensuring the plan has design intentionality.
+The CEO calling in the designer. Not a pixel-level audit. This is ensuring the plan has design intentionality.
 
 Evaluate:
 * Information architecture — what does the user see first, second, third?
@@ -1108,7 +1104,6 @@ Evaluate:
 
 Required ASCII diagram: user flow showing screens/states and transitions.
 
-If this plan has significant UI scope, recommend: "Consider running /plan-design-review for a deep design review of this plan before implementation."
 **STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY. If no issues or fix is obvious, state what you'll do and move on — don't waste a question. Do NOT proceed until user responds.
 
 ## Outside Voice — Independent Plan Challenge (optional, recommended)
@@ -1251,9 +1246,6 @@ Do NOT incorporate outside voice recommendations into the plan without presentin
 finding via AskUserQuestion and getting explicit approval. This applies even when you
 agree with the outside voice. Cross-model consensus is a strong signal — present it as
 such — but the user makes the decision.
-
-## Post-Implementation Design Audit (if UI scope detected)
-After implementation, run `/design-review` on the live site to catch visual issues that can only be evaluated with rendered output.
 
 ## CRITICAL RULE — How to ask questions
 Follow the AskUserQuestion format from the Preamble above. Additional rules for plan reviews:
@@ -1517,14 +1509,11 @@ After displaying the Review Readiness Dashboard, recommend the next review(s) ba
 
 **Recommend /plan-eng-review if eng review is not skipped globally** — check the dashboard output for `skip_eng_review`. If it is `true`, eng review is opted out — do not recommend it. Otherwise, eng review is the required shipping gate. If this CEO review expanded scope, changed architectural direction, or accepted scope expansions, emphasize that a fresh eng review is needed. If an eng review already exists in the dashboard but the commit hash shows it predates this CEO review, note that it may be stale and should be re-run.
 
-**Recommend /plan-design-review if UI scope was detected** — specifically if Section 11 (Design & UX Review) was NOT skipped, or if accepted scope expansions included UI-facing features. If an existing design review is stale (commit hash drift), note that. In SCOPE REDUCTION mode, skip this recommendation — design review is unlikely relevant for scope cuts.
 
-**If both are needed, recommend eng review first** (required gate), then design review.
 
 Use AskUserQuestion to present the next step. Include only applicable options:
 - **A)** Run /plan-eng-review next (required gate)
-- **B)** Run /plan-design-review next (only if UI scope detected)
-- **C)** Skip — I'll handle reviews manually
+- **B)** Skip — I'll handle reviews manually
 
 ## docs/designs Promotion (EXPANSION and SELECTIVE EXPANSION only)
 

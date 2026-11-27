@@ -289,7 +289,7 @@ Present: artifact paths with 1-line summaries, story/task counts, new questions 
 - **Tier 1:** 2 parallel sonnet reviewers (Structure + Completeness) per `templates/tier1-prompts.md`; merge → fix SPECIFIABLE inline → report REQUIRES_DECISION → skip Step 10, go to 11.
 - **Tier 2:** Read `templates/review-prompt.md`; fill `[ARTIFACT_PATHS]`, `[PRD_PATH]`, `[PROJECT_PATH]`, `[REVIEW_FINDINGS_PATH]` = `{FEATURE_DIR}/review-findings.md`, `[TRACEABILITY_MATRIX_PATH]` = `{FEATURE_DIR}/traceability/traceability-matrix.md`. Spawn `subagent_type: "general-purpose"`, `model: "opus"` (adversarial judgment tier). Reviewer sees ONLY artifacts + PRD (no planning conversation) and writes findings to disk. Verify the file exists; read it from disk.
 
-This internal reviewer fulfils the VIBE protocol's independent-review requirement in-skill; for an interactive human-facing pass, `/plan-eng-review` (and `/plan-design-review` for UI features) exist as follow-ups.
+This internal reviewer fulfils the VIBE protocol's independent-review requirement in-skill; for an interactive human-facing pass, `/plan-eng-review` exists as a follow-up.
 
 ## Step 10: Auto-Fix Loop (Tier 2 only: max 1 iteration)
 

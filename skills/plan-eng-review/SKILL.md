@@ -9,7 +9,7 @@ description: |
   "engineering review", "review this plan", "lock in the plan"; voice aliases
   "tech review", "technical review", "plan engineering review". NOT for PR
   diffs (pr-review-pr), post-write code (garry-review), product/scope strategy
-  (ceo-review), or design critique (plan-design-review).
+  (ceo-review).
 allowed-tools:
   - Read
   - Write
@@ -279,8 +279,9 @@ found → still produce the coverage diagram, skip test generation.
 6. **Output the ASCII coverage diagram** — code paths AND user flows, star
    ratings, [GAP]/[→E2E]/[→EVAL] markers, summary line
    (`COVERAGE: n/m paths tested | QUALITY: ★★★:a ★★:b ★:c | GAPS: g`).
-7. **Add every GAP to the plan as a specific test requirement** — file to
-   create, what to assert, unit/E2E/eval type. Regressions flagged **CRITICAL**.
+7. **Only when the owner asks for tests on this job: add every GAP to the plan as a
+   specific test requirement** — file to create, what to assert, unit/E2E/eval type.
+   Otherwise list each GAP as a manual check. Regressions flagged **CRITICAL**.
 
 **Fast path:** all paths covered → "Test review: all new code paths have test
 coverage ✓" and continue.
@@ -361,7 +362,8 @@ without context is worse than no TODO.
 ### Failure modes
 Per new codepath in the test diagram: one realistic production failure (timeout,
 nil, race, stale data) — (1) test covers it? (2) error handling exists? (3) user
-sees a clear error or silent failure? No test AND no handling AND silent →
+sees a clear error or silent failure? No handling AND silent (and no test, when
+the owner asked for tests) →
 **critical gap** (P0 — individual question).
 
 ### Worktree parallelization strategy
@@ -394,7 +396,7 @@ Amendments applied to plan doc (N).
 
 ## Review Log
 
-Persist the outcome so later sessions and `/ship` can see a review ran:
+Persist the outcome so later sessions can see a review ran:
 
 ```bash
 SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
@@ -432,8 +434,7 @@ default to an option.
 
 ## Next Steps
 
-One AskUserQuestion, only applicable options: "Run /plan-design-review" (UI scope
-detected, no design review yet) / "Run /ceo-review" (significant product-direction
+One AskUserQuestion, only applicable options: "Run /ceo-review" (significant product-direction
 change) / "Start implementing".
 
 ## EXIT PLAN MODE GATE (BLOCKING)

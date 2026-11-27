@@ -141,4 +141,4 @@ Fail mode is fail-open: a style gate must never strand a finished answer.
 
 Kill switch: `HARNESS_STE_LINT=0`. Tests: `scripts/tests/test-ste-lint.sh`, 26 cases.
 
-Doc checker: `scripts/governance/doc-clarity-guard.py` (PostToolUse) checks owner-facing docs against section 5c. Switch: `HARNESS_DOC_CLARITY=0`. It warns only and never blocks.
+Doc checker: `scripts/governance/doc-clarity-guard.py` (PostToolUse) records each saved owner-facing doc. `scripts/governance/doc-clarity-gate.py` reads the saved docs at the end of a turn (Stop) and when a subagent tries to hand back its report (PreToolUse on SubagentHandback, which refuses the hand-back; SubagentStop is a backstop). It blocks a doc the owner could not follow, with the problem lines. It forces up to 2 rewrites, then one last block that asks for a partial report. Switch: `HARNESS_DOC_CLARITY=0` turns off both hooks. Fail-open: an error never blocks.

@@ -1,23 +1,22 @@
-# ABOUTME: PostToolUse hook that warns when an owner-facing doc lacks a recommendation, gains and costs, or framed decisions.
-# ABOUTME: Asks one OpenJev request with six questions, then adds a warning as additionalContext. It never blocks.
-# ABOUTME: Fails open: any error, timeout or bad answer means no output and exit 0. All numbers and text: policy/doc-gate.json.
-# ABOUTME: Switch: HARNESS_DOC_CLARITY=0 turns it off. Spec: docs/plans/harness/doc-clarity-guard/spec.md Part B.
+# ABOUTME: PostToolUse hook that records which owner-facing docs a session or subagent saved. It makes no model call and prints nothing.
+# ABOUTME: doc-clarity-gate.py (Stop and SubagentStop) reads the list and blocks unclear docs. This file also holds the shared helpers.
+# ABOUTME: Fails open: any error or timeout means no output and exit 0. Eligibility and numbers: policy/doc-gate.json.
+# ABOUTME: Switch: HARNESS_DOC_CLARITY=0 turns it off. Spec: docs/plans/harness/doc-clarity-guard/spec-gate.md (REQ-D1).
+# ABOUTME: Shared with the gate: sha, bare_codes (Part C), locked and update_json (private atomic JSON state under a lock).
+import contextlib
+import fcntl
+import fnmatch
 import hashlib
-import importlib.util
 import json
-import math
 import os
+import re
 import signal
 import sys
-import time
 
 HOME = os.path.expanduser('~/.claude')
 POLICY_FILE = os.path.join(HOME, 'policy', 'doc-gate.json')
-REPLY_POLICY_FILE = os.path.join(HOME, 'policy', 'reply-gate.json')
-SEEN_FILE = os.path.join(HOME, 'state', 'clarity', 'doc-gate-seen.json')
-LOG_FILE = os.path.join(HOME, 'state', 'clarity', 'doc-log.jsonl')
-GOVERNANCE = os.path.join(HOME, 'scripts', 'governance')
-QUESTIONS = ('is_owner_report', 'says_what_to_do', 'gains_costs', 'has_decisions', 'decisions_framed', 'plain')
+STATE_DIR = os.path.join(HOME, 'state', 'clarity')
+PENDING_DIR = os.path.join(STATE_DIR, 'doc-pending')
 
 
 def on_alarm(signum, frame):
@@ -40,129 +39,121 @@ def eligible(path, policy):
         return False
     if any(path.startswith(p) for p in policy['skip_prefixes']):
         return False
+    # skip_globs: full-path patterns for test data, e.g. escalation test drafts (owner, 2026-11-27)
+    if any(fnmatch.fnmatch(path, g) for g in policy.get('skip_globs', [])):
+        return False
     return not set(os.path.dirname(path).split(os.sep)) & set(policy['skip_segments'])
 
 
-def read_seen():
-    """Purpose: load the seen-hash map {path hash: {'h': text hash, 't': time}}. Usage: seen = read_seen().
-    Gotchas: a missing file gives an empty map. Any other read or parse error removes the file, then raises to the silent exit."""
+def bare_codes(text, cfg):
+    """Purpose: list the distinct bare codes (B4, A5a-04, S-39) a reader meets in prose. Usage: codes = bare_codes(text, policy['codes']).
+    Gotchas: code fences, inline code and HTML comments are dropped first. Table cells under a header that matches
+    ref_header_regex are skipped, so one reference column may hold ids. Returns codes in first-seen order."""
+    # A fence closes only on a run of the same mark at least as long as the one that opened it.
+    text = re.sub(r'(?ms)^[ \t]*(?P<f>(?P<c>[`~])(?P=c){2,})[^\n]*\n.*?^[ \t]*(?P=f)(?P=c)*[ \t]*$', ' ', text)
+    text = re.sub(r'<!--.*?-->', ' ', text, flags=re.S)
+    text = re.sub(r'`[^`\n]*`', ' ', text)
+    code_re, ref_re = re.compile(cfg['regex']), re.compile(cfg['ref_header_regex'])
+    lines, keep, skip_cols = text.split('\n'), [], set()
+    sep = re.compile(r'\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*')
+    for i, line in enumerate(lines):
+        nxt = lines[i + 1] if i + 1 < len(lines) else ''
+        starts = not skip_cols and '|' in line and sep.fullmatch(nxt)
+        if '|' not in line or not (skip_cols or starts):
+            skip_cols = set()
+            keep.append(line)
+            continue
+        # Escaped pipes stay inside their cell.
+        cells = [c.replace('\0', '|') for c in line.replace('\\|', '\0').strip().strip('|').split('|')]
+        if starts:
+            # Header row: remember which columns are reference columns.
+            skip_cols = {j for j, c in enumerate(cells) if ref_re.search(c)} or {-1}
+        if re.fullmatch(r'[\s:-]*', ''.join(cells)):
+            continue
+        keep.append(' '.join(c for j, c in enumerate(cells) if j not in skip_cols))
+    seen = []
+    for c in code_re.findall('\n'.join(keep)):
+        if c not in seen:
+            seen.append(c)
+    return seen
+
+@contextlib.contextmanager
+def locked():
+    """Purpose: one exclusive lock for every read-modify-write of the doc state files.
+    Usage: with locked(): ... Gotchas: the lock file lives in the state folder; it is released when the block ends or the process dies."""
+    os.makedirs(STATE_DIR, exist_ok=True)
+    fd = os.open(os.path.join(STATE_DIR, 'doc-gate.lock'), os.O_WRONLY | os.O_CREAT, 0o600)
     try:
-        with open(SEEN_FILE, encoding='utf-8') as fh:
-            d = json.load(fh)
-        if not isinstance(d, dict):
-            raise ValueError('seen file is not a map')
-        return d
-    except FileNotFoundError:
-        return {}
-    except Exception:
-        try:
-            os.remove(SEEN_FILE)
-        except Exception:
-            pass
-        raise
-
-
-def write_seen(seen, key, text_hash, cap):
-    """Purpose: remember a text hash for a path and keep at most cap entries, oldest dropped.
-    Usage: write_seen(seen, sha(path), sha(text), 500). Gotchas: any error propagates to the silent exit. Atomic replace."""
-    seen.pop(key, None)
-    seen[key] = {'h': text_hash, 't': time.time()}
-    for k in sorted(seen, key=lambda k: seen[k].get('t', 0) if isinstance(seen[k], dict) else 0)[:max(0, len(seen) - cap)]:
-        del seen[k]
-    os.makedirs(os.path.dirname(SEEN_FILE), exist_ok=True)
-    tmp = '%s.%d.tmp' % (SEEN_FILE, os.getpid())
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NONBLOCK, 0o600)
-    with os.fdopen(fd, 'w', encoding='utf-8') as fh:
-        json.dump(seen, fh)
-    os.replace(tmp, SEEN_FILE)
-
-
-def log_line(record):
-    """Purpose: append one JSON line to the doc log, private to the owner.
-    Usage: log_line({...}); never include text or the plain path. Gotchas: any error propagates to the silent exit. O_NONBLOCK so a stuck file cannot hang."""
-    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-    data = (json.dumps(record, allow_nan=False) + '\n').encode()
-    fd = os.open(LOG_FILE, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NONBLOCK, 0o600)
-    try:
-        os.write(fd, data)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
     finally:
         os.close(fd)
-    os.chmod(LOG_FILE, 0o600)
 
 
-def valid(answers):
-    """Purpose: check every question has a finite noul number in 0..1. Usage: valid(answers) -> bool.
-    Gotchas: a bool is not a number. Unknown stays unknown, no default is filled in."""
-    if not isinstance(answers, dict):
-        return False
-    for q in QUESTIONS:
-        a = answers.get(q)
-        v = a.get('noul') if isinstance(a, dict) else None
-        if not (isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and 0 <= v <= 1):
-            return False
-    return True
+def read_json(path, default):
+    """Purpose: load a JSON object file. Usage: read_json(path, {}).
+    Gotchas: a missing file gives the default. A file that is not a JSON object raises."""
+    try:
+        with open(path, encoding='utf-8') as fh:
+            d = json.load(fh)
+    except FileNotFoundError:
+        return default
+    if not isinstance(d, dict):
+        raise ValueError('state file is not a map')
+    return d
 
 
-def findings(n, structure, policy):
-    """Purpose: turn the six numbers into the three finding flags. Usage: f = findings(noul_dict, structure_ok_bool, policy).
-    Gotchas: a non-report never warns, so every flag is False then. The plain number is logged only and never warns."""
-    lo = policy['min']
-    if n['is_owner_report'] < policy['report_min']:
-        return {'no_action': False, 'no_gain_cost': False, 'unframed': False}
-    return {'no_action': n['says_what_to_do'] < lo, 'no_gain_cost': n['gains_costs'] < lo,
-            'unframed': n['has_decisions'] >= lo and (n['decisions_framed'] < lo or not structure)}
+def write_json(path, data):
+    """Purpose: atomic private write of a JSON file (mode 0600). Usage: write_json(path, data).
+    Gotchas: temp file in the same folder, then replace. O_NONBLOCK so a stuck file cannot hang."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = '%s.%d.tmp' % (path, os.getpid())
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NONBLOCK, 0o600)
+    with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+        json.dump(data, fh)
+    os.replace(tmp, path)
 
 
-def message(path, flags, policy):
-    """Purpose: build the warning text. Usage: message(path, flags, policy) -> str.
-    Gotchas: spaces in the path become underscores so it counts as one word; if still over word_limit the folder is dropped."""
-    m = policy['message']
-    parts = [m[k] for k in ('no_action', 'no_gain_cost', 'unframed') if flags[k]]
-    shown = path.replace(HOME, '~/.claude').replace(' ', '_')
-    for p in (shown, os.path.basename(shown)):
-        text = ' '.join([m['head'].format(path=p)] + parts + [m['tail']])
-        if len(text.split()) <= m['word_limit']:
-            return text
-    return text
+def safe_name(session_id):
+    """Purpose: turn a session id into a safe file name. Usage: safe_name(id). Gotchas: anything outside letters, digits, dash and underscore becomes an underscore."""
+    return re.sub(r'[^A-Za-z0-9_-]', '_', str(session_id))
 
 
-def run(raw, rec):
-    """Purpose: do the whole hook job for one payload. Usage: out = run(stdin_text, rec); returns the warning or None.
-    Gotchas: rec is filled in place and logged only when a model check ran. Never raises past the caller's catch."""
-    t0 = time.monotonic()
-    sys.path.insert(0, GOVERNANCE)
-    import clarity_jev
-    spec = importlib.util.spec_from_file_location('reply_clarity_gate', os.path.join(GOVERNANCE, 'reply-clarity-gate.py'))
-    reply_gate = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(reply_gate)
+def record(session_id, agent_id, path):
+    """Purpose: add a saved doc path to the session's pending list and, if given, the agent's list.
+    Usage: record(session_id, agent_id_or_None, abs_path). Gotchas: a path appears at most once per list. Atomic write under the lock."""
+    file = os.path.join(PENDING_DIR, safe_name(session_id) + '.json')
+    with locked():
+        pending = read_json(file, {})
+        for key in ('main', agent_id):
+            if key is None:
+                continue
+            lst = pending.get(key)
+            lst = lst if isinstance(lst, list) else []
+            if path not in lst:
+                lst.append(path)
+            pending[key] = lst
+        write_json(file, pending)
+
+
+def run(raw):
+    """Purpose: do the whole hook job for one payload. Usage: run(stdin_text).
+    Gotchas: records only eligible files that are at least min_chars long. Never raises past the caller's catch."""
+    payload = json.loads(raw)
     policy = json.load(open(POLICY_FILE))
-    path = os.path.abspath(os.path.expanduser(json.loads(raw)['tool_input']['file_path']))
+    path = os.path.abspath(os.path.expanduser(payload['tool_input']['file_path']))
     if not eligible(path, policy):
-        return None
+        return
     with open(path, encoding='utf-8', errors='ignore') as fh:
-        text = fh.read()
-    if len(text) < policy['min_chars']:
-        return None
-    pkey, thash = sha(path), sha(text)
-    seen = read_seen()
-    if isinstance(seen.get(pkey), dict) and seen[pkey].get('h') == thash:
-        return None
-    body = {'model': policy['model'], 'state': {'reader': policy['reader_owner'], 'message': clarity_jev.redact(text)[0]},
-            'questions': policy['questions']}
-    answers, ms = clarity_jev.post_body(body, deadline=policy['deadline_s'])
-    if not valid(answers):
-        return None
-    n = {q: answers[q]['noul'] for q in QUESTIONS}
-    structure = reply_gate.structure_ok(text, json.load(open(REPLY_POLICY_FILE))['choice'])
-    flags = findings(n, structure, policy)
-    write_seen(seen, pkey, thash, policy['seen_cap'])
-    rec.update(path=pkey, chars=len(text), answers=n, flags=flags, ms=ms)
-    return message(path, flags, policy) if any(flags.values()) else None
+        if len(fh.read()) < policy['min_chars']:
+            return
+    agent = payload.get('agent_id')
+    record(payload['session_id'], agent if isinstance(agent, str) and agent else None, path)
 
 
 def main():
     """Purpose: PostToolUse hook entry. Usage: python3 -I ~/.claude/scripts/governance/doc-clarity-guard.py < payload.json.
-    Gotchas: the alarm is set before stdin is read. A bad policy or alarm_s below 1 means a silent exit. Output is a warning only, exit is always 0."""
+    Gotchas: the alarm is set before stdin is read. A bad policy or alarm_s below 1 means a silent exit. No output, exit is always 0."""
     if os.environ.get('HARNESS_DOC_CLARITY') == '0':
         return
     signal.signal(signal.SIGALRM, on_alarm)
@@ -170,14 +161,7 @@ def main():
     if isinstance(secs, bool) or not isinstance(secs, int) or secs < 1:
         return
     signal.alarm(secs)
-    rec = {}
-    out = run(sys.stdin.read(), rec)
-    if rec:
-        log_line({'time': round(time.time(), 3), 'path_sha256': rec['path'], 'chars': rec['chars'],
-                  'answers': rec['answers'], 'flags': rec['flags'], 'ms': rec['ms']})
-    if out:
-        sys.stdout.write(json.dumps({'hookSpecificOutput': {'hookEventName': 'PostToolUse', 'additionalContext': out}}, ensure_ascii=False))
-        sys.stdout.flush()
+    run(sys.stdin.read())
 
 
 if __name__ == '__main__':

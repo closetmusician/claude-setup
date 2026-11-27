@@ -17,12 +17,6 @@ Connects the current session to Atlassian (JIRA + Confluence). Two modes:
 1. **Direct API** (default) — uses `curl` with the user's API token. Zero deps, lightweight.
 2. **MCP Server** — registers `mcp-atlassian` via `claude mcp add`. Structured tools, heavier.
 
-## When to Use
-
-- A skill or task needs Atlassian access (JIRA tickets, Confluence pages)
-- User invokes `/atlassian-connect` explicitly
-- The `pm-jira` skill detects missing Atlassian connectivity
-
 ## Procedure
 
 ### Step 1: Check Existing Connectivity
@@ -52,7 +46,7 @@ Yu-Kuan's Atlassian email is `yklin@diligent.com`. Use this as `ATLASSIAN_USER` 
 
 ### Step 4: Verify API Token
 
-Run: `bash -c 'source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null; echo $ATLASSIAN_API_TOKEN'`
+Run: `bash -c 'source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null; [ -n "$ATLASSIAN_API_TOKEN" ] && echo "token set" || echo "token missing"'`. It prints only whether the token exists, never the token.
 
 **If token exists**, test it:
 ```bash
@@ -74,13 +68,11 @@ bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -o /dev/null -w "%{http_code}" -u
    sed -i '' '/^export ATLASSIAN_API_TOKEN=/d' ~/.zshrc
    echo 'export ATLASSIAN_API_TOKEN=<NEW_TOKEN>' >> ~/.zshrc
    ```
-5. Verify the new token works:
+5. Verify the new token works. This reads it back from the profile, so it also proves the write landed:
    ```bash
-   curl -sf -o /dev/null -w "%{http_code}" -u yklin@diligent.com:<NEW_TOKEN> "https://diligentbrands.atlassian.net/rest/api/3/myself"
+   bash -c 'source ~/.zshrc 2>/dev/null; curl -sf -o /dev/null -w "%{http_code}" -u yklin@diligent.com:$ATLASSIAN_API_TOKEN "https://diligentbrands.atlassian.net/rest/api/3/myself"'
    ```
-   If still failing, inform the user and stop.
-
-Do NOT proceed to Step 5 until a valid token is confirmed.
+   If it is not `200`, tell the user and stop. Go to Step 5 only after a `200`.
 
 ### Step 5A: Direct API Mode
 

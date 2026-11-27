@@ -46,10 +46,6 @@ cat > "$GOLDEN_ROOT/golden-completion-block/completion-transcript.jsonl" <<'EOF'
 {"type":"assistant","message":{"content":[{"type":"text","text":"Implementation complete. Everything is wired up and working. The task is done."}]}}
 EOF
 
-write_trace "golden-skill-routing" \
-'{"seq":1,"hook":"scripts/skill-routing-guard.sh","stdin":{"tool_name":"Bash","tool_input":{"command":"gh pr create --title test --body test"}}}' \
-'{"seq":1,"decision":"deny"}'
-
 write_trace "golden-clean-interactive" \
 '{"seq":1,"hook":"scripts/completion-claim-guard.sh","stdin":{"transcript_path":"__TRACE_DIR__/clean-transcript.jsonl","cwd":"/tmp","stop_hook_active":false}}' \
 '{"seq":1,"decision":"silent"}'

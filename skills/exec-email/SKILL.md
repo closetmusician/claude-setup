@@ -1,6 +1,6 @@
 ---
 name: exec-email
-description: "Write a short exec email that is NOT the PM weekly: a bottom line, then a few bold section headers with impactful, concrete bullets. Use for a summary or recommendation to a boss or exec (drafted from the user's notes), or a progress email for one named project team (drafted from that repo's GitHub PRs). Triggers: \"exec email\", \"summary email to my boss\", \"tighten this into an exec update\", \"progress email for the <project> team\", \"/exec-email\". NEVER for the PM weekly status email, with or without a project name: that is pm-weekly, with its own format and template. NOT for an internal evidence-cited status report (that is evidence-backed-status)."
+description: "Write a short exec email that is NOT the PM weekly: a bottom line, then a few bold section headers with impactful, concrete bullets. Use for a summary or recommendation to a boss or exec (drafted from the user's notes), or a progress email for one named project team (drafted from that repo's GitHub PRs). Triggers: \"exec email\", \"summary email to my boss\", \"tighten this into an exec update\", \"progress email for the <project> team\", \"/exec-email\". NEVER for the PM weekly status email, with or without a project name: that is pm-weekly, with its own format and template. NOT for an internal evidence-cited status report (that is evidence-backed-status). NOT for an escalation reply (research, then a reply to blame, a complaint or a challenge): use escalation."
 ---
 
 <!-- ABOUTME:

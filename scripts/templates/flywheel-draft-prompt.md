@@ -77,7 +77,6 @@ incident_ts={{INCIDENT_TS}} class={{INCIDENT_CLASS}}
 You may use Read, Grep, and Glob to inspect relevant files before drafting.
 Start by reading the guard script most likely to handle class {{INCIDENT_CLASS}}:
 - `~/.claude/scripts/completion-claim-guard.sh` for claim/completion classes
-- `~/.claude/scripts/skill-routing-guard.sh` for skill-routing classes
 - `~/.claude/scripts/incident-freeze-enforcer.sh` for freeze/mutation classes
 - `~/.claude/rules/` for routing rule files
 - `~/.claude/settings.json` for permission/config patches

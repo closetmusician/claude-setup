@@ -169,7 +169,7 @@ CMD="$(printf '%s' "$TOOL_INPUT" | jq -r '.command // empty')"
 [ -z "$CMD" ] && exit 0
 
 # Neutralise heredoc bodies and quoted strings so a commit message or echoed text
-# cannot masquerade as a mutation (same trick as skill-routing-guard.sh).
+# cannot masquerade as a mutation.
 STRIPPED="$(printf '%s' "$CMD" \
   | perl -0777 -pe "s/<<'?EOF'?.*?^EOF\$/__HEREDOC__/gms" \
   | sed "s/\"[^\"]*\"/__STR__/g; s/'[^']*'/__STR__/g")"

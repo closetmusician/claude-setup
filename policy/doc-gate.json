@@ -1,13 +1,7 @@
 {
- "_about": "Tunable numbers, skip rules and question text for scripts/governance/doc-clarity-guard.py. Spec: docs/plans/harness/doc-clarity-guard/spec.md Part B.",
- "version": 1,
- "model": "openjev-latest",
- "deadline_s": 5.5,
- "alarm_s": 7,
+ "_about": "Tunable numbers, skip rules and prompts for scripts/governance/doc-clarity-guard.py (records saves) and doc-clarity-gate.py (blocks). Spec: docs/plans/harness/doc-clarity-guard/spec-gate.md.",
+ "version": 2,
  "min_chars": 300,
- "report_min": 0.7,
- "min": 0.5,
- "seen_cap": 500,
  "extensions": [
   ".md",
   ".html",
@@ -39,40 +33,28 @@
   "/private/tmp/",
   "/tmp/"
  ],
- "message": {
-  "word_limit": 120,
-  "head": "[doc-clarity] {path} reads as a report for the owner but:",
-  "no_action": "no recommendation of what to fix;",
-  "no_gain_cost": "no gain or cost per item;",
-  "unframed": "decisions with no options or recommendation;",
-  "not_plain": "some sentences need plainer words;",
-  "tail": "Rewrite it per ~/.claude/rules/writing-style.md section 5c: what to fix, why, the gain, the cost, and a recommendation per decision."
+ "skip_globs": [
+  "*/docs/firedrills/*/rounds/*/drafts/*"
+ ],
+ "codes": {
+  "_about": "Part C bare-code check. regex matches short ids like B4, A5a-04, S-39, REQ-B7.",
+  "regex": "(?<![\\w/.`-])(?:[A-Z]{1,4}\\d+[a-z]?(?:-[A-Z]{0,2}\\d+[a-z]?)?|[A-Z]{1,4}-[A-Z]{0,2}\\d+[a-z]?)(?![\\w/.`-])",
+  "ref_header_regex": "(?i)\\b(ref|reference|refs|ids?)\\b",
+  "min_distinct": 3,
+  "examples": 5
  },
- "reader_owner": "The owner of an AI coding assistant: a busy product manager who is not an engineer. They read `message` once, between meetings. They know their product and everyday business words. They did not see the assistant's files, code, tools, agents or plans, so they know none of its internal names unless `message` explains them.",
- "questions": {
-  "is_owner_report": {
-   "type": "noul",
-   "instructions": "Is the document a report, review, audit, plan or recommendation for the owner to read and act on (not code docs, notes to self, logs or reference tables)?"
-  },
-  "says_what_to_do": {
-   "type": "noul",
-   "instructions": "Does it say plainly what should be done (fixed, changed or kept), not only what was found?"
-  },
-  "gains_costs": {
-   "type": "noul",
-   "instructions": "For each thing it says to do, does it say what the owner gains and what it costs or risks?"
-  },
-  "has_decisions": {
-   "type": "noul",
-   "instructions": "Does it leave decisions, open questions or flagged items for the owner?"
-  },
-  "decisions_framed": {
-   "type": "noul",
-   "instructions": "For each decision, does it give the options, the good and bad side of each, and a recommendation?"
-  },
-  "plain": {
-   "type": "noul",
-   "instructions": "Could the owner understand every sentence on the first read with zero context?"
-  }
+ "alarm_s": 7,
+ "gate": {
+  "hook_timeout_s": 300,
+  "reader_timeout_s": 240,
+  "model": "sonnet",
+  "max_rewrites": 2,
+  "recheck_max_open": 1,
+  "max_problems": 12,
+  "reader_prompt": "You check one document that an AI assistant wrote. First decide if it is a report for the owner. The owner is a busy product manager, not an engineer. They read it once, between meetings, with zero context: they never saw the assistant's code, files, plans, agents or audit notes. Their rule: a smart 18-year-old must understand every sentence on the first read.\nSet is_owner_report to false for build specs, designs, task files, test fixtures, code docs, logs and other notes written for agents or engineers. Then return verdict PASS and no problems.\nIf it is a report, a review, an audit, a plan or a recommendation for the owner, find the places where the owner would have to stop and ask \"what does this mean?\":\n1. A code, ID, short name or made-up project word (for example \"B4\", \"stagger\", \"the gap floor\", \"fastStore\", \"lane lean\") used in prose without a plain explanation right there. A glossary at the top does not count for a term used much later. IDs kept only in a table column for lookup are fine.\n2. A sentence that only makes sense if you already know the system (it leans on unseen files, earlier runs, or internal steps).\n3. A table cell that is a bare fragment the owner cannot decode.\n4. A finding with no plain statement of what to do about it.\n5. A recommendation with no gain and no cost stated.\n6. A decision for the owner with no options, or with no recommendation.\nDo NOT flag: file paths, command names or code shown in backticks as a label; everyday business or product words; one or two minor side terms that do not block the main point; length.\nBLOCK when the owner could not follow the main points on a first read, or when there are 5 or more distinct places. Otherwise PASS. Most clear docs pass, even long ones.\nReply with JSON only: {\"is_owner_report\": true or false, \"verdict\": \"PASS\" or \"BLOCK\", \"problems\": [{\"where\": \"<section heading>\", \"text\": \"<the exact words, at most 12>\", \"fix\": \"<what to explain, at most 15 words>\"}]}. List at most 12 problems, worst first.",
+  "recheck_prompt": "You re-check one document that an AI assistant rewrote for its owner, a busy product manager with zero context. Last time a reviewer listed the items below. Check ONLY these items. Do not look for other problems, except a new unexplained code or made-up word added in a rewritten sentence.\nFor each listed item: status FIXED if the owner can now follow that point on a first read (the term is explained in plain words where used, or the detail is gone), else OPEN. Copy where, text and fix from the list.\nPut each new unexplained code or made-up word you find in \"new\".\nReply with JSON only: {\"items\": [{\"where\": \"...\", \"text\": \"...\", \"fix\": \"...\", \"status\": \"FIXED\" or \"OPEN\"}], \"new\": [{\"where\": \"...\", \"text\": \"...\", \"fix\": \"...\"}]}",
+  "rewrite_message": "Rewrite the doc so a smart 18-year-old with zero context understands every sentence on the first read. Keep every fact and number. Explain each term where it is used, or drop it. Then finish again.",
+  "limit_message": "{path} still fails the clarity check after {n} rewrites. Open items: {items}. In your final report, mark the state partial and name this doc and its open items.",
+  "code_finding_fix": "define each code in plain words where it is used, or move it to a reference column"
  }
 }

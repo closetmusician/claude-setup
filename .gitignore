@@ -141,3 +141,6 @@ docs/learnings/tokens/data/
 
 # /fc (fast-compact) archive of cut chat text: transcript-derived, never commit
 /fast-compact/
+
+# Doc clarity gate live check: a short-lived untracked copy (spec-gate.md REQ-D11)
+docs/plans/harness/doc-clarity-guard/live/

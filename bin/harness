@@ -2654,12 +2654,11 @@ cmd_replay() {
   done
 
   if [[ "$mode" == "all-golden" ]]; then
-    # Run all 5 golden traces in sequence
+    # Run all 4 golden traces in sequence
     local all_traces=(
       golden-healthy-orchestration
       golden-qa-ownership
       golden-completion-block
-      golden-skill-routing
       golden-clean-interactive
     )
     local overall_ec=0

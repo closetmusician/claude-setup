@@ -5,7 +5,7 @@ description: >
   prioritization, roadmap framing. Use when asked to "CEO review this", "product review this
   plan", "is this the right thing to build", "scope check", "strategic review", "think bigger",
   "expand scope", "rethink this", or "is this ambitious enough".
-  NOT for engineering quality review (plan-eng-review), NOT for design critique (design-review).
+  NOT for engineering quality review (plan-eng-review).
 preamble-tier: 3
 version: 2.0.0
 allowed-tools:
@@ -39,11 +39,11 @@ right thing to build", "scope check", "strategic review", "think bigger / expand
 - **Engineering quality of a plan (architecture, tests, perf, security depth)** → `plan-eng-review`.
   ceo-review owns *what to build and how ambitious*; plan-eng-review owns *is the engineering sound*.
   ceo-review touches engineering only to sanity-check feasibility, never to own it.
-- **Design/UX critique (visual, aesthetics, live-site polish)** → `design-review` / `plan-design-review`.
+- **Design/UX critique (visual, aesthetics, live-site polish)**: no installed skill covers it.
   ceo-review's Section 11 checks design *intentionality* in the plan, not pixels.
 - **Reviewing a code diff / PR** → `pr-review-pr`. **Writing or critiquing a PRD** → `prd-writer` / `prd-review`.
 
-The line: product/strategy/scope = here. Engineering soundness = plan-eng-review. Pixels = design-review.
+The line: product/strategy/scope = here. Engineering soundness = plan-eng-review.
 
 ## Inputs required
 
@@ -94,7 +94,7 @@ Run these in order. Full per-step mechanics, templates, and every section's chec
 8. **Required outputs** — NOT-in-scope, What-already-exists, Dream-state delta, Error/rescue registry,
    Failure-modes registry, TODOS.md updates (one AskUserQuestion each), diagrams, Completion Summary.
 9. **Persist + report** — review log, review-readiness dashboard, plan-file review report, next-step
-   chaining (recommend plan-eng-review as the required gate; plan-design-review if UI scope).
+   chaining (recommend plan-eng-review as the required gate).
 
 ## Output
 
@@ -103,7 +103,7 @@ approach; an **Error & Rescue Registry** and **Failure Modes Registry** (any sil
 row = CRITICAL GAP); **NOT-in-scope / What-already-exists / Dream-state delta** sections; mandatory
 **ASCII diagrams** (architecture, data flow with shadow paths, state machine, error flow, deploy
 sequence, rollback); proposed **TODOS.md** entries; a **Completion Summary** table; and a persisted
-**review log + readiness dashboard** consumed by `/ship`. For EXPANSION/SELECTIVE modes it also writes
+**review log + readiness dashboard** that later reviews read. For EXPANSION/SELECTIVE modes it also writes
 a **CEO plan** doc capturing the vision and every scope decision.
 
 ## Common traps
@@ -122,7 +122,6 @@ a **CEO plan** doc capturing the vision and every scope decision.
 
 - `plan-eng-review` — engineering-quality plan review (architecture, tests, perf, security). The
   required shipping gate; recommend it after ceo-review, especially if scope expanded.
-- `plan-design-review` / `design-review` — design/UX review of the plan / the live site.
 - `prd-writer` — write a PRD from scratch or notes. `prd-review` — critique an existing PRD.
 - `codex` — independent second-opinion for the optional outside-voice step.
 

@@ -13,7 +13,7 @@ broken?" IS /investigate). Plain git ops (commit/push/merge/rebase) are NOT skil
 | Lightweight post-edit code simplification | `simplify` (`code-simplifier` plugin) | |
 | Structural SAFETY review (SQL/LLM/side-effects, explicit ask) | `review` | pr-review-pr (which calls it as its safety aspect) |
 | Plan review — engineering | `plan-eng-review` (`eng-review` is a deprecated stub → same) | ceo-review |
-| Plan review — CEO/product | `ceo-review`; design → `plan-design-review` | plan-eng-review |
+| Plan review — CEO/product | `ceo-review` | plan-eng-review |
 | Plan a feature (arch + tasks) | `eng-planning` | eng-stories |
 | PRD → stories decomposition | `eng-stories` | eng-planning |
 | Write a PRD | `prd-writer`; review/critique a PRD → `prd-review` | |
@@ -21,12 +21,12 @@ broken?" IS /investigate). Plain git ops (commit/push/merge/rebase) are NOT skil
 | Browser navigation, research, scraping, screenshots of external sites | `browse` | qa, qa-only |
 | Debug / "why is this broken" | `investigate` | |
 | Produce evidence-backed status update / "what is the status of X" / "is this done" | `evidence-backed-status` | |
+| Answer an escalation: research it and draft the reply / "escalation" / "draft a response to this" / "respond to <person>'s email" / "reply to this Teams message" / "how do I reply to this angry email" | `escalation` (drafts only, never sends) | exec-email (summary from notes), csm-response (posts into CSM channel threads), yk-voice (polish only) |
 | Short exec email that is NOT the PM weekly: summary/recommendation to a boss from notes, or one named project team's progress email / "exec email" / "summary email to my boss" | `exec-email` | pm-weekly (the PM weekly status email, own format), evidence-backed-status |
 | Write or debug a hook / "hook not firing" / "hook is silently failing" / author a hook test fixture | `hook-authoring` | |
 | Build a spec'd feature or multi-file code change (arm D default, owner 2026-11-15) | `lead-orchestrator2` feature mode | lead-orchestrator (opt-in only) |
 | Orchestrate multi-agent work / fan-out / execute a plan via subagents / backlog burn-down / audit / live-debug | `lead-orchestrator2` (default since 2026-11-17, owner). The skill routes to feature, backlog, investigate-audit, or live-debug itself; do not pre-select a mode | lead-orchestrator (runs ONLY when the user types `/lead-orchestrator` or asks for the TDD pipeline by name) |
-| Ship / create PR (then briefing AFTER creation) | `ship`, then `pr-briefing` | |
-| Visual QA live site | `design-review`; variants → `design-shotgun`; HTML → `design-html`; Angular impl → `design-implement` | |
+| Create a PR (then a briefing, if wanted) | `gh pr create` directly, then `pr-briefing` | |
 | Jira updates/creation from docs | `jira-update` | pm-jira |
 | Confluence page update (comment-safe) | `atlassian-update` | atlassian-connect |
 | Map codebase architecture | `codebase-mapping`; session end-bridge → `handoff` | |
@@ -46,13 +46,6 @@ broken?" IS /investigate). Plain git ops (commit/push/merge/rebase) are NOT skil
 
 Tool preference: docs→markdown = `~/Code/PM/.venv/bin/markitdown` (never custom extraction).
 GitHub ops = `gh` CLI (see tool-registry).
-
-Hook precedence — `gh pr create`: scripts/skill-routing-guard.sh HARD-denies it (exit 2);
-the git-safety-hook message about it is advisory only, so the deny wins. Route through
-`/ship` (which owns PR creation), then `pr-briefing`. Append `# SKILL-BYPASS` to the
-command only in two cases: (a) the command is issued from inside the /ship or /pr-briefing
-flow (that is the sanctioned path — see settings-additions §F2), or (b) the user explicitly
-asked for a raw `gh pr create`.
 
 Plugin skills (different providers, don't disambiguate): codex:* (second opinions — user
 often says "codex review"/"adversarial review" meaning these), episodic-memory:*

@@ -198,7 +198,7 @@ echo "── Case 6: --all-golden aggregates per-trace status ──────
 
 AGG_OUT=$("$HARNESS" replay --all-golden 2>&1) && AGG_EC=0 || AGG_EC=$?
 
-TRACES=(golden-healthy-orchestration golden-qa-ownership golden-completion-block golden-skill-routing golden-clean-interactive)
+TRACES=(golden-healthy-orchestration golden-qa-ownership golden-completion-block golden-clean-interactive)
 ALL_MENTIONED=1
 for t in "${TRACES[@]}"; do
   if ! grep -q "$t" <<<"$AGG_OUT"; then
