@@ -100,7 +100,7 @@ if [[ "$TOOL_NAME" == "Bash" ]]; then
 
   # Test-run detection: look for N passed / N failed / N passing in output
   # Supports: "21 passed", "21 passing", "21 failed", "PASS (21 tests)", "Tests: 21 passed"
-  if printf '%s' "$OUTPUT" | grep -qiE '[0-9]+ (passed|passing|failed|tests?)'; then
+  if < <(printf '%s' "$OUTPUT") grep -qiE '[0-9]+ (passed|passing|failed|tests?)'; then
     CLASSIFICATION="test-run"
     # Extract first "N passed" or "N passing"
     PASSED_COUNT=$(printf '%s' "$OUTPUT" | \
@@ -112,8 +112,8 @@ if [[ "$TOOL_NAME" == "Bash" ]]; then
 
   # Git commit detection: command or output contains a commit SHA pattern
   # git commit output: "[branch abc1234] message"
-  if printf '%s' "$COMMAND" | grep -qE '^git (commit|merge|cherry-pick)' || \
-     printf '%s' "$OUTPUT" | grep -qE '^\[.* [0-9a-f]{7,}\]'; then
+  if < <(printf '%s' "$COMMAND") grep -qE '^git (commit|merge|cherry-pick)' || \
+     < <(printf '%s' "$OUTPUT") grep -qE '^\[.* [0-9a-f]{7,}\]'; then
     CLASSIFICATION="git-commit"
     GIT_SHA=$(printf '%s' "$OUTPUT" | \
       grep -oE '[0-9a-f]{7,40}' | head -1) || GIT_SHA=""

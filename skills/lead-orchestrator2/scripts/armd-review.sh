@@ -30,6 +30,7 @@ PROMPTS="$SCRIPTS/prompts"
 source "$SCRIPTS/armd-lib.sh"
 
 cd "$REPO"
+trap 'node "$HOME/.claude/scripts/codex-broker-stop.mjs" "$REPO" >/dev/null 2>&1 || true' EXIT
 mkdir -p "$RUN_DIR"
 date -u +"review-start %FT%TZ" >> "$RUN_DIR/times.txt"
 
@@ -49,6 +50,16 @@ fill_template "$PROMPTS/review.md" "$review_prompt" \
   "GOLDEN_REF" "$GOLDEN_REF"
 
 node "$CODEX" task --wait --prompt-file "$review_prompt" > "$review_out" 2> "$review_log" || true
+
+# REQ-01g: after each Codex attempt with an empty output, keep the last 300 characters of that attempt's log.
+# The last empty attempt wins, so a login error is not mistaken for a code problem.
+empty_note=""
+note_if_empty() {
+  if [[ ! -s "$1" ]]; then
+    empty_note=" Codex output was empty. Last 300 characters of $2: $(tail -c 300 "$2" 2>/dev/null | tr '\r\n' '  ')"
+  fi
+}
+note_if_empty "$review_out" "$review_log"
 
 # req-rows check
 req_rows_ok=true
@@ -71,10 +82,11 @@ if ! bash "$SCRIPTS/req-rows.sh" "$review_out" "$REQ_IDS" > "$req_rows_out" 2>&1
   } > "$retry_prompt"
 
   node "$CODEX" task --wait --prompt-file "$retry_prompt" > "$retry_out" 2> "$retry_log" || true
+  note_if_empty "$retry_out" "$retry_log"
 
   if ! bash "$SCRIPTS/req-rows.sh" "$retry_out" "$REQ_IDS" > "$req_rows_out" 2>&1; then
     req_rows_ok=false
-    open_items+=("req-rows gate failed twice: $missing")
+    open_items+=("req-rows gate failed twice: $missing$empty_note")
   else
     # Use retry output
     cp "$retry_out" "$review_out"
@@ -94,12 +106,13 @@ if [[ "$defects_json" = "PARSE_FAIL" ]]; then
     echo "Your earlier review is in $review_out. Print only its fenced json defects block, in the format above."
   } > "$json_retry_prompt"
   node "$CODEX" task --wait --prompt-file "$json_retry_prompt" > "$json_retry_out" 2> "$json_retry_out.log" || true
+  note_if_empty "$json_retry_out" "$json_retry_out.log"
   defects_json=$(extract_json "$json_retry_out" defects)
 fi
 if [[ "$defects_json" = "PARSE_FAIL" ]]; then
   review_ok=false
   defects_json="[]"
-  open_items+=("defects JSON block missing or bad twice; see $review_out")
+  open_items+=("defects JSON block missing or bad twice; see $review_out.$empty_note")
 fi
 
 # REQ-07: Request repros only for P0/P1 defects without repros AND without file:line

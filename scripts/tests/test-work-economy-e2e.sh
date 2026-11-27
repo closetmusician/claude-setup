@@ -470,7 +470,7 @@ printf '  Task id: %s\n' "${REAL_TASK_ID:-<not-found>}"
 # ls shows it enqueued
 if [[ -n "${REAL_TASK_ID:-}" ]]; then
   REAL_LS_OUT="$(bash "$HARNESS" queue ls 2>&1)"
-  if printf '%s' "$REAL_LS_OUT" | grep -q "$REAL_TASK_ID" 2>/dev/null; then
+  if grep -q "$REAL_TASK_ID" < <(printf '%s' "$REAL_LS_OUT") 2>/dev/null; then
     _pass "ASSERT-17: real queue ls shows the seeded task as enqueued"
   else
     _fail "ASSERT-17: real queue ls" "task $REAL_TASK_ID not in ls output"
@@ -478,7 +478,7 @@ if [[ -n "${REAL_TASK_ID:-}" ]]; then
 
   # query shows the enqueued event in the real spine
   REAL_QUERY_OUT="$(bash "$HARNESS" query --type queue_event --limit 20 2>&1)"
-  if printf '%s' "$REAL_QUERY_OUT" | grep -q "$REAL_TASK_ID" 2>/dev/null; then
+  if grep -q "$REAL_TASK_ID" < <(printf '%s' "$REAL_QUERY_OUT") 2>/dev/null; then
     _pass "ASSERT-18: harness query --type queue_event shows real enqueued event"
   else
     _fail "ASSERT-18: harness query" "task $REAL_TASK_ID not in query output"
@@ -492,7 +492,7 @@ if [[ -n "${REAL_TASK_ID:-}" ]]; then
 
   # Verify queue is clean
   REAL_LS_AFTER="$(bash "$HARNESS" queue ls 2>&1)"
-  if ! printf '%s' "$REAL_LS_AFTER" | grep -q "$REAL_TASK_ID" 2>/dev/null; then
+  if ! grep -q "$REAL_TASK_ID" < <(printf '%s' "$REAL_LS_AFTER") 2>/dev/null; then
     _pass "ASSERT-20: real queue clean after rm"
   else
     _fail "ASSERT-20: queue clean" "task still visible after rm"

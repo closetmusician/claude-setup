@@ -5,6 +5,7 @@ ABOUTME: Scans transcripts from last 14 days, prices calls at list prices, split
 ABOUTME: Prints one line or JSON (--json flag). Env override TOKEN_WEEK_ROOT for testing.
 ABOUTME: Dedupes on (message_id, requestId) keeping largest output_tokens (streaming case).
 ABOUTME: Must finish under 60s by checking mtime before opening files.
+ABOUTME: Env TOKEN_WEEK_NOW pins the clock for tests.
 """
 
 import json
@@ -246,7 +247,10 @@ def main():
     root_dir = Path(os.environ.get('TOKEN_WEEK_ROOT', Path.home() / '.claude' / 'projects'))
 
     # Time window: last 14 days (to cover 2 weeks)
-    now = datetime.now(timezone.utc)
+    # TOKEN_WEEK_NOW (ISO time) pins the clock so fixture dates stay inside the window.
+    now_override = os.environ.get('TOKEN_WEEK_NOW')
+    now = (datetime.fromisoformat(now_override.replace('Z', '+00:00'))
+           if now_override else datetime.now(timezone.utc))
     cutoff = now - timedelta(days=14)
 
     # Scan and parse

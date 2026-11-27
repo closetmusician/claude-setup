@@ -37,7 +37,7 @@ if [[ -z "$PROMPT" ]]; then
 fi
 
 # ─── Only scan prompts that contain a ## Constraints section ─────────────────
-if ! printf '%s' "$PROMPT" | grep -q '## Constraints'; then
+if ! < <(printf '%s' "$PROMPT") grep -q '## Constraints'; then
   exit 0
 fi
 
@@ -62,9 +62,9 @@ ABSOLUTE_PATTERNS=(
 WARNINGS=()
 for PATTERN in "${ABSOLUTE_PATTERNS[@]}"; do
   # Check if the constraints body contains this absolute phrase (case-insensitive)
-  if printf '%s' "$CONSTRAINTS_BODY" | grep -qi "$PATTERN"; then
+  if < <(printf '%s' "$CONSTRAINTS_BODY") grep -qi "$PATTERN"; then
     # Check if a qualifier appears anywhere in the constraints body
-    if ! printf '%s' "$CONSTRAINTS_BODY" | grep -qiE "$QUALIFIER_RE"; then
+    if ! < <(printf '%s' "$CONSTRAINTS_BODY") grep -qiE "$QUALIFIER_RE"; then
       WARNINGS+=("$PATTERN")
     fi
   fi

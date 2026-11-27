@@ -112,7 +112,7 @@ SECTIONS_1_6=$(sed -n '1,/^# 7\. Engineering/p' "$DOC" 2>/dev/null || cat "$DOC"
 # Technical terms that should NOT appear in §1-6
 TECH_VIOLATIONS=()
 for term in "BFF" "middleware" "microservice" "REST API" "GraphQL" "WebSocket" "SSE" "gRPC" "database schema" "SQL" "ORM" "Redis" "Kafka" "regex" "JSON schema" "protobuf"; do
-  if echo "$SECTIONS_1_6" | grep -qi "$term"; then
+  if < <(echo "$SECTIONS_1_6") grep -qi "$term"; then
     # Skip if it's in a code block or the Engineering section leaked into our sed
     TECH_VIOLATIONS+=("$term")
   fi

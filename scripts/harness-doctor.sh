@@ -118,6 +118,24 @@ if command -v jq >/dev/null 2>&1 && [[ -f "$CLAUDE_DIR/settings.json" ]]; then
   CRIT=$((CRIT + ${h:-0})); rm -f /tmp/harness-doctor-hooks.$$
 fi
 
+# 3b. Pipefail lint: `echo|printf ... | grep -q` in a hook script that runs under pipefail.
+#     grep -q exits at the first match, the writer gets SIGPIPE, the pipe returns 141 and
+#     `if` reads a match as no match (lessons-learned 2026-11-18). Covers settings.json hook
+#     scripts and .githooks/. Fix: grep -q P < <(echo "$X"), or drop -q on a multi-stage pipe.
+if command -v jq >/dev/null 2>&1; then
+  while read -r _hook; do
+    _hook="${_hook/#\~/$HOME}"
+    [[ -f "$_hook" ]] || continue
+    while read -r _hit; do
+      [[ -n "$_hit" ]] && warn "pipefail: '| grep -q' after echo/printf — $_hit"
+    done < <(perl -ne '
+      $p = 1 if /pipefail/ && !/^\s*#/;
+      push @hits, "$ARGV:$." if !/^\s*#/ && /\b(?:echo|printf)\b[^|]*(?:\|[^|]+)*\|\s*grep\s+-[A-Za-z]*q[A-Za-z]*\b(?![^|]*\|(?!\|))/;
+      END { if ($p) { print "$_\n" for @hits } }' "$_hook")
+  done < <( { jq -r '.. | .command? // empty' "$CLAUDE_DIR/settings.json" 2>/dev/null | perl -ne 'print "$1\n" while /(\S+\.sh)/g'
+              find "$CLAUDE_DIR/.githooks" -type f 2>/dev/null; } | sort -u)
+fi
+
 # 4. Dead symlinks under skills/. (process substitution, not a pipe — the counter
 #    must increment in the parent shell or the exit code lies about criticals)
 while read -r l; do
@@ -156,7 +174,7 @@ else
   stale_count=0
   stale_skills=""
   if command -v python3 >/dev/null 2>&1; then
-    stale_result="$(python3 - "$CLAUDE_DIR" "$SKILL_INDEX_DB" <<'PYEOF' 2>/dev/null || true)"
+    stale_result="$(python3 - "$CLAUDE_DIR" "$SKILL_INDEX_DB" <<'PYEOF' 2>/dev/null || true
 import sys, os, sqlite3
 from datetime import datetime, timezone
 
@@ -204,6 +222,7 @@ if stale:
 else:
     print("FRESH")
 PYEOF
+  )"
     if [[ "$stale_result" == STALE:* ]]; then
       stale_count="${stale_result#STALE:}"
       stale_count="${stale_count%%:*}"
@@ -221,7 +240,7 @@ fi
 #    0 missing = clean; non-zero prints count + names for operator review.
 #    Fail-open: if DB is missing, skip silently (check #8 already warned).
 if [[ -f "$SKILL_INDEX_DB" ]] && command -v python3 >/dev/null 2>&1; then
-  drift_result="$(python3 - "$CLAUDE_DIR" "$SKILL_INDEX_DB" <<'PYEOF' 2>/dev/null || true)"
+  drift_result="$(python3 - "$CLAUDE_DIR" "$SKILL_INDEX_DB" <<'PYEOF' 2>/dev/null || true
 import sys, os, sqlite3
 
 claude_dir = sys.argv[1]
@@ -250,6 +269,7 @@ if missing:
 else:
     print("CLEAN")
 PYEOF
+  )"
   if [[ "$drift_result" == CLEAN ]]; then
     echo "skill-index drift: 0 skills missing from index"
   elif [[ "$drift_result" == MISSING:* ]]; then
@@ -264,7 +284,7 @@ fi
 #     These are served as semantic long-tail; the truncation is palliative — the semantic
 #     index covers them regardless of listing-budget cuts.
 if [[ -f "$SKILL_INDEX_DB" ]] && command -v python3 >/dev/null 2>&1; then
-  trunc_count="$(python3 - "$SKILL_INDEX_DB" <<'PYEOF' 2>/dev/null || echo 0)"
+  trunc_count="$(python3 - "$SKILL_INDEX_DB" <<'PYEOF' 2>/dev/null || echo 0
 import sys, sqlite3
 db_path = sys.argv[1]
 try:
@@ -276,6 +296,7 @@ try:
 except Exception:
     print(0)
 PYEOF
+  )"
   echo "skill-index truncation: ${trunc_count} description(s) >1024 chars (semantic index covers long-tail)"
 fi
 
@@ -550,7 +571,7 @@ _dappend ""
 # Collect into variable first — piping into _dappend runs in a subshell and loses the array.
 _dappend "## METRICS"
 if command -v python3 >/dev/null 2>&1 && [[ -f "$EVENTS_FILE" ]]; then
-  _metrics_out=$(python3 - "$EVENTS_FILE" <<'METPY' 2>/dev/null || true)
+  _metrics_out=$(python3 - "$EVENTS_FILE" <<'METPY' 2>/dev/null || true
 import sys, json
 from datetime import datetime, timezone, timedelta
 
@@ -619,6 +640,7 @@ if this_week_corrections == 0 and last_week_corrections == 0:
 else:
     print(f"Corrections (rtk_suspect): {rtk_suspect_count}")
 METPY
+)
   if [[ -n "$_metrics_out" ]]; then
     while IFS= read -r mline; do
       _dappend "  $mline"
@@ -700,7 +722,7 @@ for _suite_spec in "${_VII_SUITES[@]}"; do
   _suite_fail=$(printf '%s' "$_suite_out" | grep -oE '([0-9]+ failed|FAIL=[0-9]+)' | grep -oE '[0-9]+' | head -1 || echo "?")
   if [[ "$_suite_fail" == "0" || "$_suite_fail" == "?" ]]; then
     # Also check the output has no FAIL marker
-    if printf '%s' "$_suite_out" | grep -qiE '^(FAIL|ERROR)'; then
+    if < <(printf '%s' "$_suite_out") grep -qiE '^(FAIL|ERROR)'; then
       _suite_status="FAIL"; _vii_all_pass=0
     else
       _suite_status="PASS"

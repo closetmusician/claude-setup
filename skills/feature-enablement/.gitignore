@@ -1,0 +1,2 @@
+# Local-only customer-name denylist used by tests/check-skill.sh (never commit)
+tests/customer-denylist.local

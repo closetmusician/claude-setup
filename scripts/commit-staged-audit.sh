@@ -36,7 +36,7 @@ STRIPPED="$(printf '%s' "$CMD" | perl -0777 -pe "s/<<'?EOF'?.*?^EOF\$/__HEREDOC_
   | sed "s/\"[^\"]*\"/__STR__/g; s/'[^']*'/__STR__/g")"
 
 # Fast-path: not a git commit → allow immediately.
-if ! printf '%s' "$STRIPPED" | grep -qE '\bgit\s+commit\b'; then
+if ! < <(printf '%s' "$STRIPPED") grep -qE '\bgit\s+commit\b'; then
   exit 0
 fi
 

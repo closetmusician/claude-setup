@@ -1,6 +1,6 @@
 ---
 name: run-watch
-description: "One status check on a long multi-agent run. It finds stalled or off-track agents and pushes them to finish. It prints a plain-English table: % done, % left, a do/don't decision and an ETA per item. Below it go the total ETA and speed-ups. Safe speed-ups run at once. The rest become checklist items in the plan. Run it on a timer with \"/loop 10m /run-watch [plan path]\". Use on \"check on all agents\", \"are the agents stuck\", \"push them to finish\", \"status table with ETA\", \"/run-watch\". NOT for a done-claim on a deliverable (use evidence-backed-status). NOT for harness speed (use speed-tune). NOT for starting the run (use lead-orchestrator)."
+description: "One status check on a long multi-agent run. It finds stalled or off-track agents and pushes them to finish. It prints a plain-English table: % done, % left, a do/don't decision and an ETA per item. Below it go the total ETA and speed-ups. Safe speed-ups run at once. The rest become checklist items in the plan. Run it on a timer with \"/loop 10m /run-watch [plan path]\". Use on \"check on all agents\", \"are the agents stuck\", \"push them to finish\", \"status table with ETA\", \"/run-watch\". NOT for a done-claim on a deliverable (use evidence-backed-status). NOT for harness speed (use speed-tune). NOT for starting the run (use lead-orchestrator2)."
 ---
 
 <!-- ABOUTME:
@@ -27,6 +27,8 @@ Tell the user this on the first check. Only a script outside the session can cat
 1. **List the work.** Call `ListAgents`. Add running background Bash tasks and workflows.
    Read the plan file (step 6 says how to find it) for the item list and dependencies.
    Each row in the table is one plan item or one agent brief, not one tool call.
+   List EVERY remaining job in the owner's ask, including queued and not-started ones.
+   Never drop a row because it has no agent yet.
 
 2. **Check each agent.** Find its transcript with
    `find ~/.claude/projects -name "agent-<id>.jsonl"`. Read its mtime and its last 20 lines.
@@ -38,6 +40,7 @@ Tell the user this on the first check. Only a script outside the session can cat
      with no new file on disk. It redoes a part that is already finished.
    - `blocked`: it waits on a person, a login, or another item.
    - `done`: it returned. Check one output file exists before you trust the claim.
+   - `queued`: not started; it waits on another item. Say which one.
 
 3. **Push.** Send one `SendMessage` to each agent that is not `working` or `done`.
    - Stalled: "Status check. Your brief is <X>. Finish <next step> before the next check.
@@ -91,8 +94,9 @@ Tell the user this on the first check. Only a script outside the session can cat
      step, and "filed <YYYY-MM-DD> by run-watch".
    - Commit the plan edit by itself, per the repo's commit rules.
 
-7. **Stop the loop when the run ends.** When every item is `done` or waits on the owner,
-   print the final table and the open items. Then end the loop (`CronDelete` for a fixed
+7. **Stop the loop when the run ends.** End the loop only when every item is `done`, or the user says stop.
+   An item that waits on the owner keeps the loop alive. The loop then sees the answer and pushes the next step.
+   When the loop ends, print the final table and the open items. Then end the loop (`CronDelete` for a fixed
    interval, `ScheduleWakeup` with `stop: true` for a self-paced one).
 
 ## Rules

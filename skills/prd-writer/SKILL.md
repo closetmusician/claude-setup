@@ -139,7 +139,7 @@ Assess what the user brought (raw notes, brief, verbal description, custom templ
 
 ### Step 2: Interview for Gaps (MANDATORY — NEVER SKIP)
 
-**HARD GATE:** Execute this step even if the user's input appears complete. "Already covered" is not a reason to skip — user confirmation IS the point. If a mandatory question was answered in Step 1, state your understanding and ask the user to confirm or correct. Do NOT silently assume. Skipping = protocol violation equivalent to skipping TDD.
+**HARD GATE:** Execute this step even if the user's input appears complete. "Already covered" is not a reason to skip — user confirmation IS the point. If a mandatory question was answered in Step 1, state your understanding and ask the user to confirm or correct. Do NOT silently assume. Skipping = protocol violation.
 
 **Procedure:** Use `AskUserQuestion` for ALL interview questions. Batch into 3 rounds (max 4 questions per call). If a mandatory question was already answered in Step 1, pre-fill your understanding as the question description and ask the user to confirm or correct via the "Other" escape hatch. Do NOT proceed to Step 3 without answers to all 3 rounds.
 
@@ -432,7 +432,7 @@ Two subsections: (1) Effort Estimates — ranges, not points; backend vs. client
 Applies when: the user asks to publish, the source material came from a Confluence page, or the project's PRDs live in Confluence.
 
 1. Offer via ONE `AskUserQuestion`: **Publish to Confluence** / **Keep local only**. Never publish without this confirmation.
-2. To publish a NEW page: invoke the `atlassian-connect` skill (Skill tool) for auth + page creation.
+2. To publish a NEW page: invoke the `atlassian-connect` skill (Skill tool) for auth only. No installed skill creates a page, so ask the user how to create it.
 3. To update an EXISTING page: invoke the `atlassian-update` skill — it preserves inline comments; never overwrite an existing page body via raw REST.
 4. **Pull-PM-edits-back flow (before ANY later iteration on a published PRD):** fetch the current Confluence page body first, diff it against the local `.md`. If a PM edited on Confluence, merge those edits into the local file BEFORE applying new changes, and say so in the iteration summary. The published page is the shared truth once stakeholders touch it.
 - *Positive example:* user says "iterate on §3" of a published PRD → fetch page, find a PM added a KPI row on Confluence, merge that row locally, then edit §3, then re-publish via atlassian-update.

@@ -1,0 +1,239 @@
+{
+ "_about": "Reply rewrite gate numbers and questions. Fitted 2026-11-24 on 936 tune replies (88 unclear); holdout 638 replies: 43% rewritten, 44/67 complaints caught. Spec: docs/plans/harness/reply-clarity-guard/reply-gate-spec.md. v2: request B sends all 7 training questions, because OpenJev answers change when a question is asked alone. v3: choice replies must follow the decision template (rules/writing-style.md section 5c). v4: shallow implications in a choice table also block; a choice reply may get one extra rewrite (max 2 per owner turn).",
+ "version": "reply-gate-v4",
+ "model": "openjev-latest",
+ "deadline_s": 3.0,
+ "alarm_s": 7,
+ "min_chars": 300,
+ "max_chars": 4000,
+ "text_blocks": 4,
+ "text_tail_chars": 8000,
+ "known_prev_chars": 4000,
+ "share": 0.25,
+ "limit": 0.3017317279164802,
+ "bias": -0.21495919304506642,
+ "features": {
+  "r1_score": {
+   "mean": 0.5987614695269482,
+   "sd": 0.1246924247907961,
+   "weight": -0.3661369740217404
+  },
+  "r1_sentence": {
+   "mean": 0.8411874671057165,
+   "sd": 0.28772602292528426,
+   "weight": 0.30163197617964843
+  },
+  "r2_next": {
+   "mean": 0.23046015468192244,
+   "sd": 0.30496927771549975,
+   "weight": -0.0888370206473032
+  },
+  "r2_options": {
+   "mean": 0.3375727584869744,
+   "sd": 0.4266519105618107,
+   "weight": -0.06867537544777083
+  },
+  "r3_process": {
+   "mean": 0.6320823923255139,
+   "sd": 0.4159308920978027,
+   "weight": -0.30237367553263506
+  },
+  "r3_skip": {
+   "mean": 0.5306954579347762,
+   "sd": 0.14487693121950354,
+   "weight": -0.040861136964870454
+  },
+  "r3_point": {
+   "mean": 0.5922625129634509,
+   "sd": 0.34323679590371126,
+   "weight": 0.19836769006389482
+  },
+  "length": {
+   "mean": 7.360011104509176,
+   "sd": 0.7665548538886363,
+   "weight": 0.461236516016879
+  },
+  "unexpl": {
+   "mean": 0.7153115775733129,
+   "sd": 0.3604293355675938,
+   "weight": 0.43506076355708695
+  }
+ },
+ "choice": {
+  "has_options_min": 0.8,
+  "tail_chars": 500,
+  "tail_regex": "\\b(which|should I|do you want|want me to|pick|choose|or)\\b",
+  "decision_regex": "only you can (make|decide|answer)|decisions? (only )?(for|need) you\\b|\\b(?:(?:it|that|this)(?:'s| is)|is|are|be|remains?|up to|waits? (?:on|for)|waiting (?:on|for)|needs?|for) your (call|decision)s?\\b|(?:^|\\n)[\\s*#_>-]*your (call|decisions?)\\b(?! (?:is|are|was|were) (?:in|applied|recorded|now))|\\byour (call|decision)s?[*_]*:|you (need|have) to (decide|choose|pick)|needs? your (yes|decision|call|answer)|(flagged|flag) for (you|the owner)|owner (must|needs to|to) (decide|choose|pick)|open decisions?",
+  "recommend_words": [
+   "Recommend",
+   "We recommend",
+   "I recommend",
+   "My recommendation",
+   "TL;DR",
+   "TLDR"
+  ],
+  "big_picture_words": [
+   "Big picture",
+   "Summary",
+   "What this means",
+   "Bottom line",
+   "Overall"
+  ],
+  "rating_words": [
+   "high",
+   "medium",
+   "med",
+   "low",
+   "good",
+   "bad",
+   "none",
+   "yes",
+   "no",
+   "tbd",
+   "fast",
+   "slow",
+   "moderate",
+   "strong",
+   "weak",
+   "minimal",
+   "significant"
+  ],
+  "table_min_cols": 3,
+  "table_min_rows": 2,
+  "rated_cell_share": 0.6,
+  "cell_min_words": 4,
+  "implications_min": 0.5,
+  "max_rewrites": 2
+ },
+ "message": {
+  "word_limit": 300,
+  "max_names": 8
+ },
+ "reader_zero_context": "A smart 18-year-old high school student with zero context. They know everyday words only. They did not see any earlier messages, files, code, tools or plans, so they know no internal names unless `message` explains them.",
+ "questions_a": {
+  "zero_context_plain": {
+   "type": "score",
+   "instructions": "How well can `reader` understand `message` on the first read?",
+   "criteria": [
+    "`reader` cannot tell what `message` is about without asking several questions",
+    "`reader` gets the topic, but key sentences depend on names, codes or terms never explained",
+    "`reader` follows nearly all of it; one or two terms are unexplained",
+    "Every sentence is self-explanatory plain English `reader` understands at once"
+   ]
+  },
+  "every_sentence_plain": {
+   "type": "noul",
+   "instructions": "Could `reader` understand every sentence of `message` on the first read, without asking what anything means?"
+  },
+  "next_step_clear": {
+   "type": "noul",
+   "instructions": "Does `message` say plainly what the owner must do or decide next, or say plainly that nothing is needed?"
+  },
+  "has_options": {
+   "type": "noul",
+   "instructions": "Does `message` ask the owner to choose between two or more options?"
+  },
+  "options_implications": {
+   "type": "noul",
+   "instructions": "For every option in `message`, does it say in plain words what choosing it means for the bigger goal: what gets better, what gets worse, and why?"
+  },
+  "process_not_results": {
+   "type": "noul",
+   "instructions": "Is most of `message` about the assistant's own work process, internal steps, tools or technical detail, rather than the results and what they mean for the owner?"
+  },
+  "skippable_share": {
+   "type": "score",
+   "instructions": "How much of `message` could the owner skip without missing anything they need to know or do?",
+   "criteria": [
+    "Almost nothing: every part matters to the owner",
+    "A few lines of detail the owner does not need",
+    "About half is detail, process or background the owner does not need",
+    "Most of it is detail, process or background; the part that matters is buried"
+   ]
+  },
+  "point_first": {
+   "type": "noul",
+   "instructions": "Does the first sentence or two of `message` give the main result or answer for the owner?"
+  }
+ },
+ "reader_owner": "The owner of an AI coding assistant: a busy product manager who is not an engineer. They read `message` once, between meetings. They know their product and everyday business words. They did not see the assistant's files, code, tools, agents or plans, so they know none of its internal names unless `message` explains them.",
+ "questions_b": {
+  "plain_sit": {
+   "type": "score",
+   "instructions": "How well can `reader` follow `message` on the first read?",
+   "criteria": [
+    "The owner cannot follow the main point without asking what several names, codes, labels or terms mean",
+    "The owner gets the gist, but a name, code, letter or number label, or term that matters is never explained",
+    "The owner can follow it; technical terms or names are common knowledge or explained where they appear",
+    "Everything is in everyday words, and the owner can act on it at once"
+   ]
+  },
+  "plain_sit_ex": {
+   "type": "score",
+   "instructions": "How well can `reader` follow `message` on the first read?",
+   "criteria": [
+    {
+     "what": "The owner cannot follow the main point without asking what several names, codes, labels or terms mean",
+     "examples": [
+      "Lane B is green; the C2 shim now gates REQ-4, so P1s route to the sidecar.",
+      "Moved the ledger rows into the drift bucket and re-ran the sweep; 3 of 5 probes pass."
+     ]
+    },
+    {
+     "what": "The owner gets the gist, but a name, code, letter or number label, or term that matters is never explained",
+     "examples": [
+      "Fixed the login bug. Option B (keep the old cache) is still open; the gate now blocks it.",
+      "The checker missed 13/29 at 7/46 wrong, so the limit stays at 1.75."
+     ]
+    },
+    {
+     "what": "The owner can follow it; technical terms or names are common knowledge or explained where they appear",
+     "examples": [
+      "Fixed the login bug: users who reset their password can sign in again. I tested it with two accounts.",
+      "The report is in your Downloads folder. It lists the 12 customers who cancelled last month."
+     ]
+    },
+    {
+     "what": "Everything is in everyday words, and the owner can act on it at once",
+     "examples": [
+      "Done. The weekly email now goes out on Monday at 9 am instead of Friday.",
+      "I could not reach the server, so nothing changed. Try again after lunch."
+     ]
+    }
+   ]
+  },
+  "unexplained_ref": {
+   "type": "noul",
+   "instructions": "Does `message` use a name, label, code, or letter or number reference that `reader` needs for the main point, but that `message` never explains in plain words?",
+   "criteria": {
+    "true": {
+     "what": "At least one such name or reference is left unexplained",
+     "examples": [
+      "Option B is safer, so I picked it over A.",
+      "The lane-3 shim now gates REQ-4."
+     ]
+    },
+    "false": {
+     "what": "Every name that matters is common knowledge or explained where it appears",
+     "not_for": "Product names, people and everyday words the owner already knows"
+    }
+   }
+  },
+  "word_as_name": {
+   "type": "noul",
+   "instructions": "Does `message` use an ordinary word as the name of a specific internal thing, such as 'the gate', 'the lane' or 'the ledger', without saying what that thing is?"
+  },
+  "letter_refs": {
+   "type": "noul",
+   "instructions": "Does `message` refer to items only by a letter, number or code, such as 'B', '#3', 'REQ-4' or 'P1', without saying what each item is?"
+  },
+  "mostly_table": {
+   "type": "noul",
+   "instructions": "Is most of `message` a table or list of field names, code names, file names or settings?"
+  },
+  "so_what": {
+   "type": "noul",
+   "instructions": "After reading `message`, does `reader` know what happened and what, if anything, they must do next?"
+  }
+ }
+}

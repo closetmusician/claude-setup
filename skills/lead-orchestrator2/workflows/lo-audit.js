@@ -25,7 +25,7 @@ const LANE = { type: 'object', properties: { out_file: STR, summary: STR, claims
 const SYNTH = { type: 'object', properties: { path: STR, claims: INT }, required: ['path', 'claims'] }
 const LIST = { type: 'array', items: STR }
 const VERIFY = { type: 'object', properties: { verified: INT, unverified: INT, contradicted: INT,
-  blocking: LIST, weakens: LIST, path: STR }, required: ['verified', 'unverified', 'contradicted', 'blocking', 'weakens', 'path'] }
+  blocking: LIST, weakens: LIST, path: STR, unverified_list: LIST, resolved_list: LIST }, required: ['verified', 'unverified', 'contradicted', 'blocking', 'weakens', 'path'] }
 const CRITIC = { type: 'object', properties: { uncovered: LIST, path: STR }, required: ['uncovered', 'path'] }
 const PROBE = { type: 'object', properties: { checked: INT, bad_tests: LIST, survivors: LIST, path: STR },
   required: ['checked', 'bad_tests', 'survivors', 'path'] }
@@ -129,6 +129,7 @@ const synthPrompt = (note) => [
   `Spec: ${A.spec_path}. Inputs (read each): ${live.map(laneFile).join(', ')}`,
   holes.length ? `HOLES (no output, report them as gaps, never fill them): ${holes.join(', ')}` : 'Holes: none.',
   `Write the deliverable to ${A.deliverable_path}. Keep each claim tied to its lane source. Keep UNVERIFIED tags from the lanes.`,
+  'The top part of the deliverable (headline, summary, TL;DR, key numbers) may hold an UNVERIFIED claim only with its tag inline, as [UNVERIFIED — reason].',
   'Never add a fact that no lane file supports. Never fabricate a number, quote, or status.',
   CODE ? [TEST_RULES, DIRECTION_RULE].join('\n') : '',
   note || '',
@@ -187,6 +188,9 @@ const verifyPrompt = (round, claims) => [
   `GOLDEN REFERENCE (what correct means): ${A.golden_ref}`,
   `Re-derive claims in ${A.deliverable_path} from the PRIMARY sources, not from the lane files. Write ${verification}.`,
   holes.length ? `Known holes (report as gaps): ${holes.join(', ')}` : '',
+  'TOP PART: re-derive every number and claim in the top part (headline, summary, TL;DR, key numbers). A claim there that you did not re-derive and that has no inline [UNVERIFIED — reason] tag is BLOCKING.',
+  'Each headline number must name its population or run type and its period (for example "first runs, 2026-11-10 to 11-16"). Check that the source measures that same population and period. A mismatch is BLOCKING, even when the arithmetic matches the source.',
+  'Return unverified_list: a short string for each claim you could not re-derive. In round 2, return resolved_list: the claims from the earlier list that are now resolved.',
   'Scope lock: check the original scope only. Out-of-scope findings go in the report as open items.',
   'FIX DIRECTION: check every proposed fix against the scope and the golden reference. List in `weakens` each fix that',
   'weakens, narrows, removes or bypasses a stated safety check (detector, validator, gate, filter, guard or test), unless the',
@@ -232,18 +236,22 @@ const verifyStage = async (round, claims, reprobe) => {
 }
 
 let [ver, probe] = await verifyStage(1, '')
-if (!ver) return { status: 'escalate', stage: 'Verify', reason: 'the verifier returned nothing', holes, counts, open_items }
+// Running list of UNVERIFIED claims: round 1's list, plus round 2's. Round 2 drops a claim only when it names it in resolved_list.
+let unverified_claims = ver ? listOf(ver.unverified_list) : []
+if (!ver) return { status: 'escalate', stage: 'Verify', reason: 'the verifier returned nothing', holes, counts, open_items, unverified_claims }
 if (isBlocking(ver, probe)) {
   const list = blockList(ver, probe).join('; ') || `${ver.contradicted} CONTRADICTED claims`
   const fixed = await agent(synthPrompt(`FIX ROUND. The verifier${CODE ? ' and the repro probe' : ''} marked these BLOCKING (${verification}${CODE ? `, ${probeFile}` : ''}): ${list}. Correct or tag them in ${A.deliverable_path}${CODE ? ` and fix the named repro tests in ${A.test_dir}/` : ''}; change nothing else.`),
     { label: 'synth:fix', phase: 'Synthesize', model: 'opus', schema: SYNTH })
-  if (!fixed) return { status: 'escalate', stage: 'Verify', reason: 'the synthesizer fix returned nothing', holes, counts, open_items, last: ver }
+  if (!fixed) return { status: 'escalate', stage: 'Verify', reason: 'the synthesizer fix returned nothing', holes, counts, open_items, unverified_claims, last: ver }
   ;[ver, probe] = await verifyStage(2, list, probeItems(probe).length > 0)
-  if (!ver) return { status: 'escalate', stage: 'Verify', reason: 'the round-2 verifier returned nothing', holes, counts, open_items }
+  if (!ver) return { status: 'escalate', stage: 'Verify', reason: 'the round-2 verifier returned nothing', holes, counts, open_items, unverified_claims }
+  const resolved = listOf(ver.resolved_list)
+  unverified_claims = [...unverified_claims.filter((c) => !resolved.includes(c)), ...listOf(ver.unverified_list).filter((c) => !unverified_claims.includes(c))]
   counts = { verified: ver.verified, unverified: ver.unverified, contradicted: ver.contradicted }
-  if (isBlocking(ver, probe)) return { status: 'escalate', stage: 'Verify', reason: `verifier round 2 still blocking: ${blockList(ver, probe).join('; ')}`, holes, counts, open_items, last: ver }
+  if (isBlocking(ver, probe)) return { status: 'escalate', stage: 'Verify', reason: `verifier round 2 still blocking: ${blockList(ver, probe).join('; ')}`, holes, counts, open_items, unverified_claims, last: ver }
 }
 counts = { verified: ver.verified, unverified: ver.unverified, contradicted: ver.contradicted }
 if (counts.unverified > 0) open_items.push(`${counts.unverified} UNVERIFIED claims: tag them in the deliverable`)
 holes.forEach((h) => open_items.push(`hole: lane ${h} produced no output`))
-return { status: holes.length ? 'partial' : 'complete', deliverable: A.deliverable_path, verification, holes, counts, open_items }
+return { status: holes.length ? 'partial' : 'complete', deliverable: A.deliverable_path, verification, holes, counts, open_items, unverified_claims }

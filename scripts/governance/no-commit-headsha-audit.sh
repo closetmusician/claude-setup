@@ -43,9 +43,9 @@ if [[ "${1:-}" == "pre" ]]; then
   MODE="pre"
 elif [[ "${1:-}" == "post" ]]; then
   MODE="post"
-elif echo "$HOOK_EVENT" | grep -qi 'pre'; then
+elif < <(echo "$HOOK_EVENT") grep -qi 'pre'; then
   MODE="pre"
-elif echo "$HOOK_EVENT" | grep -qi 'post'; then
+elif < <(echo "$HOOK_EVENT") grep -qi 'post'; then
   MODE="post"
 else
   # Can't determine mode — fail-open
@@ -84,7 +84,7 @@ if [[ "$MODE" == "pre" ]]; then
 
   # Detect no-commit constraint tokens (case-insensitive).
   # Spec tokens: "no-commit", "do not commit", "NO-AUTO-COMMIT".
-  if printf '%s' "$PROMPT" | grep -qiE '(no-commit|do not commit|NO-AUTO-COMMIT)'; then
+  if < <(printf '%s' "$PROMPT") grep -qiE '(no-commit|do not commit|NO-AUTO-COMMIT)'; then
     HEAD_SHA="$(get_head_sha)"
     if [[ -n "$HEAD_SHA" ]]; then
       mkdir -p "$STATE_DIR"

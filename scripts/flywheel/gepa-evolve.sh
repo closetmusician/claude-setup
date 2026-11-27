@@ -24,8 +24,8 @@ TIMEOUT_LIB="${CLAUDE_SCRIPTS}/lib/timeout.sh"
 [[ -f "$TIMEOUT_LIB" ]] && source "$TIMEOUT_LIB"
 
 # ── Source Bedrock helper (non-scheduled manual/standalone launch) ─────────────
-# shellcheck source=../lib/claude-bedrock.sh
-source "$CLAUDE_SCRIPTS/lib/claude-bedrock.sh" 2>/dev/null || exit 0
+# shellcheck source=../lib/claude-headless.sh
+source "$CLAUDE_SCRIPTS/lib/claude-headless.sh" 2>/dev/null || exit 0
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 SKILL_PATH="${CLAUDE_DIR}/skills/lead-orchestrator/SKILL.md"
@@ -242,7 +242,7 @@ _compute_score() {
   replay_out="$(HARNESS_GOLDEN_DIR="$GOLDEN_TRACES_DIR" "$HARNESS" replay --all-golden 2>/dev/null)" || true
 
   # Parse "PASS=N  FAIL=M" from the last line
-  if printf '%s\n' "$replay_out" | grep -q "Results:"; then
+  if < <(printf '%s\n' "$replay_out") grep -q "Results:"; then
     replay_pass=$(printf '%s\n' "$replay_out" | awk '/Results:/ { for (i=1;i<=NF;i++) if ($i ~ /^PASS=/) { sub(/^PASS=/,"",$i); print $i; exit } }')
     replay_fail=$(printf '%s\n' "$replay_out" | awk '/Results:/ { for (i=1;i<=NF;i++) if ($i ~ /^FAIL=/) { sub(/^FAIL=/,"",$i); print $i; exit } }')
     replay_pass="${replay_pass:-0}"
@@ -383,18 +383,18 @@ PYEOF
   local claude_cmd="$CLAUDE_BIN"
   [[ -n "${CLAUDE_SHIM:-}" ]] && claude_cmd="$CLAUDE_SHIM"
 
-  # Map to alias (claude-sonnet-4-5 → sonnet) for claude_bedrock
+  # Map to alias (claude-sonnet-4-5 → sonnet) for claude_headless
   local model_alias="sonnet"
   [[ "$EVOLVE_MODEL" == *haiku* ]] && model_alias="haiku"
   [[ "$EVOLVE_MODEL" == *opus* ]] && model_alias="opus"
 
   if declare -f _run_with_timeout >/dev/null 2>&1; then
     raw_output="$(_run_with_timeout "$EVOLVE_TIMEOUT" \
-      claude_bedrock -p --model "$model_alias" \
+      claude_headless -p --model "$model_alias" \
       --allowedTools "Read,Grep,Glob" \
       < "$prompt_file" 2>/dev/null)" || claude_exit=$?
   else
-    raw_output="$(claude_bedrock -p --model "$model_alias" \
+    raw_output="$(claude_headless -p --model "$model_alias" \
       --allowedTools "Read,Grep,Glob" \
       < "$prompt_file" 2>/dev/null)" || claude_exit=$?
   fi
@@ -408,7 +408,7 @@ PYEOF
 
   # Validate and extract: must contain frontmatter (---) or a heading line.
   # LLMs sometimes prepend prose before the skill body — strip it by seeking first --- or #.
-  if ! printf '%s\n' "$raw_output" | grep -qE "^(---|# )"; then
+  if ! < <(printf '%s\n' "$raw_output") grep -qE "^(---|# )"; then
     _log "  WARN: candidate $candidate_n output doesn't look like a SKILL.md (no frontmatter/heading)"
     return 1
   fi

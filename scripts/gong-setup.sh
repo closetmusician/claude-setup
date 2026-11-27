@@ -37,7 +37,7 @@ gfetch() {
   local path="$1" body
   "$AB" --state "$STATE" --session "$SESSION" open "$BASE$path" >/dev/null 2>&1 || true
   body="$("$AB" --session "$SESSION" get text body 2>/dev/null || true)"
-  if [ -z "$body" ] || printf '%s' "$body" | head -c 300 | grep -qiE 'welcome/sign|sign-in|<!doctype|<html'; then
+  if [ -z "$body" ] || < <(printf '%s' "$body" | head -c 300) grep -qiE 'welcome/sign|sign-in|<!doctype|<html'; then
     return 3
   fi
   printf '%s' "$body"

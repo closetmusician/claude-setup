@@ -20,13 +20,6 @@ allowed-tools:
   - Grep
   - Glob
 ---
-<!--
-Intended final target: /Users/yklin/.claude/skills/hook-authoring/SKILL.md
-Draft source: /Users/yklin/.claude/docs/plans/fable-skills/drafts/skills/hook-authoring/SKILL.md
-Draft status: candidate (planning artifact, not installed). Verify volatile
-claims (settings.json hook wiring, working-consumer filenames, commit SHAs)
-against the live repo before install — see §10.
--->
 
 # hook-authoring: boring, inspectable, stdin-driven, and proven-wired
 
@@ -134,11 +127,12 @@ a day-in-the-life replay — wiring drift is real (capability-capture §4 patter
 9). For git hooks, also confirm `git config core.hooksPath` points at
 `.githooks` (the hook does nothing otherwise).
 
-### 5f. Every hook ships with a test suite under scripts/tests/
+### 5f. Hook test suite under scripts/tests/ (only when the owner asks)
 
-Add `scripts/tests/test-<hook>.sh` that pipes realistic stdin covering: the
-enforce path, the allow path, malformed payload (fail-open/closed as decided),
-and the identity-missing case. Run it and paste the pass line.
+Only when the owner asks for tests on this job: add `scripts/tests/test-<hook>.sh`
+that pipes realistic stdin covering: the enforce path, the allow path, malformed
+payload (fail-open/closed as decided), and the identity-missing case. Run it and
+paste the pass line. By default (light code, arm D) write no new tests.
 
 ## 6. Evidence required
 
@@ -148,12 +142,12 @@ and the identity-missing case. Run it and paste the pass line.
 - fail-open/closed choice stated in the header;
 - same-turn live-fire probe output (block + allow);
 - for git hooks, `core.hooksPath` confirmed;
-- test suite pass line pasted.
+- test suite pass line pasted (only when the owner asked for tests).
 
 ## 7. Output artifact
 
 The hook script (5-line ABOUTME header, stdin parse, explicit fail mode), its
-settings.json/`.githooks` wiring, `scripts/tests/test-<hook>.sh`, and a status
+settings.json/`.githooks` wiring, `scripts/tests/test-<hook>.sh` (only when the owner asked for tests), and a status
 block per `evidence-backed-status` showing the live-fire probe.
 
 ## 8. Common traps (bad behavior this prevents)

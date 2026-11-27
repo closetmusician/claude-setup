@@ -88,7 +88,7 @@ If `profile` is a file path ending in `.json`, read it. Expected shape:
 
 ### Step 1: Spawn Parallel Agents
 
-For each file pair, spawn an independent agent (use Agent tool with `run_in_background: true`).
+For each file pair, spawn an independent agent with the Agent tool and `model: "opus"`. Send all the spawns in one message.
 All file-pair agents are embarrassingly parallel — no shared state.
 
 Each agent receives the full context below and executes Steps 2-5.

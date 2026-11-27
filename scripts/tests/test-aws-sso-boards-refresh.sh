@@ -2,7 +2,7 @@
 # ABOUTME: Tests for aws-sso-boards-refresh.sh (SSO token check + throttled login).
 # ABOUTME: Proves a valid token skips the browser, an invalid token opens it once,
 # ABOUTME: and a fresh stamp file suppresses a repeat open within 8 hours.
-# ABOUTME: Uses a fake `aws` binary (via AWS_BIN) and an isolated HOME/log/stamp.
+# ABOUTME: Uses fake `aws` and `uv` binaries (via AWS_BIN, UV_BIN) and an isolated HOME/log/stamp.
 # ABOUTME: Run: bash ~/.claude/scripts/tests/test-aws-sso-boards-refresh.sh
 set -uo pipefail
 
@@ -26,6 +26,15 @@ exit 0
 EOF
 chmod +x "$FAKE_AWS"
 
+# The script checks the token with `uv run ... boto3`, not `aws sts`. A fake uv stands in:
+# its exit code is the token check result (also makes the hidden-login helper fail fast).
+FAKE_UV="$FAKE_HOME/fake-uv.sh"
+cat > "$FAKE_UV" <<'EOF2'
+#!/bin/bash
+exit "${FAKE_AWS_STS_EXIT:-0}"
+EOF2
+chmod +x "$FAKE_UV"
+
 PASS=0; FAIL=0
 ok()  { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 bad() { FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; }
@@ -36,7 +45,7 @@ run_script() {
   CALL_LOG="$FAKE_HOME/calls.log"
   : > "$CALL_LOG"
   export CALL_LOG FAKE_AWS_STS_EXIT
-  HOME="$FAKE_HOME" AWS_BIN="$FAKE_AWS" bash "$SCRIPT" >/dev/null 2>&1
+  HOME="$FAKE_HOME" AWS_BIN="$FAKE_AWS" UV_BIN="$FAKE_UV" bash "$SCRIPT" >/dev/null 2>&1
 }
 
 echo "== valid token =="

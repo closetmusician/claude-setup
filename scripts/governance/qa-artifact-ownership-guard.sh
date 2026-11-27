@@ -181,9 +181,9 @@ if [[ "$TOOL_NAME" == "Bash" ]]; then
   # the orchestrator manages those per protocol (vibe-protocol §4.1 steps 2a/3a).
   # (Residual: arbitrary Bash can delete files indirectly; this catches the direct class,
   # harness-doctor audits the rest.)
-  if echo "$CMD" | grep -qE '\brm\b|\bunlink\b|\bshred\b|[[:space:]]-delete\b' \
-     && echo "$CMD" | grep -q 'claude-governance' \
-     && ! echo "$CMD" | grep -qE 'claude-governance/\.gate'; then
+  if < <(echo "$CMD") grep -qE '\brm\b|\bunlink\b|\bshred\b|[[:space:]]-delete\b' \
+     && < <(echo "$CMD") grep -q 'claude-governance' \
+     && ! < <(echo "$CMD") grep -qE 'claude-governance/\.gate'; then
     deny "Governance state is hook-managed (activated by activate-on-orchestrator.sh, cleaned by governance-cleanup.sh at SessionEnd). Deleting sentinels mid-run disables every governance guard at once — that is not cleanup, it is gate removal. If governance is misfiring, stop and tell the user."
   fi
 
@@ -214,21 +214,21 @@ if [[ "$TOOL_NAME" == "Bash" ]]; then
   # that were absent from the original verb enumeration).  The sed/dd patterns anchor on the
   # guarded path token directly, consistent with the redirect/tee/cp coverage already here.
   # BUG-ADV2-02: all qa/ path matchers use -i (case-insensitive) so CYCLE-1.md = cycle-1.md.
-  if echo "$CMD" | grep -qiE '(>>?|\btee\b|\bcp\b|\bmv\b|\binstall\b)[^;&|]*qa/[^;&|]*(cycle|acceptance|ready-for-review|review-findings)[^;&|]*\.md' \
-     || echo "$CMD" | grep -qiE '(>>?|\btee\b|\bcp\b|\bmv\b|\binstall\b)[^;&|]*verification\.md' \
-     || echo "$CMD" | grep -qiE '\bsed\b[^;&|]*-i[^;&|]*(qa/[^;&|]*(cycle|acceptance|ready-for-review|review-findings)[^;&|]*\.md|verification\.md)' \
-     || echo "$CMD" | grep -qiE '\bdd\b[^;&|]*of=(qa/[^;&|]*(cycle|acceptance|ready-for-review|review-findings)[^;&|]*\.md|verification\.md)' \
-     || echo "$CMD" | grep -qiE '\btruncate\b[^;&|]*(qa/[^;&|]*(cycle|acceptance|ready-for-review|review-findings)[^;&|]*\.md|verification\.md)' \
-     || echo "$CMD" | grep -qiE '\brsync\b[^;&|]*(qa/[^;&|]*(cycle|acceptance|ready-for-review|review-findings)[^;&|]*\.md|verification\.md)'; then
+  if < <(echo "$CMD") grep -qiE '(>>?|\btee\b|\bcp\b|\bmv\b|\binstall\b)[^;&|]*qa/[^;&|]*(cycle|acceptance|ready-for-review|review-findings)[^;&|]*\.md' \
+     || < <(echo "$CMD") grep -qiE '(>>?|\btee\b|\bcp\b|\bmv\b|\binstall\b)[^;&|]*verification\.md' \
+     || < <(echo "$CMD") grep -qiE '\bsed\b[^;&|]*-i[^;&|]*(qa/[^;&|]*(cycle|acceptance|ready-for-review|review-findings)[^;&|]*\.md|verification\.md)' \
+     || < <(echo "$CMD") grep -qiE '\bdd\b[^;&|]*of=(qa/[^;&|]*(cycle|acceptance|ready-for-review|review-findings)[^;&|]*\.md|verification\.md)' \
+     || < <(echo "$CMD") grep -qiE '\btruncate\b[^;&|]*(qa/[^;&|]*(cycle|acceptance|ready-for-review|review-findings)[^;&|]*\.md|verification\.md)' \
+     || < <(echo "$CMD") grep -qiE '\brsync\b[^;&|]*(qa/[^;&|]*(cycle|acceptance|ready-for-review|review-findings)[^;&|]*\.md|verification\.md)'; then
     deny "QA artifacts must be authored by the QA subagent, not the orchestrator (R10/R14) — writing them via shell redirection instead of the Write tool is the same violation. Audit 2026-07-03: 100% of cycle files were orchestrator-written. Spawn the subagent and have IT write this file."
   fi
 
   # Interpreter one-liner bypass (REV-C Hole 1): python/perl/ruby/node -c/-e whose
   # command string contains a guarded artifact path. 80/20 regex: flag is present AND
   # a guarded path pattern appears anywhere in the command string.
-  if echo "$CMD" | grep -qE '\b(python3?|perl|ruby|node)\b.*-[ce]\b' \
-     && { echo "$CMD" | grep -qiE 'qa/[^[:space:]"'"'"'\\]*(cycle|acceptance|ready-for-review|review-findings)[^[:space:]"'"'"'\\]*\.md' \
-          || echo "$CMD" | grep -qiE 'verification\.md'; }; then
+  if < <(echo "$CMD") grep -qE '\b(python3?|perl|ruby|node)\b.*-[ce]\b' \
+     && { < <(echo "$CMD") grep -qiE 'qa/[^[:space:]"'"'"'\\]*(cycle|acceptance|ready-for-review|review-findings)[^[:space:]"'"'"'\\]*\.md' \
+          || < <(echo "$CMD") grep -qiE 'verification\.md'; }; then
     deny "QA artifacts must be authored by the QA subagent, not the orchestrator (R10/R14) — interpreter one-liners that write guarded artifacts are the same violation. Audit 2026-07-03: 100% of cycle files were orchestrator-written. Spawn the subagent and have IT write this file."
   fi
   # trust_decision emit on Bash allow — purely additive.

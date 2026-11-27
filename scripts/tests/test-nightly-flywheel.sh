@@ -180,6 +180,13 @@ CLAUDE_EOF
   else
     _fail "Case 1: expected ≥1 draft file, got $draft_count"
   fi
+
+  # Check: the speed step writes to the sandbox, never to the live state/speed history.
+  if [[ -s "$sb/state/speed/history.jsonl" ]]; then
+    _pass "Case 1: speed-report saved into the sandbox STATE"
+  else
+    _fail "Case 1: speed-report did not save into \$STATE/speed (it wrote to live state)"
+  fi
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -316,6 +323,15 @@ CLAUDE_EOF
     _pass "Case 4b: cursor unchanged on empty-delta run2"
   else
     _fail "Case 4b: cursor changed on empty-delta run (run1=$cursor_after_run1 run2=$cursor_after_run2)"
+  fi
+
+  # The speed report must run on a quiet night too, so the trend has no gaps.
+  local speed_lines
+  speed_lines="$(wc -l < "$sb/state/speed/history.jsonl" 2>/dev/null | tr -d ' ')"
+  if [[ "${speed_lines:-0}" -eq 2 ]]; then
+    _pass "Case 4c: speed-report ran on both runs, including the empty-delta run"
+  else
+    _fail "Case 4c: expected 2 speed history lines after 2 runs, got ${speed_lines:-0}"
   fi
 }
 

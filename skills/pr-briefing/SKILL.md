@@ -107,7 +107,7 @@ Raw diff stats (e.g., "+5,216 / -2,321") are misleading for large PRs. A PR that
    - Percentage of total diff
    - Reviewer action: **Review carefully**, **Skim/skip**, **Spot-check**, **Read for context**, **Skip**
 
-3. **Write the headline callout.** If the ratio of new production code to total diff is <30%, write a prominent callout:
+3. **Write the headline callout.** If the ratio of new production code to total diff is <50%, write a prominent callout:
    > **This PR shows +X / -Y lines, but actual new production code is ~Z lines.**
    This prevents reviewer fatigue on PRs inflated by deletions, tests, or data.
 

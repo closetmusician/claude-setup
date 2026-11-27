@@ -25,7 +25,7 @@ await test('2. The close workflow is mandatory, whatever the task statuses', asy
 
 await test('3. Headless escalate does not end the run before the close workflow', async () => {
   const headless = doc.split('**Headless note:**')[1].split('\n\n')[0]
-  assert.match(headless, /lo-feature-close\.js/)
+  assert.match(headless, /close:\s*true/)
   assert.ok(!/report it as a `partial` result with the stage and reason, commit only the verified work, and continue/i.test(headless),
     'the old headless text that ended the run is still there')
 })
@@ -38,7 +38,7 @@ await test('4. Routing names the debug-and-fix route: independent diagnoser firs
   assert.ok(row, 'no routing row for a debug + fix with tests ask')
   assert.match(row, /diagnos/i)
   assert.match(row, /lo-feature-plan\.js/)
-  assert.match(row, /lo-feature-close\.js/)
+  assert.match(row, /lo-feature-task-d\.js/)
   assert.match(doc, /### Debug and fix/)
   const dbg = doc.split('### Debug and fix')[1].split('\n## ')[0]
   assert.match(dbg, /opus/)

@@ -17,6 +17,7 @@ trap '_fail_open $LINENO' ERR
 
 # ── Argument handling ──────────────────────────────────────────────────────────
 TARGET="${1:-$HOME/.claude/memory/lessons.md}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # ── NON-NEGOTIABLE INVARIANT: refuse to operate on journal.md ─────────────────
 # Purpose: prevent accidental modification of the append-only raw journal.
@@ -79,17 +80,17 @@ haiku_exit=0
 _prompt_tmp="$(mktemp /tmp/memory-consolidate-prompt.XXXXXX)"
 printf '%s' "$LLM_PROMPT" > "$_prompt_tmp"
 
-# Source Bedrock helper for non-scheduled headless launches
-# shellcheck source=scripts/lib/claude-bedrock.sh
-source "${SCRIPT_DIR}/lib/claude-bedrock.sh"
+# Bedrock helper for non-scheduled headless launches. Run as a program, not sourced:
+# the timeout wrapper starts an external command, so a shell function would exit 127.
+HEADLESS="${SCRIPT_DIR}/lib/claude-headless.sh"
 
 if [[ -f "$TIMEOUT_LIB" ]]; then
   # shellcheck source=scripts/lib/timeout.sh
   source "$TIMEOUT_LIB"
-  llm_raw="$(_run_with_timeout 60 claude_bedrock -p --model haiku < "$_prompt_tmp" 2>/dev/null)" || haiku_exit=$?
+  llm_raw="$(_run_with_timeout 60 "$HEADLESS" -p --model haiku < "$_prompt_tmp" 2>/dev/null)" || haiku_exit=$?
 else
   # Fallback: run without timeout wrapper (still fail-open)
-  llm_raw="$(claude_bedrock -p --model haiku < "$_prompt_tmp" 2>/dev/null)" || haiku_exit=$?
+  llm_raw="$("$HEADLESS" -p --model haiku < "$_prompt_tmp" 2>/dev/null)" || haiku_exit=$?
 fi
 
 rm -f "$_prompt_tmp"

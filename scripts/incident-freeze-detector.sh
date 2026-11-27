@@ -79,7 +79,7 @@ if [[ -f "$STATE_FILE" ]]; then
 
   # State is ARMED and within timeout. Check if this output shows a failure.
   # Look for HTTP 4xx or 5xx status codes in the output.
-  if echo "$TOOL_RESULT" | grep -qE 'HTTP/[0-9.]+ [45][0-9]{2}'; then
+  if < <(echo "$TOOL_RESULT") grep -qE 'HTTP/[0-9.]+ [45][0-9]{2}'; then
     # Recovery failed. Trigger FREEZE.
     echo "$NOW_TS" > "$FREEZE_FILE"
     rm -f "$STATE_FILE"
@@ -91,7 +91,7 @@ if [[ -f "$STATE_FILE" ]]; then
   fi
 
   # Check if this output shows a success (2xx) — recovery worked, disarm.
-  if echo "$TOOL_RESULT" | grep -qE 'HTTP/[0-9.]+ 2[0-9]{2}'; then
+  if < <(echo "$TOOL_RESULT") grep -qE 'HTTP/[0-9.]+ 2[0-9]{2}'; then
     rm -f "$STATE_FILE"
     exit 0
   fi
@@ -105,11 +105,11 @@ fi
 HAS_DELETE=false
 HAS_SUCCESS=false
 
-if echo "$TOOL_RESULT" | grep -qiE '(curl.*(-X|--request)[[:space:]]+DELETE|DELETE[[:space:]]+/(v[0-9]|api|beta)|method.*DELETE|(-X|--request)[[:space:]]*DELETE)'; then
+if < <(echo "$TOOL_RESULT") grep -qiE '(curl.*(-X|--request)[[:space:]]+DELETE|DELETE[[:space:]]+/(v[0-9]|api|beta)|method.*DELETE|(-X|--request)[[:space:]]*DELETE)'; then
   HAS_DELETE=true
 fi
 
-if echo "$TOOL_RESULT" | grep -qE 'HTTP/[0-9.]+ 2[0-9]{2}'; then
+if < <(echo "$TOOL_RESULT") grep -qE 'HTTP/[0-9.]+ 2[0-9]{2}'; then
   HAS_SUCCESS=true
 fi
 

@@ -1,0 +1,78 @@
+{
+ "_about": "Tunable numbers, skip rules and question text for scripts/governance/doc-clarity-guard.py. Spec: docs/plans/harness/doc-clarity-guard/spec.md Part B.",
+ "version": 1,
+ "model": "openjev-latest",
+ "deadline_s": 5.5,
+ "alarm_s": 7,
+ "min_chars": 300,
+ "report_min": 0.7,
+ "min": 0.5,
+ "seen_cap": 500,
+ "extensions": [
+  ".md",
+  ".html",
+  ".htm"
+ ],
+ "skip_basenames": [
+  "CLAUDE.md",
+  "AGENTS.md",
+  "MEMORY.md",
+  "SKILL.md"
+ ],
+ "skip_segments": [
+  "rules",
+  "skills",
+  "skills-archive",
+  "agents",
+  "commands",
+  "memory",
+  "handoffs",
+  "evidence",
+  "fixtures",
+  "temp",
+  "work",
+  "qa",
+  "node_modules",
+  ".git"
+ ],
+ "skip_prefixes": [
+  "/private/tmp/",
+  "/tmp/"
+ ],
+ "message": {
+  "word_limit": 120,
+  "head": "[doc-clarity] {path} reads as a report for the owner but:",
+  "no_action": "no recommendation of what to fix;",
+  "no_gain_cost": "no gain or cost per item;",
+  "unframed": "decisions with no options or recommendation;",
+  "not_plain": "some sentences need plainer words;",
+  "tail": "Rewrite it per ~/.claude/rules/writing-style.md section 5c: what to fix, why, the gain, the cost, and a recommendation per decision."
+ },
+ "reader_owner": "The owner of an AI coding assistant: a busy product manager who is not an engineer. They read `message` once, between meetings. They know their product and everyday business words. They did not see the assistant's files, code, tools, agents or plans, so they know none of its internal names unless `message` explains them.",
+ "questions": {
+  "is_owner_report": {
+   "type": "noul",
+   "instructions": "Is the document a report, review, audit, plan or recommendation for the owner to read and act on (not code docs, notes to self, logs or reference tables)?"
+  },
+  "says_what_to_do": {
+   "type": "noul",
+   "instructions": "Does it say plainly what should be done (fixed, changed or kept), not only what was found?"
+  },
+  "gains_costs": {
+   "type": "noul",
+   "instructions": "For each thing it says to do, does it say what the owner gains and what it costs or risks?"
+  },
+  "has_decisions": {
+   "type": "noul",
+   "instructions": "Does it leave decisions, open questions or flagged items for the owner?"
+  },
+  "decisions_framed": {
+   "type": "noul",
+   "instructions": "For each decision, does it give the options, the good and bad side of each, and a recommendation?"
+  },
+  "plain": {
+   "type": "noul",
+   "instructions": "Could the owner understand every sentence on the first read with zero context?"
+  }
+ }
+}

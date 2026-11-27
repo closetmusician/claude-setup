@@ -48,7 +48,7 @@ if [[ -z "$PROMPT" ]]; then
 fi
 
 # ─── Escape hatch: GOVERNANCE_EXEMPT ───
-if echo "$PROMPT" | grep -qi 'GOVERNANCE_EXEMPT'; then
+if grep -qi 'GOVERNANCE_EXEMPT' < <(echo "$PROMPT"); then
   exit 0
 fi
 
@@ -65,7 +65,7 @@ mkdir -p "$STATE_DIR"
 
 # ─── CHECK 1: Mandatory Context ───
 # Must have a "## Mandatory Context" header followed by at least one spec ref.
-if ! echo "$PROMPT" | grep -q '## Mandatory Context'; then
+if ! grep -q '## Mandatory Context' < <(echo "$PROMPT"); then
   block_and_exit "Missing '## Mandatory Context' section. Orchestrator must provide spec/doc references for subagent."
 fi
 
@@ -87,7 +87,7 @@ has_existing_md_ref() {
 }
 
 # Spec reference: docs/*.md path, REQ-NNN, or any existing .md file
-if ! echo "$CONTEXT_SECTION" | grep -qE '(docs/.*\.md|REQ-[0-9]+)' && ! has_existing_md_ref; then
+if ! grep -qE '(docs/.*\.md|REQ-[0-9]+)' < <(echo "$CONTEXT_SECTION") && ! has_existing_md_ref; then
   block_and_exit "## Mandatory Context exists but contains no spec references (expected docs/*.md, REQ-NNN, or a path to an existing .md spec)."
 fi
 
@@ -110,16 +110,16 @@ VALIDATE_RESULT=$(echo "$REQ_MAP_JSON" | jq -f "$JQ_LIB" 2>&1) || {
 # Must have ## Constraints or ## Governance section with non-empty content.
 HAS_CONSTRAINTS=false
 
-if echo "$PROMPT" | grep -q '## Constraints'; then
+if grep -q '## Constraints' < <(echo "$PROMPT"); then
   CONSTRAINTS_BODY=$(echo "$PROMPT" | sed -n '/^## Constraints/,/^## /{ /^## Constraints/d; /^## /d; p; }')
-  if echo "$CONSTRAINTS_BODY" | grep -q '[^[:space:]]'; then
+  if grep -q '[^[:space:]]' < <(echo "$CONSTRAINTS_BODY"); then
     HAS_CONSTRAINTS=true
   fi
 fi
 
-if [[ "$HAS_CONSTRAINTS" == "false" ]] && echo "$PROMPT" | grep -q '## Governance'; then
+if [[ "$HAS_CONSTRAINTS" == "false" ]] && grep -q '## Governance' < <(echo "$PROMPT"); then
   GOVERNANCE_BODY=$(echo "$PROMPT" | sed -n '/^## Governance/,/^## /{ /^## Governance/d; /^## /d; p; }')
-  if echo "$GOVERNANCE_BODY" | grep -q '[^[:space:]]'; then
+  if grep -q '[^[:space:]]' < <(echo "$GOVERNANCE_BODY"); then
     HAS_CONSTRAINTS=true
   fi
 fi

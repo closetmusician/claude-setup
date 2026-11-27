@@ -1,0 +1,368 @@
+/**
+ * What a fast compaction cuts, and the conversation after it.
+ *
+ * Old tool outputs longer than `cutTo` keep their start and end, unless Jev
+ * ranks them among the outputs the assistant will need again (then they stay
+ * whole, within `keepWhole` of the old outputs' characters). Long old tool
+ * inputs, host notices and older copies of text repeated later are cut by rule. The newest `keepRecentCalls` calls
+ * and every word the assistant wrote stay as they are; a person's words do
+ * too, except an older copy of a long text that appears again later. Nothing is
+ * cut without its full text being saved first (the caller archives, then
+ * applies), and a call is never removed: the transcript keeps its shape.
+ */
+import { askAll, batchQuestions, type Answered, type JevConfig, neededQuestion, type Transport } from './jev.js';
+import { collectCalls, estimateTokens, fitState, type Call } from './state.js';
+import { cutChars, cutEnd, cutMiddle, isHostText, wasCut } from './text.js';
+import type { Cut, Message, Options, ToolResult, ToolUse } from './types.js';
+
+export interface Plan {
+  /** Index of the first message that is never cut. */
+  protectedFrom: number;
+  calls: Call[];
+  outputs: Call[];
+  /**
+   * The size before cutting of old outputs an earlier compaction cut, counted
+   * into the `keepWhole` budget: without it each /fc would keep a quarter of
+   * what the last one kept whole, and cut the rest.
+   */
+  cutBefore: number;
+  inputs: { call: Call; field: string; text: string }[];
+  notices: { index: number; text: string }[];
+}
+
+/** The newest messages a person typed that no rule cuts. */
+const PERSON_KEEP_TURNS = 3;
+
+/**
+ * Purpose: whether a message is something a person typed: user text, not tool results, not host text, not a skill body.
+ * Usage: typedByPerson(message).
+ * Gotchas: a replay prompt counts as typed (it is sent as the person's); the replay route unpacks it before any cut.
+ */
+export function typedByPerson(m: Message): boolean {
+  return m.role === 'user' && !!m.text && !m.toolResults?.length && !isHostText(m.text) && !m.text.startsWith('Base directory for this skill: ');
+}
+
+function slack(cutTo: number): number {
+  return Math.ceil(cutTo * 1.3);
+}
+
+/** The index of the message holding the `keep`-th newest tool call (0 when there are fewer). */
+export function protectedFrom(messages: readonly Message[], keep: number): number {
+  let seen = 0;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    seen += messages[i]!.toolUses.length;
+    if (seen >= keep) return i;
+  }
+  return 0;
+}
+
+export function plan(messages: readonly Message[], options: Options): Plan {
+  const from = protectedFrom(messages, options.keepRecentCalls);
+  const calls = collectCalls(messages);
+  const old = calls.filter((c) => c.callIndex < from && c.resultIndex < from);
+  const outputs = old.filter((c) => c.output.length > slack(options.cutTo) && !wasCut(c.output));
+  const cutBefore = old.reduce((n, c) => {
+    const taken = cutChars(c.output);
+    return taken > 0 ? n + c.output.length + taken : n;
+  }, 0);
+  const inputs: Plan['inputs'] = [];
+  if (options.cutInputs) {
+    for (const call of old) {
+      for (const [field, value] of Object.entries(call.input)) {
+        if (typeof value === 'string' && value.length > slack(options.cutTo) && !wasCut(value)) {
+          inputs.push({ call, field, text: value });
+        }
+      }
+    }
+  }
+  // The last index each user text appears at: an older copy of a long text
+  // that appears again later (a skill loaded on every /loop tick) is cut, and
+  // the newest copy is left whole by this rule.
+  const lastAt = new Map<string, number>();
+  messages.forEach((m, index) => {
+    if (m.text) lastAt.set(m.text, index);
+  });
+  // The newest PERSON_KEEP_TURNS messages a person typed are never cut, whatever the tool calls after them.
+  let personFrom = messages.length;
+  for (let i = messages.length - 1, seen = 0; i >= 0 && seen < PERSON_KEEP_TURNS; i--) {
+    if (typedByPerson(messages[i]!)) {
+      personFrom = i;
+      seen++;
+    }
+  }
+  const notices: Plan['notices'] = [];
+  messages.forEach((m, index) => {
+    if (index === 0 || index >= from || m.role !== 'user' || m.toolResults?.length) return;
+    if (index >= personFrom && typedByPerson(m)) return;
+    if (m.text.length <= options.noticeCutTo * 2 || wasCut(m.text)) return;
+    if (isHostText(m.text) || lastAt.get(m.text)! > index) notices.push({ index, text: m.text });
+  });
+  return { protectedFrom: from, calls, outputs, cutBefore, inputs, notices };
+}
+
+export type Ranking = 'jev' | 'newest';
+
+/**
+ * The outputs kept whole: in Jev's order (only those at or above
+ * `minKeepScore`), or newest first without Jev, while the characters kept
+ * beyond the cut stay within `keepWhole` of the old outputs' total (with
+ * `cutBefore`, the old outputs earlier compactions cut, at their full size).
+ */
+export function chooseWhole(
+  outputs: readonly Call[],
+  scores: ReadonlyMap<string, number> | undefined,
+  options: Options,
+  cutBefore = 0,
+): Set<string> {
+  const total = outputs.reduce((n, c) => n + c.output.length, cutBefore);
+  let left = options.keepWhole * total;
+  const order = scores
+    ? outputs
+        .filter((c) => (scores.get(c.tool_use_id) ?? 0) >= options.minKeepScore)
+        .sort((a, b) => scores.get(b.tool_use_id)! - scores.get(a.tool_use_id)!)
+    : [...outputs].sort((a, b) => b.callIndex - a.callIndex);
+  const whole = new Set<string>();
+  for (const call of order) {
+    const extra = call.output.length - options.cutTo;
+    if (extra <= left) {
+      whole.add(call.tool_use_id);
+      left -= extra;
+    }
+  }
+  return whole;
+}
+
+export function cutsOf(p: Plan, whole: ReadonlySet<string>): Cut[] {
+  return [
+    ...p.outputs
+      .filter((c) => !whole.has(c.tool_use_id))
+      .map((c): Cut => ({ kind: 'output', key: c.tool_use_id, index: c.resultIndex, tool_use_id: c.tool_use_id, tool: c.tool, original: c.output })),
+    ...p.inputs.map(({ call, field, text }): Cut => ({
+      kind: 'input',
+      key: `${call.tool_use_id}-${field}`,
+      index: call.callIndex,
+      tool_use_id: call.tool_use_id,
+      field,
+      tool: call.tool,
+      original: text,
+    })),
+    ...p.notices.map(({ index, text }): Cut => ({ kind: 'notice', key: `m${index}`, index, original: text })),
+  ];
+}
+
+export interface Decision {
+  plan: Plan;
+  whole: Set<string>;
+  ranking: Ranking;
+  cuts: Cut[];
+  jev?: Answered & { stage: string; ms: number };
+  /** Why Jev was not used, when it was not. */
+  jevSkipped?: string;
+}
+
+export interface JevAccess {
+  transport: Transport;
+  config: JevConfig;
+  now(): Promise<number>;
+}
+
+/**
+ * Plans the cut and, when there are outputs to rank and Jev is reachable,
+ * asks it which to keep whole. Jev failing never fails the compaction: the
+ * outputs are ranked newest first instead, and `jevSkipped` says why. A
+ * string in place of `jev` says why Jev is not asked at all.
+ */
+export async function decide(
+  messages: readonly Message[],
+  options: Options,
+  jev: JevAccess | string | undefined,
+  focus?: string,
+): Promise<Decision> {
+  const p = plan(messages, options);
+  let scores: Map<string, number> | undefined;
+  let jevRun: Decision['jev'];
+  let jevSkipped: string | undefined;
+  if (p.outputs.length === 0) jevSkipped = 'no old outputs to rank';
+  else if (typeof jev === 'string') jevSkipped = jev;
+  else if (!jev) jevSkipped = 'no Jev key';
+  else {
+    try {
+      const started = await jev.now();
+      const fitted = fitState(messages, p.calls, {
+        maxTokens: options.maxStateTokens,
+        pinnedFrom: p.protectedFrom,
+        focus,
+      });
+      const questions = new Map(p.outputs.map((c) => [`need_${c.id}`, neededQuestion(c, options.sendSamples)]));
+      const batches = batchQuestions(questions, fitted.tokens, options.maxRequestTokens);
+      const answered = await askAll(jev.transport, jev.config, fitted.state, batches);
+      scores = new Map(p.outputs.map((c) => [c.tool_use_id, answered.scores.get(`need_${c.id}`)!]));
+      jevRun = { ...answered, stage: fitted.stage, ms: (await jev.now()) - started };
+    } catch (error) {
+      jevSkipped = error instanceof Error ? error.message : String(error);
+    }
+  }
+  const whole = chooseWhole(p.outputs, scores, options, p.cutBefore);
+  return {
+    plan: p,
+    whole,
+    ranking: scores ? 'jev' : 'newest',
+    cuts: cutsOf(p, whole),
+    jev: jevRun,
+    jevSkipped,
+  };
+}
+
+/**
+ * The conversation handed back as messages the engine writes afresh: without
+ * their handles, so a resumed session loads the compacted form (with a handle
+ * kept, the loader walks back past the compaction to the full history:
+ * anthropics/claude-code#95328, upstream #89). A message left with nothing to
+ * write (a thinking block) is dropped; hidden reasoning and images do not
+ * survive, text and tool calls do.
+ *
+ * Consecutive assistant messages, and consecutive user messages that only
+ * carry tool results, are merged into one. The engine writes each message
+ * it's handed as a turn of its own, so a parallel batch handed back as
+ * separate calls reaches the model with every call but the last one
+ * unanswered ("Tool result missing due to internal error"), and those results
+ * are lost.
+ */
+export function fresh(messages: readonly Message[]): Message[] {
+  const out: Message[] = [];
+  for (const { handle: _handle, ...m } of messages) {
+    if (m.text.length === 0 && m.toolUses.length === 0 && !m.toolResults?.length) continue;
+    const last = out.at(-1);
+    if (last?.role === 'assistant' && m.role === 'assistant') {
+      out[out.length - 1] = { ...last, text: [last.text, m.text].filter(Boolean).join('\n\n'), toolUses: [...last.toolUses, ...m.toolUses] };
+    } else if (last?.role === 'user' && m.role === 'user' && !last.text && !m.text && last.toolResults?.length && m.toolResults?.length) {
+      out[out.length - 1] = { ...last, toolResults: [...last.toolResults, ...m.toolResults] };
+    } else out.push(m);
+  }
+  return out;
+}
+
+const resultsOnly = (m: Message): boolean => m.role === 'user' && !m.text && !!m.toolResults?.length;
+
+/**
+ * With handles kept (`resumeSafe` off): a turn (its assistant messages, then
+ * the result-only user messages answering them) is merged as `fresh` merges
+ * it when a run of two or more of either holds a rebuilt message, since the
+ * engine writes a handle-less message as a turn of its own and would split a
+ * parallel batch. Every other message keeps its handle.
+ */
+export function freshBatches(messages: readonly Message[]): Message[] {
+  const split = (run: readonly Message[]): boolean => run.length > 1 && run.some((m) => m.handle === undefined);
+  const out: Message[] = [];
+  for (let i = 0; i < messages.length; ) {
+    let j = i;
+    while (j < messages.length && messages[j]!.role === 'assistant') j++;
+    const calls = j;
+    while (j < messages.length && resultsOnly(messages[j]!)) j++;
+    if (j === i) {
+      out.push(messages[i++]!);
+      continue;
+    }
+    const turn = messages.slice(i, j);
+    out.push(...(split(messages.slice(i, calls)) || split(messages.slice(calls, j)) ? fresh(turn) : turn));
+    i = j;
+  }
+  return out;
+}
+
+/** Characters of text, tool inputs and outputs, the measure of what a compaction freed. */
+export function sizeOf(messages: readonly Message[]): number {
+  let n = 0;
+  for (const m of messages) {
+    n += m.text.length;
+    for (const u of m.toolUses) n += JSON.stringify(u.input).length;
+    for (const r of m.toolResults ?? []) n += r.text.length;
+  }
+  return n;
+}
+
+/**
+ * The conversation with `cuts` applied, each marker naming `pathOf(cut)`.
+ * Only a message that changes is rebuilt (and so loses the engine's handle);
+ * every other message is returned as the object it came in as.
+ */
+export function applyCuts(
+  messages: readonly Message[],
+  cuts: readonly Cut[],
+  pathOf: (cut: Cut) => string,
+  options: Options,
+): Message[] {
+  const outputs = new Map<string, Cut>();
+  const inputs = new Map<string, Cut[]>();
+  const notices = new Map<number, Cut>();
+  for (const cut of cuts) {
+    if (cut.kind === 'output') outputs.set(cut.tool_use_id!, cut);
+    else if (cut.kind === 'input') inputs.set(cut.tool_use_id!, [...(inputs.get(cut.tool_use_id!) ?? []), cut]);
+    else notices.set(cut.index, cut);
+  }
+  return messages.map((m, index) => {
+    const notice = notices.get(index);
+    if (notice) {
+      return { role: m.role, text: cutEnd(m.text, options.noticeCutTo, pathOf(notice)), toolUses: [] };
+    }
+    if (m.toolResults?.some((r) => outputs.has(r.tool_use_id))) {
+      const toolResults = m.toolResults.map((r): ToolResult => {
+        const cut = outputs.get(r.tool_use_id);
+        return cut
+          ? { tool_use_id: r.tool_use_id, text: cutMiddle(r.text, options.cutTo, pathOf(cut), 'this output'), isError: r.isError }
+          : r;
+      });
+      return { role: m.role, text: m.text, toolUses: m.toolUses, toolResults };
+    }
+    if (m.toolUses.some((u) => inputs.has(u.tool_use_id))) {
+      const toolUses = m.toolUses.map((u): ToolUse => {
+        const own = inputs.get(u.tool_use_id);
+        if (!own) return u;
+        const input = { ...u.input };
+        for (const cut of own) {
+          input[cut.field!] = cutMiddle(cut.original, options.cutTo, pathOf(cut), `this ${cut.field} field`);
+        }
+        const rebuilt: ToolUse = { tool_use_id: u.tool_use_id, tool: u.tool, input };
+        const outputCut = outputs.get(u.tool_use_id);
+        if (u.text !== undefined) {
+          rebuilt.text = outputCut ? cutMiddle(u.text, options.cutTo, pathOf(outputCut), 'this output') : u.text;
+        }
+        if (u.isError) rebuilt.isError = true;
+        return rebuilt;
+      });
+      return { role: m.role, text: m.text, toolUses };
+    }
+    return m;
+  });
+}
+
+/** The most a cut could free in characters: every candidate cut, nothing kept whole (no Jev asked). */
+export function mostFreed(messages: readonly Message[], options: Options): number {
+  const cuts = cutsOf(plan(messages, options), new Set());
+  return cuts.length === 0 ? 0 : sizeOf(messages) - sizeOf(applyCuts(messages, cuts, () => '', options));
+}
+
+/** What a cut would free: characters, the tokens they come to, and the outputs cut. */
+export interface Estimate {
+  chars: number;
+  tokens: number;
+  outputs: number;
+}
+
+/**
+ * What /fc would free right now, worked out without asking Jev (the newest
+ * outputs kept whole). Jev keeps whole only what it rates as still needed,
+ * within the same budget, so /fc usually frees this much or more.
+ */
+// ponytail: markers are counted without their archive path (about 100 chars a cut); fine for an estimate
+export async function estimate(messages: readonly Message[], options: Options): Promise<Estimate> {
+  const { cuts } = await decide(messages, options, undefined);
+  if (cuts.length === 0) return { chars: 0, tokens: 0, outputs: 0 };
+  const chars = sizeOf(messages) - sizeOf(applyCuts(messages, cuts, () => '', options));
+  const originals = cuts.map((c) => c.original).join('\n');
+  return {
+    chars,
+    tokens: Math.round((estimateTokens(originals) * chars) / originals.length),
+    outputs: cuts.filter((c) => c.kind === 'output').length,
+  };
+}

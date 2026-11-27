@@ -1,0 +1,97 @@
+{
+  "name": "fast-compact",
+  "version": "0.3.1-local.11",
+  "description": "/fast-compact (and /fc): cut old tool output to its start and end in about a second, with Jev keeping whole what is still needed and every cut saved to a file. Claude Code's own /compact is untouched.",
+  "author": { "name": "Nodar Davituri", "url": "https://github.com/NodarDavituri" },
+  "homepage": "https://github.com/NodarDavituri/fast-compact",
+  "repository": "https://github.com/NodarDavituri/fast-compact",
+  "license": "MIT",
+  "keywords": ["compaction", "context", "jev", "typesafe", "openrouter"],
+  "userConfig": {
+    "provider": {
+      "type": "string",
+      "title": "Jev provider",
+      "description": "openrouter (default; key in OPENROUTER_API_KEY), typesafe (key in TYPESAFE_API_KEY), or none (never ask Jev: the newest outputs stay whole and nothing is sent). Any other value counts as none.",
+      "default": "openrouter"
+    },
+    "apiKey": {
+      "type": "string",
+      "title": "API key",
+      "description": "Key for the provider. Leave unset to use OPENROUTER_API_KEY or TYPESAFE_API_KEY from the environment or settings.",
+      "sensitive": true
+    },
+    "baseUrl": {
+      "type": "string",
+      "title": "Endpoint override",
+      "description": "A System One endpoint other than the provider's own. Leave unset."
+    },
+    "model": {
+      "type": "string",
+      "title": "Jev model",
+      "description": "Model name sent with each request.",
+      "default": "jev-latest"
+    },
+    "keepRecentCalls": {
+      "type": "number",
+      "title": "Recent tool calls kept as they are",
+      "description": "The newest tool calls whose inputs and outputs are never cut.",
+      "default": 10
+    },
+    "cutTo": {
+      "type": "number",
+      "title": "Characters a cut keeps",
+      "description": "A cut output or input keeps this many characters: two thirds from its start, one third from its end.",
+      "default": 1500
+    },
+    "keepWhole": {
+      "type": "number",
+      "title": "Share Jev may keep whole",
+      "description": "At most this share of the old outputs' characters stays whole on Jev's ranking (0 to 1).",
+      "default": 0.25
+    },
+    "minKeepScore": {
+      "type": "number",
+      "title": "Least Jev score to keep whole",
+      "description": "An output Jev rates below this is never kept whole (0 to 1).",
+      "default": 0.45
+    },
+    "cutInputs": {
+      "type": "boolean",
+      "title": "Cut long tool inputs too",
+      "description": "Cut long old tool inputs (Bash scripts, Write bodies, Edit strings) the same way.",
+      "default": true
+    },
+    "sendSamples": {
+      "type": "boolean",
+      "title": "Show Jev output samples",
+      "description": "Send Jev the first 200 and last 100 characters of each output it ranks.",
+      "default": true
+    },
+    "resumeSafe": {
+      "type": "boolean",
+      "title": "Keep the compaction across --resume",
+      "description": "Hand messages back as new ones, so a resumed session loads the compacted history (older messages lose hidden reasoning and images; text and tool calls stay).",
+      "default": true
+    },
+    "autoCompact": {
+      "type": "boolean",
+      "title": "Cut instead of summarising on auto-compaction",
+      "description": "When Claude Code compacts on its own, cut old tool output the way /fc does if that frees at least a fifth of the conversation; otherwise Claude Code summarises as usual.",
+      "default": false
+    },
+    "route": {
+      "type": "string",
+      "title": "How /fc frees the context",
+      "description": "auto (default; replay on a Mac with Claude Code managed settings, where plugin compact hooks are skipped, else hook), hook (answer the compaction /fc starts), or replay (trim, clear the chat, and send the trimmed chat back as the first prompt).",
+      "options": ["auto", "hook", "replay"],
+      "default": "auto"
+    },
+    "meter": {
+      "type": "string",
+      "title": "Show what /fc would free",
+      "description": "prompt (default; a line under the prompt after each turn, in tokens and as a share of the window), statusline (the token count in ~/.claude/fast-compact/meter/<session id>, for your status line), both, or off.",
+      "options": ["prompt", "statusline", "both", "off"],
+      "default": "prompt"
+    }
+  }
+}

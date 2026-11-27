@@ -131,7 +131,7 @@ print "$_\n" for @hits;
 PERLEOF
 )"
 
-printf '%s' "$FINDINGS" | grep -q '^B|' || exit 0
+< <(printf '%s' "$FINDINGS") grep -q '^B|' || exit 0
 : > "$MARKER"
 
 BLOCKS="$(printf '%s\n' "$FINDINGS" | perl -lne 'print "  - $1" if /^B\|(.*)$/')"

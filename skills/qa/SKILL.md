@@ -142,11 +142,13 @@ Check once at start: does `.claude/phase.json` exist at the repo root?
 - **Yes + you were spawned as the QA role by an orchestrator:** do NOT use /qa —
   R10 forbids the QA role editing implementation code. Hand back; use /qa-only.
 - **Yes + developer-driven run** (user invoked /qa directly): proceed, but R18
-  (mock policy) and R2 (test-before-fix ordering) override defaults in Phase 8
-  — called out inline there.
+  (mock policy) overrides defaults in Phase 8. Test-first steps run only when
+  the owner asks for tests on this job — called out inline there.
 - **No phase.json:** plain /qa flow, no changes.
 
 ## Test Framework Detection (fix mode only — skip in verify mode)
+
+Run this section only when the owner asks for tests on this job. Otherwise skip it and skip 8e.5.
 
 ```bash
 ls jest.config.* vitest.config.* playwright.config.* .rspec pytest.ini pyproject.toml phpunit.xml 2>/dev/null
@@ -439,9 +441,9 @@ git status --porcelain
 
 If non-empty, STOP and use AskUserQuestion — the fix loop needs a clean tree so
 each bug fix gets its own atomic commit:
-- A) Commit my changes first (recommended — preserves work before QA adds fix commits)
-- B) Stash, run QA fixes, pop the stash after
-- C) Abort fixes — deliver the verify-mode report only
+- Commit my changes first (recommended): keeps your work safe before QA adds fix commits
+- Stash, fix, then restore: runs the fixes, then pops the stash
+- Skip the fixes: delivers the verify-mode report only
 
 If not a git repo at all: stay in verify mode (no way to make atomic,
 revertable commits) and say so.
@@ -465,11 +467,12 @@ Read the source, understand the context, make the **minimal fix** — smallest
 change that resolves the issue. Do NOT refactor surrounding code or "improve"
 unrelated things.
 
-**VIBE repos (R2 — test-before-fix):** if `.claude/phase.json` exists, reverse
-the default order: write the failing regression test FIRST (8e.5 steps 1-2),
-run it and confirm it FAILS against the unfixed code, then apply the fix and
-confirm it passes. Commit test and fix separately (test commit first). In
-non-VIBE repos, fix-first with test-after (as ordered here) is acceptable.
+**Only when the owner asks for tests on this job (VIBE repos, R2):** if
+`.claude/phase.json` exists, reverse the default order: write the failing
+regression test FIRST (8e.5 steps 1-2), run it and confirm it FAILS against the
+unfixed code, then apply the fix and confirm it passes. Commit test and fix
+separately (test commit first). Otherwise write no new tests: apply the fix and
+re-test with the browser (8d).
 
 ### 8c. Commit
 ```bash
@@ -495,7 +498,7 @@ Capture the before/after screenshot pair.
 
 ### 8e.5. Regression Test
 
-Skip if: classification is not "verified", OR the fix is purely visual/CSS with
+Run this step only when the owner asks for tests on this job. Skip if: classification is not "verified", OR the fix is purely visual/CSS with
 no JS behavior, OR no test framework exists and the user declined bootstrap.
 
 **1. Study existing test patterns:** read 2-3 test files closest to the fix.

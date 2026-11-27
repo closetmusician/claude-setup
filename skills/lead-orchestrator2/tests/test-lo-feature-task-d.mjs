@@ -14,6 +14,7 @@ const ARGS = {
 // REQ-09: Updated HAPPY to revision 2 with new required fields (kind, review_ok, final_ok)
 const HAPPY = {
   time: null,
+  preflight: { ok: true },
   runner: (call) => {
     if (call.label === 'runner:spec') return { passed: true, kind: 'pass', rounds: 1, open_items: [] }
     if (call.label === 'runner:review') return { req_rows_ok: true, review_ok: true, defects: [], pre_fix_sha: 'def456', open_items: [] }
@@ -179,33 +180,35 @@ const REV2 = (spec, coder = { summary: 'wrote code' }, resolve = { resolved: tru
   if (call.label === 'coder-fix-2') return coder
   throw new Error(`unexpected agent ${call.label}`)
 }
-const runRev2 = (respond) => runWorkflow('lo-feature-task-d.js', { args: ARGS, respond })
+// The preflight agents (REQ-02b) run first in every case; answer them here so each responder stays unchanged.
+const runRev2 = (respond) => runWorkflow('lo-feature-task-d.js', { args: ARGS, respond: (call, calls) => call.kind === 'preflight' ? { ok: true } : respond(call, calls) })
+const PRE = ['preflight:sonnet', 'preflight:opus']
 const FAILED = { passed: false, kind: 'design', rounds: 1, open_items: ['P1: conflict in REQ-01'] }
 
 await test('11. Failed spec goes to one opus resolver, then the coder; Codex runs once', async () => {
   const r = await runRev2(REV2(FAILED))
-  assert.deepEqual(r.calls.map((c) => c.label), ['runner:spec', 'resolve:spec', 'runner:spec-resolve-check', 'coder', 'runner:review'])
-  assert.equal(r.calls[1].model, 'opus')
-  assert.ok(r.calls[1].prompt.includes('Read every file it names'))
+  assert.deepEqual(r.calls.map((c) => c.label), [...PRE, 'runner:spec', 'resolve:spec', 'runner:spec-resolve-check', 'coder', 'runner:review'])
+  assert.equal(r.calls[3].model, 'opus')
+  assert.ok(r.calls[3].prompt.includes('Read every file it names'))
   assert.equal(r.result.status, 'complete')
   assert.ok(r.result.notes.some((i) => /settled by opus/.test(i)))
 })
 
 await test('12. Dead spec runner escalates and the coder never runs', async () => {
   const r = await runRev2(REV2(undefined))
-  assert.deepEqual(r.calls.map((c) => c.label), ['runner:spec'])
+  assert.deepEqual(r.calls.map((c) => c.label), [...PRE, 'runner:spec'])
   assert.equal(r.result.status, 'escalate')
 })
 
 await test('13. A non-boolean passed value goes to the resolver, not straight to the coder', async () => {
   const r = await runRev2(REV2({ passed: 'true', kind: 'design', rounds: 1, open_items: [] }))
-  assert.equal(r.calls[1].label, 'resolve:spec')
+  assert.equal(r.calls[3].label, 'resolve:spec')
 })
 
 await test('13b. Resolver that needs the owner, or dies, escalates before the coder', async () => {
   for (const resolve of [{ resolved: false, summary: 'needs spend' }, null]) {
     const r = await runRev2(REV2(FAILED, undefined, resolve))
-    assert.deepEqual(r.calls.map((c) => c.label), ['runner:spec', 'resolve:spec'])
+    assert.deepEqual(r.calls.map((c) => c.label), [...PRE, 'runner:spec', 'resolve:spec'])
     assert.equal(r.result.status, 'escalate')
   }
 })
@@ -221,7 +224,7 @@ await test('14. Coder checks the pass file, and a missing file escalates before 
 
 await test('15. Passed spec gate skips the resolver and reaches coder then review', async () => {
   const r = await runRev2(REV2({ passed: true, kind: 'pass', rounds: 1, open_items: [] }))
-  assert.deepEqual(r.calls.map((c) => c.label), ['runner:spec', 'coder', 'runner:review'])
+  assert.deepEqual(r.calls.map((c) => c.label), [...PRE, 'runner:spec', 'coder', 'runner:review'])
   assert.equal(r.result.status, 'complete')
 })
 
@@ -391,7 +394,7 @@ await test('F03: Missing review result gives partial', async () => {
     return null
   })
   assert.equal(r.result.status, 'partial')
-  assert.ok(r.result.open_items.some((i) => /review runner failed/.test(i)))
+  assert.ok(r.result.open_items.some((i) => /review runner agent returned no result/.test(i)))
 })
 
 // F04: Dead coder escalates
@@ -402,7 +405,7 @@ await test('F04: Null coder result escalates', async () => {
     return null
   })
   assert.equal(r.result.status, 'escalate')
-  assert.match(r.result.reason, /coder returned nothing/)
+  assert.match(r.result.reason, /coder agent returned no result/)
 })
 
 // REQ-03: notes vs open_items split
@@ -445,7 +448,7 @@ await test('REQ-04c: Design fail goes to resolver', async () => {
 // REQ-05: resolve check
 await test('REQ-05: Resolver true + check ok:false escalates before coder', async () => {
   const r = await runRev2(REV2(FAILED, undefined, { resolved: true, summary: 'settled' }, { ok: false, reason: 'requirements changed' }))
-  assert.deepEqual(r.calls.map((c) => c.label), ['runner:spec', 'resolve:spec', 'runner:spec-resolve-check'])
+  assert.deepEqual(r.calls.map((c) => c.label), [...PRE, 'runner:spec', 'resolve:spec', 'runner:spec-resolve-check'])
   assert.equal(r.result.status, 'escalate')
 })
 

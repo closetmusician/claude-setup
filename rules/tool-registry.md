@@ -1,3 +1,13 @@
+---
+# Loads only when Office files are touched. CLAUDE.md and code-style.md still say to read it before any Office or SharePoint work. Owner yes, 2026-11-26.
+paths:
+  - "**/*.docx"
+  - "**/*.doc"
+  - "**/*.xlsx"
+  - "**/*.xls"
+  - "**/*.pptx"
+  - "**/*.ppt"
+---
 # Tool Registry
 
 No general-purpose file I/O on Office/SharePoint resources. The tools below are the ONLY

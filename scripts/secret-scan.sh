@@ -25,7 +25,7 @@ else
   while IFS= read -r f; do
     [[ -z "$f" ]] && continue
     # Added lines for this file in the staged diff; report file + matched token, not full line.
-    if git diff --cached -U0 -- "$f" 2>/dev/null | grep -E '^\+' | grep -qE "$PATTERNS"; then
+    if git diff --cached -U0 -- "$f" 2>/dev/null | grep -E '^\+' | grep -E "$PATTERNS" >/dev/null; then
       report "$f (staged) — $(git diff --cached -U0 -- "$f" | grep -E '^\+' | grep -oE "$PATTERNS" | head -1 | cut -c1-12)…"
     fi
   done < <(git diff --cached --name-only 2>/dev/null)

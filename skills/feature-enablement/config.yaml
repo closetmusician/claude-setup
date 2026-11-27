@@ -20,8 +20,8 @@ input_sources:
   # Customer validation sources
   customer_calls:
     - type: "gong"
-      name: "Gong call links"
-      prompt: "Gong call links (optional, comma-separated URLs)"
+      name: "Must-include Gong calls"
+      prompt: "Any specific Gong calls that must be read in full? (optional; calls are otherwise found automatically by the evidence step)"
       required: false
     - type: "insider_sessions"
       name: "Diligent Insider sessions"
@@ -346,6 +346,25 @@ project_structure:
         - Gong Calls: {{gong-links}}
         - Insider Sessions: {{insider-links}}
 
+# Evidence (Pendo problem sizing + Gong call evidence)
+# Run by `/feature-enablement evidence`, and automatically inside init/update.
+# Org-specific facts (app IDs, bases, dead tags, noise products) live in reference_file.
+evidence:
+  enabled: true
+  reference_file: "references/evidence-sources.md"
+  pendo:
+    enabled: true
+    window_days: 90       # Measurement window for the stand-in signal
+    max_candidates: 4     # Stand-in signals to evaluate before picking one
+  gong:
+    enabled: true
+    source: "glean"       # Glean search with app=gong
+    window_months: 12     # Rolling search window
+    max_transcripts: 15   # Full transcripts read per run
+    demand_signal: true   # Monthly mention counts for Why Now (PM must tick before use)
+    noise_products: []    # Extra products to exclude, added to the reference file's list
+  rerun_after_days: 30    # `update` re-runs evidence when Evidence_Last_Run is older than this
+
 # Git & GitHub Configuration
 git:
   auto_init: true
@@ -436,7 +455,7 @@ customer_references:
 features:
   messaging_foundation: true  # NEW: Generate messaging foundation doc first
   derive_downstream: true     # Generate downstream assets from foundation
-  gong_integration: true      # Accept Gong call links
+  gong_integration: true      # Gong evidence via the evidence step (see evidence.gong)
   insider_sessions: true      # Accept Insider session transcripts
   video_scripts: false        # Future enhancement
   slide_decks: false          # Future enhancement

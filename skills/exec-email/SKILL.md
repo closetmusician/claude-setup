@@ -6,7 +6,7 @@ description: "Write a short exec email that is NOT the PM weekly: a bottom line,
 <!-- ABOUTME:
   exec-email SKILL.md - short exec emails: bottom line, bold headers, concrete bullets.
   Two kinds: a project team update (from GitHub) and a summary to an exec (from notes).
-  Templates: templates/team-update.md (cowork w/e 2026-10-30 v2), templates/briefing.md.
+  Templates: templates/team-update.md, templates/briefing.md; example: examples/2026-11-20-login-update-brian.md.
   Siblings: pm-weekly (portfolio PM email, Outlook draft); evidence-backed-status.
   Written 2026-10-30; made general the same day for summary and recommendation emails.
 -->
@@ -32,11 +32,15 @@ description: "Write a short exec email that is NOT the PM weekly: a bottom line,
 The reader is an exec. They want the conclusion, why it matters, and what happens next.
 
 1. **Subject:** `<Topic>: <kind of email>, <date or context>`.
-2. **Bottom line:** one or two sentences after the greeting. State the conclusion first.
-3. **Two to four bold section headers.** Each holds two to five bullets.
-4. **Bullets lead with a bold phrase**, then one or two sentences. Sub-bullets carry one example or number.
-5. **A next-steps or ask section** closes the body. Name an owner or a `[TBD date]` where one is missing.
-6. **Sign-off:** a one-line close, then `Yu-Kuan`.
+   If an exec asked on an existing thread, draft a reply on that thread instead. Address every exec on it, and cc the people doing the work.
+2. **Bottom line:** one or two sentences after the greeting. Answer the reader's exact question first, before any background. How to respond to other people on the thread is the user's call.
+3. **TLDR (status replies):** a numbered list of 2-3 items, one per question the reader has.
+4. **Two to four bold section headers.** Each holds two to five bullets. Group bullets by an area the reader knows, such as a product or platform.
+5. **Bullets lead with a bold phrase**, then one or two sentences. Sub-bullets carry one example or number.
+6. **Close on a commitment.** For a status reply, end on the date or outcome the reader cares about. Use a next-steps section only for a briefing. Name an owner or a `[TBD date]` where one is missing.
+7. **Sign-off:** a one-line close, then `Yu-Kuan`.
+
+Worked example with a diff of draft vs sent: `examples/2026-11-20-login-update-brian.md`. Read it before you draft a status reply to an exec.
 
 Pick the section set for the kind of email:
 
@@ -44,6 +48,7 @@ Pick the section set for the kind of email:
 |---|---|---|
 | Project team update | What we shipped · Decisions made · Focus for next week | `templates/team-update.md` |
 | Summary or recommendation | Bottom line · What we learned · My view · Suggested next steps · Key facts (optional) | `templates/briefing.md` |
+| Status reply on an exec thread | TLDR · What shipped · What's in progress · <the case the exec asked about> | `examples/2026-11-20-login-update-brian.md` |
 | Other | Choose two to four headers that answer "so what?" and "what next?" | the nearest template |
 
 ## 4. The bar
@@ -54,6 +59,11 @@ Pick the section set for the kind of email:
 - **Cut what the reader does not act on:** backend work, test counts, PR numbers, ticket keys and raw notes.
 - **Keep every fact the user gave.** Never invent a number, date or name. Mark a conflict or a gap as `[TBD: …]`.
 - **Hedges stay, once.** If the user is unsure, say so in one plain sentence. Do not repeat it in each bullet.
+- **Lead with the largest true number,** then the recent trend.
+- **One outcome beats a list of outputs.** A change a customer or a team felt beats a count of tickets. If you have no outcome, ask the user for one.
+- **Own a gap once, with its fix in the same sentence.** Never write a standalone "what has not moved" section.
+- **No internal logistics in a status reply.** Leave out the team's own meeting plan and tracker housekeeping.
+- **Blame is the user's call.** Never put a cause outside the team into the draft. Flag the open question in your report, and let the user decide.
 - **Style:** ASD-STE100 (`~/.claude/rules/writing-style.md`). One idea per sentence, 25 words at most.
 - **Confidential topics** (M&A, people, deals): do not commit the draft to a shared repo.
 
@@ -63,7 +73,7 @@ Output first, then refine.
 
 1. **Pick the kind, the reader and the path.** Name all three in your reply.
    - Project team update: `<repo>/docs/comms/weekly/<Friday YYYY-MM-DD>.md`.
-   - Summary to an exec: `~/Code/pm_os/drafts/<YYYY-MM-DD>/<slug>.md` (git-ignored), unless the user names a path.
+   - Summary to an exec: the topic folder in the repo you are working in, for example `docs/firedrills/<topic>/`, unless the user names a path. Use `~/Code/pm_os/drafts/<YYYY-MM-DD>/<slug>.md` only when no topic folder exists. On 2026-11-20 the user could not find a draft saved there.
 2. **Gather the input.**
    - From the user's notes: read the whole draft. List each claim and number.
    - Project team update from GitHub: run these from the repo.
@@ -96,3 +106,5 @@ Output first, then refine.
 - **Expired Teams token.** The chat token lasts about 30 minutes.
   Refresh: `node ~/Code/pm_os/bin/extract-teams-chat-token.js`.
 - **Short `gh` search.** `--search "updated:>=..."` can miss PRs. Filter merged PRs on `mergedAt` as in step 2.
+- **A status update written like a report.** On 2026-11-20 the draft to the CEO was a new email. It had a "what has not moved" list, our meeting plan and `[TBD]` blanks.
+  The user sent a reply on the CEO's thread instead, with a 2-item TLDR, fixes grouped by platform and an outcome number. It ended on the board-meeting date. See `examples/2026-11-20-login-update-brian.md`.

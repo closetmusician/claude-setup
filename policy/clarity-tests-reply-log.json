@@ -1,0 +1,115 @@
+{
+  "_about": "Tuning variant add-noul-ask of rules v1 (round 3, 2026-11-23). Changed: new yes/no reply test must_ask (would have to ask what at least one thing means), added last. Everything else equals policy/clarity-tests.json v1.",
+  "version": "reply-log-add-noul-ask-v1",
+  "framing": "Below is a message from an AI coding assistant to its owner, a busy product manager who is not an engineer. The owner reads it cold, between meetings. They did not see the assistant's work, files, plans, code, agents or earlier messages, and they do not know any of the assistant's internal names, codes, step numbers or ticket ids unless the message explains them.",
+  "max_chars": 4000,
+  "deadline_s": 3.0,
+  "tests": {
+    "plain_language": {
+      "type": "score",
+      "hooks": [
+        "reply",
+        "question"
+      ],
+      "bad_when": "below",
+      "block_at": 1.7507,
+      "instructions": "How much of the text a smart 18-year-old with no technical background could understand.",
+      "criteria": [
+        "Almost none of it",
+        "Less than half",
+        "Most of it",
+        "All of it"
+      ],
+      "_block_hooks": [
+        "reply"
+      ]
+    },
+    "unknown_terms_list": {
+      "type": "score",
+      "hooks": [
+        "reply",
+        "question"
+      ],
+      "bad_when": "above",
+      "block_at": null,
+      "instructions": "Picture the owner reading this once. How many separate times would they stop and think 'what is that?' because of a name, code, id, file, step number or made-up term the text does not explain in plain words?",
+      "criteria": [
+        "Never",
+        "Once",
+        "Twice",
+        "Three or four times",
+        "Five or more times"
+      ]
+    },
+    "unknown_terms_count": {
+      "type": "score",
+      "hooks": [
+        "reply",
+        "question"
+      ],
+      "bad_when": "above",
+      "block_at": null,
+      "instructions": "Count the distinct words, names, codes or ids in the text that the owner would have to ask about before understanding it. Ignore anything the text explains in plain words.",
+      "criteria": [
+        "None",
+        "One",
+        "Two",
+        "Three or four",
+        "Five or more"
+      ]
+    },
+    "self_referential": {
+      "type": "noul",
+      "hooks": [
+        "reply",
+        "question"
+      ],
+      "bad_when": "above",
+      "block_at": null,
+      "instructions": "The text explains things mainly by naming other internal labels, documents or earlier steps, instead of describing the product, the users or the outcomes the reader already knows."
+    },
+    "process_not_results": {
+      "type": "noul",
+      "hooks": [
+        "reply"
+      ],
+      "bad_when": "above",
+      "block_at": null,
+      "instructions": "The text mostly describes the assistant's own process (tools it ran, ids, line numbers, internal steps) instead of the results and what they mean for the reader."
+    },
+    "zero_context_clarity": {
+      "type": "score",
+      "hooks": [
+        "reply",
+        "question"
+      ],
+      "bad_when": "below",
+      "block_at": null,
+      "instructions": "How easily a smart reader who saw none of the work can follow the text on the first read.",
+      "criteria": [
+        "Cannot follow it without asking what things mean",
+        "Follows parts of it, but key parts need explaining",
+        "Follows most of it, with one or two unclear terms",
+        "Follows all of it on the first read"
+      ]
+    },
+    "can_decide_from_text": {
+      "type": "noul",
+      "hooks": [
+        "question"
+      ],
+      "bad_when": "below",
+      "block_at": null,
+      "instructions": "The owner could choose an option from this text alone, because each option says in plain words what will happen and what it costs or risks."
+    },
+    "must_ask": {
+      "type": "noul",
+      "hooks": [
+        "reply"
+      ],
+      "bad_when": "above",
+      "block_at": null,
+      "instructions": "Before they could act on this text, the owner would have to ask what at least one word, name, code, file or step in it means."
+    }
+  }
+}

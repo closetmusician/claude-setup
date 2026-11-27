@@ -1,0 +1,13 @@
+{
+  "name": "fast-compact",
+  "description": "fast-compact: a second, fast compaction command for Claude Code, beside the built-in /compact.",
+  "owner": { "name": "Nodar Davituri", "url": "https://github.com/NodarDavituri" },
+  "plugins": [
+    {
+      "name": "fast-compact",
+      "source": "./",
+      "description": "/fast-compact (and /fc): cut old tool output to its start and end in about a second, with Jev keeping whole what is still needed and every cut saved to a file.",
+      "license": "MIT"
+    }
+  ]
+}

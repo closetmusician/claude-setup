@@ -23,8 +23,8 @@ broken?" IS /investigate). Plain git ops (commit/push/merge/rebase) are NOT skil
 | Produce evidence-backed status update / "what is the status of X" / "is this done" | `evidence-backed-status` | |
 | Short exec email that is NOT the PM weekly: summary/recommendation to a boss from notes, or one named project team's progress email / "exec email" / "summary email to my boss" | `exec-email` | pm-weekly (the PM weekly status email, own format), evidence-backed-status |
 | Write or debug a hook / "hook not firing" / "hook is silently failing" / author a hook test fixture | `hook-authoring` | |
-| Build a spec'd feature or multi-file code change (arm D default, owner 2026-11-15) | `lead-orchestrator2` feature mode | lead-orchestrator feature mode (TDD) |
-| Orchestrate multi-agent work / fan-out / execute a plan via subagents | `lead-orchestrator` — mode-split: the skill itself routes to feature (full VIBE pipeline), backlog, investigate-audit, or live-debug; do not pre-select a mode | |
+| Build a spec'd feature or multi-file code change (arm D default, owner 2026-11-15) | `lead-orchestrator2` feature mode | lead-orchestrator (opt-in only) |
+| Orchestrate multi-agent work / fan-out / execute a plan via subagents / backlog burn-down / audit / live-debug | `lead-orchestrator2` (default since 2026-11-17, owner). The skill routes to feature, backlog, investigate-audit, or live-debug itself; do not pre-select a mode | lead-orchestrator (runs ONLY when the user types `/lead-orchestrator` or asks for the TDD pipeline by name) |
 | Ship / create PR (then briefing AFTER creation) | `ship`, then `pr-briefing` | |
 | Visual QA live site | `design-review`; variants → `design-shotgun`; HTML → `design-html`; Angular impl → `design-implement` | |
 | Jira updates/creation from docs | `jira-update` | pm-jira |
@@ -32,10 +32,11 @@ broken?" IS /investigate). Plain git ops (commit/push/merge/rebase) are NOT skil
 | Map codebase architecture | `codebase-mapping`; session end-bridge → `handoff` | |
 | Orient to the harness / "how does the harness work" / "what skills exist" / "map the harness" / starting fresh on ~/.claude | `harness-orientation` | codebase-mapping (which is for project repos, not the harness itself) |
 | Make Claude faster / "why is Claude slow" / "speed report" / the session-start line says "Run /speed-tune" | `speed-tune` | investigate (which is for a broken product, not harness speed) |
-| Check on running agents during a long run / "check on all agents" / "are the agents stuck" / "push them to finish" / status table with ETA / "/loop 10m" check-ins | `run-watch` (start it with `/loop 10m /run-watch <plan path>`) | evidence-backed-status (a done-claim on a deliverable), lead-orchestrator (which starts the run) |
+| Check on running agents during a long run / "check on all agents" / "are the agents stuck" / "push them to finish" / status table with ETA / "/loop 10m" check-ins | `run-watch` (start it with `/loop 10m /run-watch <plan path>`) | evidence-backed-status (a done-claim on a deliverable), lead-orchestrator2 (which starts the run) |
 | Audit a skill / archive a skill / evaluate skill overlap / create a new skill / "should this skill be kept" | `skill-lifecycle` | |
 | Office/SharePoint doc editing | `o365-doc-edit` (+ rules/tool-registry.md table) | |
 | Mine Teams channels for customer feedback / "what are customers complaining about" / "aggregate feedback" / "research the channel" | `teams-channel-research` | deep-research (which is web-only, not Teams) |
+| Search my mail / Teams chats / channels + Glean for a topic, or pull a full thread ("find the email about X", "what did people say about Y in Teams") | `pm-search` | teams-channel-research (feedback mining), glean-connect (auth only) |
 | Win/loss analysis / "why we win" / "why we lose" / "competitive loss analysis" / refresh a win-loss deck for a new period | `winloss-analysis` | teams-channel-research, deep-research |
 | Write or refresh a Product Council pre-read from a template / "write the product council pre-read" / "draft the council pre-read for <product>" / "refresh the pre-read for <period>" / rebuttal prep notes for a council pre-read | `product-council-preread` | mor-prep (the MOR deck and its root-cause report), winloss-analysis (a stand-alone win/loss study), prd-writer, o365-doc-edit (small edits to a live docx) |
 | Post workarounds to CSMs / "reply to the channel" / "send updates back" / "post responses" | `csm-response` (requires a report from `teams-channel-research` or equivalent) | pm-jira, atlassian-update |

@@ -67,7 +67,7 @@ resolve_path() {
 # Only paths on the same line as the denial phrase are checked, to avoid punishing
 # messages that mention other, genuinely present paths elsewhere.
 DENIAL='(does not|doesn'"'"'?t) exist|no such file( or directory)?|(file|path|directory|binary|script) (was )?not found'
-if echo "$LAST" | grep -qiE "$DENIAL"; then
+if < <(echo "$LAST") grep -qiE "$DENIAL"; then
   while IFS= read -r line; do
     while IFS= read -r tok; do
       [[ -z "$tok" ]] && continue
@@ -85,7 +85,7 @@ fi
 # Precision rule: each new phrase requires a COMPLETION-SHAPED context to avoid false
 # positives on benign uses ("ready when you are" → not a claim; "tests are good" → no match).
 CLAIM='(all( [0-9]+)? tests? pass(ed)?|tests? (are |now )?(all )?passing|deployed and (verified|working)|successfully (deployed|implemented|completed|fixed|migrated)|implementation (is )?(now )?complete|(task|work|everything|migration|feature|fix) is (complete|completed|done|finished)|completed successfully|everything works|works as expected|fully (implemented|fixed|working|tested)|done and verified|verified (and )?working|\ball done\b|\bLGTM\b|ready (for review|to merge)|fix(es)? (is |are |has been |have been )?applied|ci (is )?(green|passing|passes)|\bgood to go\b|\bwrapped (this |it )?up\b|\ball set\b|(change|work|it|everything|this) is in place\b|has been completed\b|\bshipped (it|this|the (fix|change|feature|update))\b)'
-echo "$LAST" | grep -qiE "$CLAIM" || exit 0
+< <(echo "$LAST") grep -qiE "$CLAIM" || exit 0
 
 # --- Evidence stage 1: shape check. Vacuous markers from the original version ("$ ",
 # bare "screenshot", "git status shows") are gone — every accepted shape is verifiable.
@@ -94,8 +94,8 @@ SHAPE_EXIT='exit code [0-9]'
 SHAPE_CITE='[A-Za-z0-9_./~-]+\.[A-Za-z]{1,5}:[0-9]+'
 SHAPE_ARTIFACT='(~|/|[A-Za-z0-9_-]+/)[A-Za-z0-9._/-]*\.(png|md|log|txt|json|html|jsonl)'
 SHAPE_COMMIT='(commit|ReviewCommit:?) ?[0-9a-f]{7,40}'
-if ! echo "$LAST" | grep -qiE "$SHAPE_COUNT|$SHAPE_EXIT|$SHAPE_CITE|$SHAPE_COMMIT" \
-   && ! echo "$LAST" | grep -qiE "$SHAPE_ARTIFACT"; then
+if ! < <(echo "$LAST") grep -qiE "$SHAPE_COUNT|$SHAPE_EXIT|$SHAPE_CITE|$SHAPE_COMMIT" \
+   && ! < <(echo "$LAST") grep -qiE "$SHAPE_ARTIFACT"; then
   block "Completion claimed without evidence in the final message (completion-claim-guard, audit 2026-07-03: 46 unverified-claim incidents/6mo). Include at least one of: the verifying command output (exit code / N passed), a file:line citation, an artifact path, or a commit SHA — or rephrase the claim as unverified."
 fi
 
@@ -118,7 +118,7 @@ while IFS= read -r cnt; do
   n=$(echo "$cnt" | grep -oE '^[0-9]+')
   # Tool-output line formats vary ("84 passed", "Tests: 84 passed") — require the count
   # and the word passed/passing on the same non-assistant line, not an exact phrase.
-  if ! grep -iE "pass(ed|ing)" "$TRANSCRIPT" 2>/dev/null | grep -v '"type":"assistant"' | grep -qE "(^|[^0-9])$n([^0-9]|$)"; then
+  if ! grep -iE "pass(ed|ing)" "$TRANSCRIPT" 2>/dev/null | grep -v '"type":"assistant"' | grep -E "(^|[^0-9])$n([^0-9]|$)" >/dev/null; then
     block "Unverified test count (completion-claim-guard): the final message claims '$cnt' but no tool output in this session contains that count. Run the tests and cite their real output, or state the claim as unverified."
   fi
 done < <(echo "$LAST" | grep -oiE "$SHAPE_COUNT" | head -5)
@@ -143,7 +143,7 @@ while IFS= read -r ex; do
   # Extract the code number; look for it adjacent to "exit" on a non-assistant line.
   code=$(echo "$ex" | grep -oE '[0-9]+$')
   if ! grep -v '"type":"assistant"' "$TRANSCRIPT" 2>/dev/null \
-       | grep -qiE "exit[[:space:]](code[[:space:]])?$code"; then
+       | grep -iE "exit[[:space:]](code[[:space:]])?$code" >/dev/null; then
     block "Unverified exit-code evidence (completion-claim-guard): the final message claims '$ex' but no tool output in this session records that exit code. Run the command and include its real output, or state the claim as unverified."
   fi
 done < <(echo "$LAST" | grep -oiE "$SHAPE_EXIT" | head -5)
@@ -157,7 +157,7 @@ while IFS= read -r sha_tok; do
   sha=$(echo "$sha_tok" | grep -oE '[0-9a-f]{7,40}')
   [[ -z "$sha" ]] && continue
   if ! grep -v '"type":"assistant"' "$TRANSCRIPT" 2>/dev/null \
-       | grep -qiE "$sha"; then
+       | grep -iE "$sha" >/dev/null; then
     block "Unverified commit evidence (completion-claim-guard): the final message cites commit '$sha' but no tool output in this session contains that SHA. Run the git command and include its real output, or state the claim as unverified."
   fi
 done < <(echo "$LAST" | grep -oiE "$SHAPE_COMMIT" | head -5)
@@ -357,15 +357,15 @@ _c3_extract_claims() {
 _c3_is_percentage_only() {
   local tok="$1" num="${2:-}" msg="${3:-}"
   # Ends with optional-spaces + % → bare percentage, always rhetoric
-  if echo "$tok" | grep -qE '%\s*$' 2>/dev/null; then
+  if < <(echo "$tok") grep -qE '%\s*$' 2>/dev/null; then
     return 0  # bare percentage token
   fi
   # Verb-improvement forms ("reduced by 30", "dropped to 80") have no unit in the token.
   # But if the original message contains num+unit (e.g. "80ms"), it IS a concrete claim.
-  if echo "$tok" | grep -qiE '^(improved|reduced|dropped|increased|cut|faster|slower|higher|lower|scaled)\s' 2>/dev/null; then
+  if < <(echo "$tok") grep -qiE '^(improved|reduced|dropped|increased|cut|faster|slower|higher|lower|scaled)\s' 2>/dev/null; then
     # Check if the numeric value is followed by a concrete unit in the original message.
     if [[ -n "$num" && -n "$msg" ]] && \
-       echo "$msg" | grep -qiE "\b${num}\s*(ms|x\b|req|ops|rps|qps|err|\bs\b|k\b|M\b|G\b)" 2>/dev/null; then
+       < <(echo "$msg") grep -qiE "\b${num}\s*(ms|x\b|req|ops|rps|qps|err|\bs\b|k\b|M\b|G\b)" 2>/dev/null; then
       return 1  # verb-improvement but num has a concrete unit in context → blockable
     fi
     # No unit found in context → treat as rhetoric
@@ -385,20 +385,21 @@ _c3_is_percentage_only() {
 _c3_citation_near() {
   local msg="$1" num="$2"
   # Fast path: if no citation shape in the whole message, skip the proximity check.
-  if ! echo "$msg" | grep -qiE "$SHAPE_CITE|$SHAPE_ARTIFACT" 2>/dev/null; then
+  if ! < <(echo "$msg") grep -qiE "$SHAPE_CITE|$SHAPE_ARTIFACT" 2>/dev/null; then
     return 1  # no citation anywhere → not near
   fi
   # Proximity check via python3 (available on all supported hosts).
+  # The message goes in as an argument, not a here-doc: Homebrew bash 5.3.15 hangs on a
+  # here-doc between about 1 KB and 64 KB.
   if command -v python3 >/dev/null 2>&1; then
-    python3 - <<PYEOF 2>/dev/null
+    python3 -c '
 import re, sys
-msg = """$msg"""
-num = "$num"
+msg, num = sys.argv[1], sys.argv[2]
 # Find all positions of the numeric value in the message.
-num_pat = re.compile(r'(?<![0-9.])' + re.escape(num) + r'(?![0-9.])')
+num_pat = re.compile(r"(?<![0-9.])" + re.escape(num) + r"(?![0-9.])")
 cite_pat = re.compile(
-    r'[A-Za-z0-9_./~-]+\.[A-Za-z]{1,5}:[0-9]+'     # file:line
-    r'|(~|/|[A-Za-z0-9_-]+/)[A-Za-z0-9._/-]*\.(png|md|log|txt|json|html|jsonl)',  # artifact path
+    r"[A-Za-z0-9_./~-]+\.[A-Za-z]{1,5}:[0-9]+"     # file:line
+    r"|(~|/|[A-Za-z0-9_-]+/)[A-Za-z0-9._/-]*\.(png|md|log|txt|json|html|jsonl)",  # artifact path
     re.IGNORECASE
 )
 WINDOW = 80
@@ -409,7 +410,7 @@ for nm in num_pat.finditer(msg):
     if cite_pat.search(msg[lo:hi]):
         sys.exit(0)  # citation found near the number
 sys.exit(1)          # no citation within window
-PYEOF
+' "$msg" "$num" 2>/dev/null
     return $?
   fi
   # Fallback: python3 absent → treat whole-message citation as near (fail-open).
@@ -431,7 +432,7 @@ while IFS= read -r _c3_tok; do
   _c3_num=$(echo "$_c3_tok" | grep -oE '[0-9]+(\.[0-9]+)?' | head -1) || true
   if [[ -n "$_c3_num" ]]; then
     if grep -v '"type":"assistant"' "$TRANSCRIPT" 2>/dev/null \
-       | grep -qE "(^|[^0-9.])$_c3_num([^0-9.]|$)"; then
+       | grep -E "(^|[^0-9.])$_c3_num([^0-9.]|$)" >/dev/null; then
       # Number is present in tool output → verified; no event, no block.
       continue
     fi

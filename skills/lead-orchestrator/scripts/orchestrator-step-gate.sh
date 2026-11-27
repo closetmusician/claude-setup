@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ABOUTME: PreToolUse hook enforcing orchestration step ordering via sentinels AND disk checks.
 # ABOUTME: Two enforcement layers: (1) sentinel gates block out-of-order spawns,
-# ABOUTME: (2) acceptance-test-on-disk check blocks coder spawns when no tests exist.
+# ABOUTME: (2) acceptance-test-on-disk check blocks TDD coder spawns when no tests exist (arm D skips it).
 # ABOUTME: Layer 2 is LLM-proof — even if the orchestrator never sets sentinels,
 # ABOUTME: coder/fix agents are blocked until acceptance test artifacts exist on disk.
 # ABOUTME: Exit 0 = allow, JSON block output = reject with reason.
@@ -43,7 +43,7 @@ if [[ -z "$PROMPT" ]]; then
 fi
 
 # GOVERNANCE_EXEMPT bypasses step gates too
-if echo "$PROMPT" | grep -qi 'GOVERNANCE_EXEMPT'; then
+if < <(echo "$PROMPT") grep -qi 'GOVERNANCE_EXEMPT'; then
   exit 0
 fi
 
@@ -66,27 +66,29 @@ IS_QA_SPAWN=false
 IS_GARRY_SPAWN=false
 
 # QA/non-coder detection FIRST (takes priority — QA agents are always allowed through)
-if echo "$COMBINED" | grep -qiE '(qa.*(test|tester|writer)|test.*writer|acceptance.*test|e2e.*test|run.*test|verify|explore|extract|read.*spec|architect)'; then
+if < <(echo "$COMBINED") grep -qiE '(qa.*(test|tester|writer)|test.*writer|acceptance.*test|e2e.*test|run.*test|verify|explore|extract|read.*spec|architect)'; then
   IS_QA_SPAWN=true
 fi
 
 # Coder detection: formal template patterns + informal fix/implement patterns
 # Layer 1: formal coder templates
-if echo "$PROMPT" | grep -qiE '(CODER subagent|TDD Protocol|ready-for-review|acceptance.*tests.*RED)'; then
+if < <(echo "$PROMPT") grep -qiE '(CODER subagent|TDD Protocol|ready-for-review|acceptance.*tests.*RED)'; then
   IS_CODER_SPAWN=true
 fi
 # Layer 2: informal fix/implement patterns (catches hand-crafted prompts)
-if echo "$COMBINED" | grep -qiE '(fix bug|fix issue|fix the|fixing|implement|write code|write the code|write implementation|feature-dev|make.*pass|add.*to.*select|add.*field|plumb.*param|smallest.*fix)'; then
+if < <(echo "$COMBINED") grep -qiE '(fix bug|fix issue|fix the|fixing|implement|write code|write the code|write implementation|feature-dev|make.*pass|add.*to.*select|add.*field|plumb.*param|smallest.*fix)'; then
   IS_CODER_SPAWN=true
 fi
 
-# QA takes priority over coder (a "QA: test and fix" agent is QA, not coder)
-if [[ "$IS_QA_SPAWN" == "true" ]]; then
+# QA takes priority over coder (a "QA: test and fix" agent is QA, not coder).
+# Exception: the coder template's own markers win, because templates/coder-prompt.md
+# says "run tests" and would otherwise pass as QA. No QA template carries these markers.
+if [[ "$IS_QA_SPAWN" == "true" ]] && ! < <(echo "$PROMPT") grep -qiE '(CODER subagent|TDD Protocol)'; then
   IS_CODER_SPAWN=false
 fi
 
 # Garry-Review detection: architecture/code quality review patterns
-if echo "$PROMPT" | grep -qiE '(garry.*review|code.*review.*architecture|review.*findings)'; then
+if < <(echo "$PROMPT") grep -qiE '(garry.*review|code.*review.*architecture|review.*findings)'; then
   IS_GARRY_SPAWN=true
 fi
 
@@ -112,7 +114,7 @@ fi
 # When .gate-qa-c1 exists, QA C1 is in progress or expected next.
 # Block C2 spawns (detect by cycle-2 reference).
 if [[ -f "${GOV_DIR}/.gate-qa-c1" ]]; then
-  if echo "$PROMPT" | grep -qiE '(cycle-2|c2.*regression|qa.*mode.*cycle-2)'; then
+  if < <(echo "$PROMPT") grep -qiE '(cycle-2|c2.*regression|qa.*mode.*cycle-2)'; then
     block_and_exit "QA C1 gate active. Cycle 1 must complete and produce cycle-1.md BEFORE spawning Cycle 2. Clear gate with: rm ${GOV_DIR}/.gate-qa-c1"
   fi
 fi
@@ -131,9 +133,21 @@ fi
 # This cannot be bypassed by reformatting prompts or rationalizing instructions.
 # ═══════════════════════════════════════════════════════════════════════
 
-if [[ "$IS_CODER_SPAWN" == "true" ]]; then
+# ─── Build method: arm D is the default (owner, 2026-11-15); TDD is opt-in per job ───
+# Arm D coders write code only, so they never have acceptance tests on disk. Layer 2
+# runs only for a TDD job: the prompt carries the TDD coder template (templates/coder-prompt.md
+# "TDD Protocol"), an "acceptance tests RED" step or a "BUILD-METHOD: tdd" line, or the repo
+# opts in with "build_method": "tdd" in .claude/phase.json.
+IS_TDD_JOB=false
+if < <(echo "$PROMPT") grep -qiE '(TDD Protocol|acceptance.*tests.*RED|BUILD-METHOD:[[:space:]]*tdd)'; then
+  IS_TDD_JOB=true
+fi
+PHASE_METHOD=$(jq -r '.build_method // empty' "$(workspace_root "$PWD")/.claude/phase.json" 2>/dev/null || true)
+[[ "$PHASE_METHOD" == "tdd" ]] && IS_TDD_JOB=true
+
+if [[ "$IS_CODER_SPAWN" == "true" && "$IS_TDD_JOB" == "true" ]]; then
   # Extract task ID patterns from the prompt (T-XXX, T-RC-1, T-ST-1, etc.)
-  TASK_IDS=$(echo "$COMBINED" | grep -oE 'T-[A-Za-z]*-?[0-9]+' | sort -u)
+  TASK_IDS=$(echo "$COMBINED" | grep -oE 'T-[A-Za-z]*-?[0-9]+' | sort -u || true)  # no ID must not trip the ERR trap
 
   FOUND_ACCEPTANCE_TESTS=false
 
@@ -141,16 +155,16 @@ if [[ "$IS_CODER_SPAWN" == "true" ]]; then
     # Check for task-specific acceptance test artifacts
     while IFS= read -r tid; do
       [[ -z "$tid" ]] && continue
-      if find . -path "*/qa/*" -name "*${tid}*acceptance-tests*" -type f 2>/dev/null | grep -q .; then
+      if find . -path "*/qa/*" -name "*${tid}*acceptance-tests*" -type f 2>/dev/null | grep . >/dev/null; then
         FOUND_ACCEPTANCE_TESTS=true
         break
       fi
-    done <<< "$TASK_IDS"
+    done < <(printf '%s\n' "$TASK_IDS")
   fi
 
   # Fallback: check for ANY acceptance test artifacts in qa/
   if [[ "$FOUND_ACCEPTANCE_TESTS" == "false" ]]; then
-    if find . -path "*/qa/*" -name "*acceptance-tests*" -type f 2>/dev/null | grep -q .; then
+    if find . -path "*/qa/*" -name "*acceptance-tests*" -type f 2>/dev/null | grep . >/dev/null; then
       FOUND_ACCEPTANCE_TESTS=true
     fi
   fi

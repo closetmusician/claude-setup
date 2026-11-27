@@ -59,7 +59,7 @@ else
   _fail "case 1b: --all-golden completes in <60s" "took ${ELAPSED}s"
 fi
 
-if echo "$ALL_OUT" | grep -q "golden-healthy-orchestration"; then
+if grep -q "golden-healthy-orchestration" <<<"$ALL_OUT"; then
   _ok "case 1c: --all-golden output mentions traces"
 else
   _fail "case 1c: --all-golden output mentions traces" "output: ${ALL_OUT:0:200}"
@@ -98,19 +98,19 @@ else
   _fail "case 2a: mutated trace should exit nonzero" "got exit 0"
 fi
 
-if echo "$MUT_OUT" | grep -qiE "DIVERGE|diverge|golden-completion-block"; then
+if grep -qiE "DIVERGE|diverge|golden-completion-block" <<<"$MUT_OUT"; then
   _ok "case 2b: DIVERGE output names the trace"
 else
   _fail "case 2b: DIVERGE output names trace" "output: ${MUT_OUT:0:300}"
 fi
 
-if echo "$MUT_OUT" | grep -qE "seq.*1|step.*1|seq=1|seq:1"; then
+if grep -qE "seq.*1|step.*1|seq=1|seq:1" <<<"$MUT_OUT"; then
   _ok "case 2c: DIVERGE output names the seq"
 else
   _fail "case 2c: DIVERGE output names seq" "output: ${MUT_OUT:0:300}"
 fi
 
-if echo "$MUT_OUT" | grep -qiE "expect|got|block|allow"; then
+if grep -qiE "expect|got|block|allow" <<<"$MUT_OUT"; then
   _ok "case 2d: DIVERGE shows expected vs got"
 else
   _fail "case 2d: DIVERGE shows expected vs got" "output: ${MUT_OUT:0:300}"
@@ -141,7 +141,7 @@ else
   _fail "case 3a: live-guard mutation should exit nonzero" "got exit 0"
 fi
 
-if echo "$LIVE_OUT" | grep -qiE "DIVERGE|diverge"; then
+if grep -qiE "DIVERGE|diverge" <<<"$LIVE_OUT"; then
   _ok "case 3b: DIVERGE reported for live-guard mutation"
 else
   _fail "case 3b: DIVERGE reported" "output: ${LIVE_OUT:0:300}"
@@ -167,7 +167,7 @@ else
   _fail "case 4a: MANIFEST tamper should exit nonzero" "got exit 0"
 fi
 
-if echo "$TAMP_OUT" | grep -qiE "MANIFEST|manifest|tamper|mismatch|corrupt"; then
+if grep -qiE "MANIFEST|manifest|tamper|mismatch|corrupt" <<<"$TAMP_OUT"; then
   _ok "case 4b: MANIFEST tamper reports clear error"
 else
   _fail "case 4b: MANIFEST tamper clear error" "output: ${TAMP_OUT:0:300}"
@@ -186,7 +186,7 @@ else
   _fail "case 5a: missing trace should exit nonzero" "got exit 0"
 fi
 
-if echo "$MISS_OUT" | grep -qiE "not found|no such|missing|nonexistent"; then
+if grep -qiE "not found|no such|missing|nonexistent" <<<"$MISS_OUT"; then
   _ok "case 5b: missing trace gives clear error message"
 else
   _fail "case 5b: missing trace clear error" "output: ${MISS_OUT:0:300}"
@@ -201,7 +201,7 @@ AGG_OUT=$("$HARNESS" replay --all-golden 2>&1) && AGG_EC=0 || AGG_EC=$?
 TRACES=(golden-healthy-orchestration golden-qa-ownership golden-completion-block golden-skill-routing golden-clean-interactive)
 ALL_MENTIONED=1
 for t in "${TRACES[@]}"; do
-  if ! echo "$AGG_OUT" | grep -q "$t"; then
+  if ! grep -q "$t" <<<"$AGG_OUT"; then
     ALL_MENTIONED=0
     echo "  (missing trace name in output: $t)"
   fi

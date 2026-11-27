@@ -68,46 +68,46 @@ deny_and_exit() {
 # to avoid false positives on echo/heredoc text that merely mentions DELETE.
 
 # REQ-003: bypass-shared-lock (check RAW — this header is ALWAYS dangerous)
-if echo "$CMD" | grep -qi 'bypass-shared-lock'; then
+if < <(echo "$CMD") grep -qi 'bypass-shared-lock'; then
   deny_and_exit "BLOCKED: Command contains 'bypass-shared-lock'. This header force-deletes locked files. See docs/nerf-prevention.md."
 fi
 
-if echo "$CMD" | grep -qiE '(BypassSharedLock|CreateCopyJobs|Prefer:[[:space:]]*bypass-shared-lock)'; then
+if < <(echo "$CMD") grep -qiE '(BypassSharedLock|CreateCopyJobs|Prefer:[[:space:]]*bypass-shared-lock)'; then
   deny_and_exit "BLOCKED: SharePoint/Graph bypass-lock or copy-job behavior is prohibited."
 fi
 
-if echo "$CMD" | grep -qiE '(_api/[^[:space:]]*/Recycle|/restore\b|restore\(|moveTo\(|copy-over-original|rename-overwrite|copy-over)'; then
-  if echo "$CMD" | grep -qiE '(graph\.microsoft\.com|sharepoint\.com|\.sharepoint\.)'; then
+if < <(echo "$CMD") grep -qiE '(_api/[^[:space:]]*/Recycle|/restore\b|restore\(|moveTo\(|copy-over-original|rename-overwrite|copy-over)'; then
+  if < <(echo "$CMD") grep -qiE '(graph\.microsoft\.com|sharepoint\.com|\.sharepoint\.)'; then
     deny_and_exit "BLOCKED: SharePoint/Graph recycle, restore, move, rename-overwrite, or copy-over behavior is prohibited."
   fi
 fi
 
 # REQ-004: Python requests.delete( (check RAW — code inside -c '...' gets stripped)
-if echo "$CMD" | grep -qE 'requests\.delete\('; then
+if < <(echo "$CMD") grep -qE 'requests\.delete\('; then
   deny_and_exit "BLOCKED: requests.delete() detected. Remote deletion via Python requests is prohibited. See docs/nerf-prevention.md."
 fi
 
 # REQ-004: Python urllib DELETE to sharepoint (check RAW)
 # URL and method= can appear in either order in Request(), so check all three tokens.
-if echo "$CMD" | grep -qE 'urllib\.request\.Request' && \
-   echo "$CMD" | grep -q 'DELETE' && \
-   echo "$CMD" | grep -qi 'sharepoint'; then
+if < <(echo "$CMD") grep -qE 'urllib\.request\.Request' && \
+   < <(echo "$CMD") grep -q 'DELETE' && \
+   < <(echo "$CMD") grep -qi 'sharepoint'; then
   deny_and_exit "BLOCKED: urllib DELETE to SharePoint detected. Remote deletion is prohibited. See docs/nerf-prevention.md."
 fi
 
 # REQ-004: Python urllib DELETE to graph.microsoft (check RAW)
-if echo "$CMD" | grep -qE 'urllib\.request\.Request' && \
-   echo "$CMD" | grep -q 'DELETE' && \
-   echo "$CMD" | grep -qi 'graph\.microsoft'; then
+if < <(echo "$CMD") grep -qE 'urllib\.request\.Request' && \
+   < <(echo "$CMD") grep -q 'DELETE' && \
+   < <(echo "$CMD") grep -qi 'graph\.microsoft'; then
   deny_and_exit "BLOCKED: urllib DELETE to Graph API detected. Remote deletion is prohibited. See docs/nerf-prevention.md."
 fi
 
 # REQ-005: graph-file-ops delete/remove (check RAW — NOT graph-list-crud, that's legitimate)
-if echo "$CMD" | grep -qE 'graph-file-ops.*delete'; then
+if < <(echo "$CMD") grep -qE 'graph-file-ops.*delete'; then
   deny_and_exit "BLOCKED: graph-file-ops delete command. Remote file deletion is prohibited. See docs/nerf-prevention.md."
 fi
 
-if echo "$CMD" | grep -qE 'graph-file-ops.*remove'; then
+if < <(echo "$CMD") grep -qE 'graph-file-ops.*remove'; then
   deny_and_exit "BLOCKED: graph-file-ops remove command. Remote file removal is prohibited. See docs/nerf-prevention.md."
 fi
 
@@ -116,8 +116,8 @@ fi
 # case-insensitive. Covers: -X DELETE, -XDELETE, --request DELETE,
 # --request=DELETE, and any spacing/case combination.
 is_curl_delete() {
-  echo "$1" | grep -qiE '\bcurl\b' && \
-  echo "$1" | grep -qiE '(-X[[:space:]]*DELETE\b|--request[[:space:]]+DELETE\b|--request=DELETE\b)'
+  < <(echo "$1") grep -qiE '\bcurl\b' && \
+  < <(echo "$1") grep -qiE '(-X[[:space:]]*DELETE\b|--request[[:space:]]+DELETE\b|--request=DELETE\b)'
 }
 
 # REQ-001, REQ-002, REQ-006: curl DELETE to protected domains.
@@ -125,19 +125,19 @@ is_curl_delete() {
 # Order-independent — works regardless of whether URL or flag comes first.
 # Checked against STRIPPED to avoid false positives on echo/heredoc text.
 if is_curl_delete "$STRIPPED"; then
-  if echo "$STRIPPED" | grep -qiE 'graph\.microsoft\.com'; then
+  if < <(echo "$STRIPPED") grep -qiE 'graph\.microsoft\.com'; then
     deny_and_exit "BLOCKED: curl DELETE to graph.microsoft.com. Remote file deletion is prohibited. See docs/nerf-prevention.md."
   fi
-  if echo "$STRIPPED" | grep -qiE 'sharepoint\.com'; then
+  if < <(echo "$STRIPPED") grep -qiE 'sharepoint\.com'; then
     deny_and_exit "BLOCKED: curl DELETE to sharepoint.com. Remote file deletion is prohibited. See docs/nerf-prevention.md."
   fi
-  if echo "$STRIPPED" | grep -qiE '\.sharepoint\.'; then
+  if < <(echo "$STRIPPED") grep -qiE '\.sharepoint\.'; then
     deny_and_exit "BLOCKED: DELETE request to .sharepoint. domain. Remote deletion is prohibited. See docs/nerf-prevention.md."
   fi
-  if echo "$STRIPPED" | grep -qiE '\.microsoft\.'; then
+  if < <(echo "$STRIPPED") grep -qiE '\.microsoft\.'; then
     deny_and_exit "BLOCKED: DELETE request to .microsoft. domain. Remote deletion is prohibited. See docs/nerf-prevention.md."
   fi
-  if echo "$STRIPPED" | grep -qiE '\.graph\.'; then
+  if < <(echo "$STRIPPED") grep -qiE '\.graph\.'; then
     deny_and_exit "BLOCKED: DELETE request to .graph. domain. Remote deletion is prohibited. See docs/nerf-prevention.md."
   fi
 fi

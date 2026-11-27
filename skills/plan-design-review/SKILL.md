@@ -9,7 +9,7 @@ description: |
   plan to get there, generating real mockups by default. Works in plan mode. Use when
   asked to "review the design plan", "design critique this plan", "UX review this spec",
   or "review the design thinking in this doc". NOT for visual QA of a live/built site
-  (/design-review), NOT for product scope/strategy (/plan-ceo-review), NOT for
+  (/design-review), NOT for product scope/strategy (/ceo-review), NOT for
   engineering/architecture quality (/plan-eng-review). (gstack)
 allowed-tools:
   - Read
@@ -51,7 +51,7 @@ reference.md.**
 ## When to use / NOT
 
 - USE: a plan/spec with UI/UX scope, reviewed before build.
-- NOT: a live/built site (→ /design-review); product scope & strategy (→ /plan-ceo-review);
+- NOT: a live/built site (→ /design-review); product scope & strategy (→ /ceo-review);
   architecture/tests/code quality (→ /plan-eng-review). No-UI plan → say so and exit early.
 
 ## The gstack designer — your primary tool
@@ -83,7 +83,7 @@ compare / iterate / check / evolve. **Artifacts save ONLY to
 
 ## Step 0: Design scope assessment
 - **0A** Rate the plan's design completeness 0-10; explain what a 10 looks like for THIS plan.
-- **0B** DESIGN.md status (exists → calibrate; absent → recommend /design-consultation).
+- **0B** DESIGN.md status (exists → calibrate; absent → offer to write one).
 - **0C** Existing design leverage — what UI patterns/components should this plan reuse?
 - **0D** AskUserQuestion: state the rating + biggest gaps; ask whether to focus specific
   dimensions or review all 7. **STOP** until the user responds.
@@ -164,12 +164,12 @@ Failure mode to watch: feeling "done" after writing review prose into the plan b
 prose is NOT the report. Exiting with the gate failed is a contract violation.
 
 ## Next steps — review chaining
-Recommend /plan-eng-review (required gate unless `skip_eng_review`); /plan-ceo-review only if
+Recommend /plan-eng-review (required gate unless `skip_eng_review`); /ceo-review only if
 fundamental product gaps (score <4/10 or major IA problems); /design-shotgun or /design-html
 for design artifacts. Eng review first if both. Present via AskUserQuestion.
 
 ## Related skills
 
-/design-review (visual QA of the built site) · /plan-ceo-review (scope/strategy) ·
+/design-review (visual QA of the built site) · /ceo-review (scope/strategy) ·
 /plan-eng-review (architecture, required gate) · /design-shotgun · /design-html.
 **Full reference: `reference.md`.**

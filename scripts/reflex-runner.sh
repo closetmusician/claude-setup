@@ -22,7 +22,7 @@ source "$SCRIPT_DIR/lib/timeout.sh" 2>/dev/null || true
 
 # ── Source Bedrock helper (non-scheduled launch via Stop hook) ────────────────
 # shellcheck source=/dev/null
-source "$SCRIPT_DIR/lib/claude-bedrock.sh" 2>/dev/null || exit 0
+source "$SCRIPT_DIR/lib/claude-headless.sh" 2>/dev/null || exit 0
 
 # ── Resolve STATE dir ─────────────────────────────────────────────────────────
 if [[ -n "${STATE:-}" ]]; then
@@ -79,11 +79,13 @@ for JOB_FILE in "$QUEUE_DIR"/*.json; do
   TIMED_OUT=0
 
   if command -v _run_with_timeout >/dev/null 2>&1 || declare -f _run_with_timeout >/dev/null 2>&1; then
+    # A timeout tool cannot run a shell function, so a child bash sources the helper itself.
     RAW=$(printf '%s' "$PROMPT" | _run_with_timeout "$TIMEOUT_SECS" \
-      claude_bedrock -p --model haiku --allowedTools "Read Grep Glob" \
+      bash -c 'source "$1" && shift && claude_headless "$@"' _ "$SCRIPT_DIR/lib/claude-headless.sh" \
+      -p --model haiku --allowedTools "Read Grep Glob" \
       2>/dev/null) || TIMED_OUT=$?
   else
-    RAW=$(printf '%s' "$PROMPT" | claude_bedrock -p --model haiku --allowedTools "Read Grep Glob" \
+    RAW=$(printf '%s' "$PROMPT" | claude_headless -p --model haiku --allowedTools "Read Grep Glob" \
       2>/dev/null) || TIMED_OUT=$?
   fi
 
@@ -95,10 +97,10 @@ for JOB_FILE in "$QUEUE_DIR"/*.json; do
   else
     # Parse CONCUR or DIVERGE from first line
     FIRST_LINE=$(printf '%s' "$RAW" | head -1)
-    if printf '%s' "$FIRST_LINE" | grep -qE '^CONCUR:'; then
+    if < <(printf '%s' "$FIRST_LINE") grep -qE '^CONCUR:'; then
       VERDICT="CONCUR"
       REASON=$(printf '%s' "$FIRST_LINE" | sed 's/^CONCUR:[[:space:]]*//')
-    elif printf '%s' "$FIRST_LINE" | grep -qE '^DIVERGE:'; then
+    elif < <(printf '%s' "$FIRST_LINE") grep -qE '^DIVERGE:'; then
       VERDICT="DIVERGE"
       REASON=$(printf '%s' "$FIRST_LINE" | sed 's/^DIVERGE:[[:space:]]*//')
     else

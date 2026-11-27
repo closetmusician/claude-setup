@@ -45,7 +45,7 @@ _assert_ge() {
 
 _assert_contains() {
   local label="$1" haystack="$2" needle="$3"
-  if echo "$haystack" | grep -qF "$needle"; then
+  if grep -qF "$needle" < <(echo "$haystack"); then
     _ok "$label"
   else
     _fail "$label" "needle='$needle' not found in output"
@@ -54,7 +54,7 @@ _assert_contains() {
 
 _assert_not_contains() {
   local label="$1" haystack="$2" needle="$3"
-  if echo "$haystack" | grep -qF "$needle"; then
+  if grep -qF "$needle" < <(echo "$haystack"); then
     _fail "$label" "needle='$needle' unexpectedly found in output"
   else
     _ok "$label"
@@ -256,7 +256,7 @@ _assert_ge "agent_result appears after agent_spawn in tree" "${result_line:-0}" 
 
 # Verify result line is indented (has leading spaces or └─)
 result_raw="$(echo "$trace_out" | sed -n "${result_line}p")"
-if echo "$result_raw" | grep -qE '^[[:space:]]+|^└'; then
+if grep -qE '^[[:space:]]+|^└' < <(echo "$result_raw"); then
   _ok "agent_result is indented under its spawn"
 else
   _fail "agent_result is not indented under its spawn" "line='$result_raw'"
@@ -391,7 +391,7 @@ echo "  SYNTHETIC fixture: $total_synthetic raw rows"
 
 inc_out="$(HARNESS_STATE_OVERRIDE="$INC_TMPDIR" "$HARNESS" incidents 2>&1)"
 echo "  incidents output:"
-echo "$inc_out" | head -3 | sed 's/^/    /'
+sed -n '1,3s/^/    /p' < <(echo "$inc_out")
 
 # Extract the real count
 real_count="$(echo "$inc_out" | grep -oE 'Real incidents: [0-9]+' | grep -oE '[0-9]+' || echo 0)"

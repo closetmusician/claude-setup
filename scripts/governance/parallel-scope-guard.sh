@@ -104,7 +104,7 @@ while IFS= read -r new_path; do
       break 2
     fi
   done
-done <<< "$DECLARED_PATHS"
+done < <(printf '%s\n' "$DECLARED_PATHS")
 
 if [[ -n "$OVERLAP_FOUND" ]]; then
   # Emit telemetry before denying.

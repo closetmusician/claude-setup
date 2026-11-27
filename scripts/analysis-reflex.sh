@@ -48,7 +48,7 @@ LAST=$(tail -80 "$TRANSCRIPT" | jq -rs '
 #   "this (confirms|demonstrates|indicates|proves)"      — assertion of demonstrated fact
 CLAIM_REGEX='(the root cause is|this means[[:space:]]|therefore[[:space:]]|the analysis shows|[[:space:]]thus[[:space:]]|it follows that|the evidence (suggests|shows|indicates|points to)|as a result,|in conclusion,|the investigation (reveals|shows|found|confirms)|this (confirms|demonstrates|indicates|proves))'
 
-if ! printf '%s' "$LAST" | grep -qiE "$CLAIM_REGEX"; then
+if ! < <(printf '%s' "$LAST") grep -qiE "$CLAIM_REGEX"; then
   exit 0
 fi
 
@@ -57,8 +57,8 @@ fi
 CITE_FILE_LINE='[A-Za-z0-9_./-]+\.[A-Za-z]{1,5}:[0-9]+'
 CITE_ARTIFACT='(~|/|[A-Za-z0-9_-]+/)[A-Za-z0-9._/-]*\.(md|json|log|txt|html|jsonl|py|ts|js|sh|go|rs|c|h|cpp)'
 
-if ! printf '%s' "$LAST" | grep -qE "$CITE_FILE_LINE" && \
-   ! printf '%s' "$LAST" | grep -qiE "$CITE_ARTIFACT"; then
+if ! < <(printf '%s' "$LAST") grep -qE "$CITE_FILE_LINE" && \
+   ! < <(printf '%s' "$LAST") grep -qiE "$CITE_ARTIFACT"; then
   exit 0
 fi
 

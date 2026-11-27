@@ -51,7 +51,7 @@ _recall_context() {
   local result
   result="$(timeout 10 bash -c "HARNESS_STATE_OVERRIDE='$STATE_ROOT' '$HARNESS' recall '$query' 3 2>/dev/null" 2>/dev/null)" || true
   # If recall returned "not yet implemented" stub, suppress it
-  if echo "$result" | grep -q "not yet implemented"; then
+  if < <(echo "$result") grep -q "not yet implemented"; then
     return 0
   fi
   echo "$result"
@@ -142,7 +142,7 @@ PYEOF
 
     printf '\n### %s\n' "$local_id"
     # Print re-derived status; print MISMATCH warning if status was laundered
-    if echo "$local_derived_status" | grep -q "^SUSPECT"; then
+    if < <(echo "$local_derived_status") grep -q "^SUSPECT"; then
       printf 'Status : %s\n' "$local_derived_status"
       printf '⚠ MISMATCH: manifest self-report contradicted by acceptance evidence — treat as FAILED\n'
     else
@@ -173,7 +173,7 @@ PYEOF
     # Staged items get approve/reject actions (use raw manifest status for action routing,
     # not the derived status — a SUSPECT run should NOT be auto-approvable)
     local_raw_status="$(python3 -c "import json,sys; d=json.load(open('$manifest')); print(d.get('status','unknown'))" 2>/dev/null || echo "unknown")"
-    if [[ "$local_raw_status" == "staged" ]] && ! echo "$local_derived_status" | grep -q "^SUSPECT"; then
+    if [[ "$local_raw_status" == "staged" ]] && ! < <(echo "$local_derived_status") grep -q "^SUSPECT"; then
       printf '\nActions:\n'
       printf '  harness queue approve %s\n' "$local_id"
       printf '  harness queue reject  %s\n' "$local_id"
@@ -191,7 +191,7 @@ fi
 _section "Staged Patches (flywheel)"
 # Capture harness brief STAGED PATCHES section only
 staged_patches="$(_harness brief 2>/dev/null | awk '/STAGED PATCHES/,/═══/' | grep -v '═══' || echo "")"
-if [[ -n "$staged_patches" ]] && ! echo "$staged_patches" | grep -q "no staged patches"; then
+if [[ -n "$staged_patches" ]] && ! < <(echo "$staged_patches") grep -q "no staged patches"; then
   printf '%s\n' "$staged_patches"
 else
   printf '_(no flywheel staged patches pending)_\n'

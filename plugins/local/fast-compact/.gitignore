@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+bench/.cache/
+.claude/types/
+.claude-plugin/types/
+.claude/settings.local.json

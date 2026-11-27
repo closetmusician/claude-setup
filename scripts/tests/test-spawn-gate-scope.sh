@@ -42,10 +42,23 @@ check "VIBE repo: absolute existing spec allowed" ALLOW "$PRE" "$VIBE" "$(spawn 
 check "VIBE repo: missing notes/nope.md denied"  DENY "$PRE" "$VIBE" "$(spawn "$VIBE" Agent "$(governed_prompt notes/nope.md)")" HARNESS_GOV_STATE_DIR="$ARMED"
 check "VIBE repo: docs/x.md pattern allowed"   ALLOW "$PRE" "$VIBE" "$(spawn "$VIBE" Agent "$(governed_prompt docs/x.md)")" HARNESS_GOV_STATE_DIR="$ARMED"
 check "phase.json + docs marker: plain prompt allowed" ALLOW "$PRE" "$VDOCS" "$(spawn "$VDOCS" Agent "Summarise the notes.")" HARNESS_GOV_STATE_DIR="$ARMED"
+# A prompt over 64 KB once failed CHECK 1: `echo | grep -q` under pipefail returned 141 (SIGPIPE).
+LONG_PROMPT="$(governed_prompt docs/x.md)
+## Notes
+$(head -c 100000 /dev/zero | tr '\0' 'x')"
+check "VIBE repo: 100 KB governed prompt allowed" ALLOW "$PRE" "$VIBE" "$(spawn "$VIBE" Agent "$LONG_PROMPT")" HARNESS_GOV_STATE_DIR="$ARMED"
+# 1-64 KB is the range where Homebrew bash 5.3.15 hangs on a here-string, so the gate must not use one.
+MID_PROMPT="$(governed_prompt docs/x.md)
+## Notes
+$(head -c 20000 /dev/zero | tr '\0' 'x')"
+check "VIBE repo: 20 KB governed prompt allowed" ALLOW "$PRE" "$VIBE" "$(spawn "$VIBE" Agent "$MID_PROMPT")" HARNESS_GOV_STATE_DIR="$ARMED"
 echo "-- orchestrator-step-gate --"
 CODER="Implement the fix for T-1. Write code until the test passes."
 check "docs workspace: coder spawn allowed"    ALLOW "$STEP" "$DOCS" "$(spawn "$DOCS" Agent "$CODER")" HARNESS_GOV_STATE_DIR="$ARMED"
-check "VIBE repo: coder spawn without tests denied" DENY "$STEP" "$VIBE" "$(spawn "$VIBE" Agent "$CODER")" HARNESS_GOV_STATE_DIR="$ARMED"
+# Arm D is the default build method (owner, 2026-11-15): a plain coder needs no acceptance tests.
+check "VIBE repo: arm D coder spawn without tests allowed" ALLOW "$STEP" "$VIBE" "$(spawn "$VIBE" Agent "$CODER")" HARNESS_GOV_STATE_DIR="$ARMED"
+TDD_CODER="BUILD-METHOD: tdd. $CODER"
+check "VIBE repo: TDD coder spawn without tests denied" DENY "$STEP" "$VIBE" "$(spawn "$VIBE" Agent "$TDD_CODER")" HARNESS_GOV_STATE_DIR="$ARMED"
 
 echo "-- task-spec-gate --"
 BUILD="implement feature login with a new schema"

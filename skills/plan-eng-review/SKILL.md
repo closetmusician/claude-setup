@@ -69,8 +69,8 @@ recommendations > Everything else. Never skip Step 0 or the test diagram.
 
 ## Engineering preferences (guide every recommendation)
 
-DRY — flag repetition aggressively · well-tested is non-negotiable (too many
-tests beats too few) · "engineered enough" — not fragile/hacky, not prematurely
+DRY — flag repetition aggressively · tests only when the owner asks for them on that job (arm D default: no new
+tests) · "engineered enough" — not fragile/hacky, not prematurely
 abstracted · err toward more edge cases; thoughtfulness > speed · explicit over
 clever · right-sized diff — smallest diff that cleanly expresses the change, but
 don't compress a necessary rewrite into a minimal patch; broken foundation →
@@ -101,17 +101,14 @@ diagrams in touched files even outside immediate scope.
 Every question is a decision brief sent as a tool_use call, never prose:
 
 ```
-D<N> — <one-line question title>
-ELI10: <plain English, 2-4 sentences, name the stakes>
-Recommendation: <choice> because <one-line reason>
-Completeness: A=X/10, B=Y/10  (only when options differ in coverage;
-  if they differ in kind write: "options differ in kind — no completeness score")
-A) <option> (recommended)  ✅ <concrete pro>  ❌ <honest con>
-B) <option>                ✅ <pro>           ❌ <con>
-Net: <one-line synthesis of the tradeoff>
+Header: <2-3 plain words>
+Question: <the goal in one sentence> <what is true now> <the choice>
+Recommendation: <option label> because <one-line reason>
+Option label: <plain verb phrase, 2-6 words> (recommended)
+Option description: <what happens> Good: <main benefit> Bad: <main cost or risk>
 ```
 
-D-numbering starts at D1 per invocation; `(recommended)` is always present. No
+Follow `~/.claude/rules/writing-style.md` §5b: no codes, IDs or letters as option names. `(recommended)` is always present. No
 AskUserQuestion variant callable → report `BLOCKED — AskUserQuestion
 unavailable` and wait; never auto-decide or write undecided recommendations
 into the plan as if approved.
@@ -130,7 +127,7 @@ Every finding: `[P0|P1|P2] (confidence: N/10) location — description`. Routing
 
 Decision criteria: "would I let this plan ship with this unaddressed?" No → P0,
 individual. Otherwise → batch.
-- GOOD: Section 2 ends → one AskUserQuestion call carrying D4-D7 (four P1s).
+- GOOD: Section 2 ends → one AskUserQuestion call carrying four P1 findings.
 - BAD: 12 back-to-back single-question calls for P2 nitpicks (real reviews hit
   ~40 sequential prompts; users answered "continue all" just to escape, and the
   findings went unread). ALSO BAD: batching a P0, or deferring it to section end.
@@ -219,8 +216,8 @@ memory; matrix missing = pipeline failed — say so, don't invent one:
     `[P0] (confidence: 10/10)` — individual AskUserQuestion each, quoting PRD
     text vs plan text (or absence), stating the gap type.
   - SPLIT_RISK → `[P1] (7/10)`; SCOPE_CREEP → `[P1] (8/10)` — grouped calls.
-  - Options per gap: A) Add/strengthen in plan B) Intentionally deferred → NOT
-    IN SCOPE with justification C) PRD wrong/outdated — flag for PRD update.
+  - Options per gap: "Add it to the plan" / "Defer it, with a reason" (goes to NOT
+    IN SCOPE) / "Flag the PRD as wrong" (PRD needs an update).
 
 After each resolution, apply the Amendment Rule. Do NOT proceed to Section 1
 until every gap is resolved or explicitly deferred.
@@ -255,7 +252,7 @@ touched files — still accurate after this change?
 
 ### 3. Test review
 
-100% coverage is the goal. Every codepath in the plan gets a test in the plan.
+Only when the owner asks for tests on this job: 100% coverage is the goal and every codepath in the plan gets a test in the plan. Otherwise (arm D default) trace the codepaths and draw the coverage diagram, but add no new tests to the plan.
 
 **Framework detection:** read CLAUDE.md `## Testing` first; else detect
 (`Gemfile`/`package.json`/`pyproject.toml`/`go.mod`/`Cargo.toml` +
@@ -275,8 +272,10 @@ found → still produce the coverage diagram, skip test generation.
    where mocking hides real failures, auth/payment/data-destruction. [→EVAL]
    for LLM prompt/template changes. Unit tests for pure functions.
 5. **REGRESSION RULE (IRON):** a previously-working codepath the plan would
-   break/modify gets a regression test in the plan as a critical requirement —
-   no AskUserQuestion, no skipping. Uncertain → write the test.
+   break/modify is flagged as a critical requirement — no AskUserQuestion, no
+   skipping. Only when the owner asked for tests on this job: it gets a
+   regression test in the plan (uncertain → write the test). Otherwise list the
+   risk and the manual check.
 6. **Output the ASCII coverage diagram** — code paths AND user flows, star
    ratings, [GAP]/[→E2E]/[→EVAL] markers, summary line
    (`COVERAGE: n/m paths tested | QUALITY: ★★★:a ★★:b ★:c | GAPS: g`).
@@ -312,8 +311,8 @@ User confirms a <7-confidence finding was real → note the calibration miss.
 ## Outside Voice — Independent Plan Challenge (optional, recommended)
 
 After all sections complete, check `which codex`; offer via AskUserQuestion:
-A) independent second opinion (recommended) B) skip to outputs. **If A and
-codex available:**
+"Get a second opinion" (recommended) / "Skip to outputs". **If the owner picks the second opinion and
+codex is available:**
 ```bash
 TMPERR_PV=$(mktemp /tmp/codex-planreview-XXXXXXXX)
 _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "not in a git repo"; }
@@ -331,15 +330,15 @@ on macOS). Read stderr; all errors non-blocking (auth → "run codex login";
 timeout/empty → note and continue). `rm -f "$TMPERR_PV"` when done.
 
 **If codex unavailable/errored:** dispatch a Claude subagent (Task,
-`subagent_type: "general-purpose"`, omit model). Same prompt. Present under
+`subagent_type: "general-purpose"`, `model: "opus"`). Same prompt. Present under
 `OUTSIDE VOICE (Claude subagent):`. If that also fails: "Outside voice
 unavailable. Continuing to outputs."
 
 **Cross-model tension:** where the outside voice disagrees with earlier
-findings, present both sides neutrally per topic via AskUserQuestion (A accept /
-B keep current / C investigate / D add to TODOS.md) — grouped per the Finding
+findings, present both sides neutrally per topic via AskUserQuestion ("Accept the change" /
+"Keep the current plan" / "Investigate more" / "Add to TODOS.md") — grouped per the Finding
 Protocol. Outside-voice findings are INFORMATIONAL until explicitly approved —
-never auto-incorporate, even when you agree; user picks B → do not re-argue.
+never auto-incorporate, even when you agree; user picks "Keep the current plan" → do not re-argue.
 Accepted changes get the Amendment Rule. No tensions → say so.
 
 ## Required outputs
@@ -356,7 +355,7 @@ Present TODOs in grouped AskUserQuestion calls (≤4 per call, each TODO its own
 question — Finding Protocol, P2-class; never silently skip one). Each carries:
 **What** (one line), **Why**, **Pros / Cons**, **Context** (someone picking it
 up in 3 months knows motivation, state, where to start), **Depends on / blocked
-by**. Options: A) Add to TODOS.md B) Skip C) Build it now in this PR. A TODO
+by**. Options: "Add to TODOS.md" / "Skip it" / "Build it now in this PR". A TODO
 without context is worse than no TODO.
 
 ### Failure modes
@@ -433,9 +432,9 @@ default to an option.
 
 ## Next Steps
 
-One AskUserQuestion, only applicable options: A) /plan-design-review (UI scope
-detected, no design review yet) B) /ceo-review (significant product-direction
-change) C) Ready to implement.
+One AskUserQuestion, only applicable options: "Run /plan-design-review" (UI scope
+detected, no design review yet) / "Run /ceo-review" (significant product-direction
+change) / "Start implementing".
 
 ## EXIT PLAN MODE GATE (BLOCKING)
 

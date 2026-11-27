@@ -1,5 +1,26 @@
 # Feature Enablement Skill - Changelog
 
+## v2.1 (2026-11-25)
+
+### Automatic evidence step
+- **New command `/feature-enablement evidence [--pendo] [--gong]`**, also run inside `init` (step 5) and `update` (when the PRD changes, or when evidence is more than 30 days old)
+- **One scope-confirmation question** (apps, Gong search terms incl. old names, window, optional must-include calls) replaces the "Gong call links" prompt, so PM effort is unchanged
+- **Pendo problem sizing** (`prompts/pendo-sizing.md`): runs only when the PRD has no quantified sizing. Picks a live stand-in signal, rejects dead/polluted tags, measures against the right base, and states confidence. The PM confirms the signal and the number; the confirmed signal is saved as `Pendo_Proxy` and re-measured on later runs
+- **Gong evidence** (`prompts/gong-evidence.md`): Glean search with the 1,000-cap window splitting, dedupe, noise-product filtering and old-name search. Writes Customer Voice (anonymised), Field Check (claims vs PRD) and an optional Demand Signal
+- Sub-agents write `assets/validation/pendo-sizing.md` and `gong-evidence.md`; extraction reads the files, not the chat replies. Unavailable sources never block a run
+
+### Template, config and metadata
+- Messaging foundation: new **Known Field Misconceptions** subsection under Guardrails; **Pendo Sizing** / **Gong Evidence** source lines; inline source tags on every evidence figure
+- New Always Ask: "OK to use usage figures externally?" Pendo and Gong figures stay out of the customer-facing 1-pager unless the PM says yes
+- Misconceptions become FAQ entries and battle-card objection rows
+- `config.yaml`: new `evidence` block (Pendo window 90 days, 4 candidates; Gong 12 months, 15 transcripts, demand signal on)
+- `prd-metadata.txt`: `Evidence_Last_Run`, `Gong_Terms`, `Gong_Window`, `Pendo_Apps`, `Pendo_Proxy`
+
+### Reference and tests
+- `references/evidence-sources.md` ships with the skill: Diligent Pendo app IDs, bases, dead/polluted tags, join traps, Gong search rules, noise products, feature renames and naming rules. Each entry has a `Last verified` date; sub-agents propose updates but never edit it
+- `tests/check-skill.sh` (static structure checks), `tests/baseline-2026-11.md`, `tests/verification-2026-11.md` (live runs)
+- Skill description rewritten as triggering conditions ("Use when...")
+
 ## v2.0 (2026-05-15)
 
 ### Major Enhancements

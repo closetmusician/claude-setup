@@ -342,7 +342,7 @@ $B prettyscreenshot --cleanup --scroll-to ".pricing" --width 1440 /tmp/hero.png
 | `perf` | Page load timings |
 | `dialog [--clear]` | Dialog messages |
 | `ux-audit` | Page structure JSON for UX analysis |
-| `cdp <Domain.method> [json]` | Raw CDP, allowlist-gated (see `src/cdp-allowlist.ts`) |
+| `cdp <Domain.method> [json]` | Raw CDP, allowlist-gated (the allowlist is built into `dist/server-node.mjs`) |
 
 ### Visual
 | Command | Description |

@@ -29,7 +29,7 @@ elif [[ ! -t 0 ]]; then
   FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
 
   # Only validate files in qa/ directories
-  if [[ -z "$FILE_PATH" ]] || ! echo "$FILE_PATH" | grep -qE '/qa/[A-Z]+-[0-9]+/T-'; then
+  if [[ -z "$FILE_PATH" ]] || ! < <(echo "$FILE_PATH") grep -qE '/qa/[A-Z]+-[0-9]+/T-'; then
     exit 0
   fi
 
@@ -52,15 +52,15 @@ validate_content() {
     *acceptance-tests*)
       # Must have RED Commit SHA — accepts both plain "RED Commit: <sha>" and
       # bold "**RED Commit:** <sha>" formats emitted by qa-prompt.md.
-      if ! echo "$content" | grep -qE 'RED Commit:\*{0,2}[[:space:]]*[0-9a-f]{7,40}'; then
+      if ! < <(echo "$content") grep -qE 'RED Commit:\*{0,2}[[:space:]]*[0-9a-f]{7,40}'; then
         ERRORS+=("Missing 'RED Commit: <SHA>' (7-40 hex chars required)")
       fi
       # Must have Tests Written section
-      if ! echo "$content" | grep -q '## Tests Written'; then
+      if ! < <(echo "$content") grep -q '## Tests Written'; then
         ERRORS+=("Missing '## Tests Written' section")
       fi
       # Must have evidence tests are failing (RED) — not import/syntax errors
-      if ! echo "$content" | grep -qiE '(FAILED|ERROR|failed [0-9]|[0-9]+ failed|assertion.*error|assert.*fail)'; then
+      if ! < <(echo "$content") grep -qiE '(FAILED|ERROR|failed [0-9]|[0-9]+ failed|assertion.*error|assert.*fail)'; then
         ERRORS+=("No failing test evidence in artifact — acceptance tests must be RED (failing) before coder starts. Paste the failing test output under '## Test Run Output'.")
       fi
       # RED commit must exist in git and touch only test files
@@ -81,7 +81,7 @@ validate_content() {
 
     *ready-for-review*)
       # Must have TDD Evidence section with table rows OR TDD-EXEMPT declarations
-      if ! echo "$content" | grep -q '## TDD Evidence'; then
+      if ! < <(echo "$content") grep -q '## TDD Evidence'; then
         ERRORS+=("Missing '## TDD Evidence' section")
       else
         # Check for table data rows (| col | col |) or TDD-EXEMPT
@@ -110,7 +110,7 @@ validate_content() {
       fi
 
       # Must have ReviewCommit SHA
-      if ! echo "$content" | grep -qE 'ReviewCommit:[[:space:]]*[0-9a-f]{7,40}'; then
+      if ! < <(echo "$content") grep -qE 'ReviewCommit:[[:space:]]*[0-9a-f]{7,40}'; then
         ERRORS+=("Missing 'ReviewCommit:<SHA>' (7-40 hex chars required)")
       fi
       ;;
@@ -127,24 +127,24 @@ validate_content() {
       fi
 
       # Must have a verdict or summary section
-      if ! echo "$content" | grep -qiE '(## Summary|## Verdict|## Findings|## Review)'; then
+      if ! < <(echo "$content") grep -qiE '(## Summary|## Verdict|## Findings|## Review)'; then
         ERRORS+=("Missing summary/findings section header")
       fi
       ;;
 
     *cycle-1*|*cycle-2*)
       # Must have a verdict
-      if ! echo "$content" | grep -qiE '(PASS|FAIL|PASS_WITH_CONCERNS)'; then
+      if ! < <(echo "$content") grep -qiE '(PASS|FAIL|PASS_WITH_CONCERNS)'; then
         ERRORS+=("Missing verdict (expected PASS, FAIL, or PASS_WITH_CONCERNS)")
       fi
 
       # Must have test output or test results section
-      if ! echo "$content" | grep -qiE '(## Test|## Results|## Output|test run|tests? (passed|failed|ran))'; then
+      if ! < <(echo "$content") grep -qiE '(## Test|## Results|## Output|test run|tests? (passed|failed|ran))'; then
         ERRORS+=("Missing test output/results section")
       fi
 
       # Cycle files should reference the task
-      if ! echo "$content" | grep -qE 'T-[0-9]+'; then
+      if ! < <(echo "$content") grep -qE 'T-[0-9]+'; then
         ERRORS+=("Missing task reference (T-XXX)")
       fi
       ;;

@@ -1,0 +1,38 @@
+# Rules for scripts/method-lint.pl — edit freely, no code change needed.
+# Purpose: keep "how we made this" (method, process, tooling) out of finished docs.
+# Format:  kind::perl-regex::advice
+#   heading = matched against heading text only (markdown #..., html <h1>-<h6>)
+#   phrase  = matched against every prose line (headings included)
+# Patterns are case-insensitive. Code fences, inline code, html comments,
+# <script>/<style> blocks and URLs are removed before matching.
+# Keep patterns narrow: a false hit trains people to ignore the lint.
+
+# ── Section headings that exist only to explain the process ──
+heading::^\s*(\d+\.\s*)?(methods?|methodology)\b::cut the section; keep only results
+heading::^\s*(\d+\.\s*)?how (we|i|this was) (counted|measured|calculated|built|made|did (it|this)|got (here|these numbers)|searched)::cut the section
+heading::^\s*(\d+\.\s*)?(data sources?|sources and methods?|about (this|the) data|notes? on (the )?data|approach|scope and method)\b::cut the section
+heading::^\s*(\d+\.\s*)?(caveats|limitations|assumptions)\s*$::fold any caveat that changes a conclusion into that finding; cut the rest
+
+# ── Process verbs: "we did X to the data" ──
+phrase::\bwe (searched|ran|scraped|queried|labell?ed|tagged|filtered|de-?duped|de-?duplicated|sampled|spot[- ]checked|hand[- ]checked|pulled|parsed|classified|re-?ran)\b::state the result, not the step that produced it
+phrase::\b(labell?ed|checked|read) (by hand|one by one|manually)\b::state the result
+phrase::\bhand[- ](label|check|review)(ed|ing|s)?\b::state the result
+
+# ── Tooling and pipeline vocabulary ──
+phrase::\b(keyword|regex) (filter|match(ing)?)\b::drop the tooling detail
+phrase::\bregex(es)?\b::drop the tooling detail
+phrase::\bspot[- ]check(ed|s)?\b::drop the QA detail
+phrase::\bfalse (positives?|negatives?)\b::drop the QA detail
+phrase::\b(precision|recall) (of|was|is|rate)\b::drop the QA detail
+phrase::\bde-?dup(e|ed|es|ing|lication|licated)?\b::drop the processing detail
+phrase::\b\d[\d,]*\s+(unique\s+)?(search\s+)?(hits|search results)\b::drop raw search volumes
+phrase::\b\d[\d,]*\s+((microsoft\s+)?graph\s+)?(searches|queries)\b::drop search counts
+phrase::\b(microsoft\s+)?graph\s+(api|search|query|queries)\b::drop the tooling detail
+phrase::\b(search|result)\s+(depth|limit|cap)\b::drop the tooling detail
+phrase::\b(sub-?agents?|labell?ers?|classifier)\b::drop the tooling detail
+phrase::\b(the rest|others?) were noise\b::drop the cleaning detail
+phrase::\bthis (doc|document|report|page|analysis) (was|is) (generated|built|produced|compiled)\b::cut the line
+
+# ── Bold lead-in labels that open a method block, and passive process verbs ──
+phrase::^\s*[-*]?\s*(how (we|i) (counted|measured|did (it|this))|methods?|methodology|data sources?)\s*[:]::cut the block; keep only results
+phrase::\b(was|were) (searched|scraped|queried|labell?ed|hand[- ]checked|spot[- ]checked|de-?duped|classified)\b::state the result, not the step

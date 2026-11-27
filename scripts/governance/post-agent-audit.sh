@@ -43,7 +43,7 @@ if [[ -z "$TOOL_RESULT" ]]; then
 fi
 
 # ─── Escape hatch: AUDIT_EXEMPT ───
-if echo "$TOOL_RESULT" | grep -q 'AUDIT_EXEMPT'; then
+if < <(echo "$TOOL_RESULT") grep -q 'AUDIT_EXEMPT'; then
   exit 0
 fi
 
@@ -102,10 +102,10 @@ FOUND_REQ_REFS=$(echo "$TOOL_RESULT" | grep -oE 'REQ-[0-9]+' | sort -u || true)
 
 if [[ -n "$FOUND_REQ_REFS" ]]; then
   while read -r REF; do
-    if ! echo "$MAP_REQ_IDS" | grep -qx "$REF"; then
+    if ! < <(echo "$MAP_REQ_IDS") grep -qx "$REF"; then
       echo "post-agent-audit: UNLINKED reference '${REF}' in output (not in requirement map)" >&2
     fi
-  done <<< "$FOUND_REQ_REFS"
+  done < <(printf '%s\n' "$FOUND_REQ_REFS")
 fi
 
 # ─── Validate using jq library ───

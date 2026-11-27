@@ -7,6 +7,12 @@ Automates creation of sales and customer success enablement materials from PRDs,
 - Supports Gong calls, Insider sessions, and customer validation
 - **PRD-First extraction** - Extracts answers from PRD automatically, only asks PM to fill gaps (reduces PM time from 30-45 min → 5 min)
 
+**NEW in v2.1:**
+- **Automatic evidence step** (`/feature-enablement evidence`, also run inside `init` and `update`):
+  - **Pendo problem sizing** when the PRD has no numbers: proposes a stand-in signal and a figure with its base and window, which the PM confirms
+  - **Gong evidence** found via Glean: anonymised customer quotes, a **field check** that flags what reps already say that contradicts the PRD, and an optional demand signal
+- One scope-confirmation question replaces pasting Gong links. Internal figures stay out of customer-facing assets unless the PM approves
+
 ## Quick Start
 
 ```bash
@@ -17,7 +23,7 @@ Automates creation of sales and customer success enablement materials from PRDs,
 # - Feature name: "Task Management"
 # - PRD URL: https://diligentbrands.atlassian.net/wiki/spaces/BPROG/pages/1234567/
 # - Figma links: (optional)
-# - Gong calls: (optional)
+# - Then one scope check: product/apps, Gong search terms, window
 # - Competitors: "Asana, Monday.com, Jira"
 # - Project path: ~/feature-enablement-task-management
 
@@ -25,8 +31,11 @@ Automates creation of sales and customer success enablement materials from PRDs,
 cd ~/feature-enablement-task-management
 /feature-enablement demo
 
-# 3. Update when PRD changes
+# 3. Update when PRD changes (also refreshes evidence older than 30 days)
 /feature-enablement update
+
+# 3b. Refresh Pendo sizing and Gong evidence on their own
+/feature-enablement evidence
 
 # 4. Add new competitor
 /feature-enablement add-competitor ClickUp
@@ -57,7 +66,7 @@ feature-enablement-<name>/
 │   │   └── sales-roadmap-messaging.md
 │   └── <feature>-overview.md     ← Synthesized PRD
 ├── assets/
-│   ├── validation/               ← Gong transcripts, customer quotes
+│   ├── validation/               ← pendo-sizing.md, gong-evidence.md, Insider notes
 │   ├── competitive/              ← Competitive research
 │   └── demo/
 │       └── screenshots/          ← NEW: Demo screenshots (Figma, uploads, etc.)
@@ -69,7 +78,8 @@ feature-enablement-<name>/
 **Automatically:**
 - ✅ Fetches PRD from Confluence
 - ✅ **Extracts answers from PRD** (current state, pain points, features, personas, timeline, etc.)
-- ✅ Fetches Gong call transcripts (if provided)
+- ✅ **Sizes the problem from Pendo** when the PRD doesn't (PM confirms the stand-in signal and number)
+- ✅ **Searches Gong via Glean**: customer voice, field misconceptions, demand signal
 - ✅ Fetches Insider session notes (if provided)
 - ✅ Researches competitors via web
 - ✅ **Proposes extracted content to PM for validation** (3 options: use as-is, enhance, replace)
@@ -96,7 +106,8 @@ feature-enablement-<name>/
 1. **Atlassian API access:** Run `/atlassian-connect` first (if using Confluence)
 2. **GitHub CLI:** For auto-push to GitHub (`gh auth login`)
 3. **PRD in Confluence:** With structured content (features, personas, phasing)
-4. **Optional:** Gong call links, Insider session transcripts (for customer validation)
+4. **Optional:** Pendo MCP and Glean MCP (with Gong indexed) for the evidence step; Insider session transcripts
+5. **Shipped reference:** `references/evidence-sources.md` holds Diligent Pendo app IDs, bases, dead tags and Gong rules; PMs outside Diligent replace it
 
 ## Configuration for Other PMs
 

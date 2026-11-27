@@ -138,3 +138,6 @@ docs/plans/harness/fable/evidence/II-4-reflex.log
 
 # Token study call tables: session and message ids from transcripts (regenerate with docs/learnings/tokens/scripts/ledger*.py)
 docs/learnings/tokens/data/
+
+# /fc (fast-compact) archive of cut chat text: transcript-derived, never commit
+/fast-compact/

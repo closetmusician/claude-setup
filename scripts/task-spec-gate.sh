@@ -29,21 +29,21 @@ if [[ -z "$prompt" ]]; then
 fi
 
 # Escape hatch — explicit bypass
-if echo "$prompt" | grep -qi 'NO_SPEC_REQUIRED'; then
+if < <(echo "$prompt") grep -qi 'NO_SPEC_REQUIRED'; then
   exit 0
 fi
 
 # Pass-through for exploratory/non-build tasks
-if echo "$prompt" | grep -qiE '(debug|explore|review|qa|investigate|analyze|research|read|search|check)'; then
+if < <(echo "$prompt") grep -qiE '(debug|explore|review|qa|investigate|analyze|research|read|search|check)'; then
   exit 0
 fi
 
 has_spec_ref() {
-  echo "$prompt" | grep -qE 'docs/.*\.md'
+  < <(echo "$prompt") grep -qE 'docs/.*\.md'
 }
 
 # Hard-block tier — build tasks that absolutely need a spec
-if echo "$prompt" | grep -qiE '(generate.*test|create.*schema|implement.*feature|write.*spec)'; then
+if < <(echo "$prompt") grep -qiE '(generate.*test|create.*schema|implement.*feature|write.*spec)'; then
   if ! has_spec_ref; then
     echo '{"decision": "block", "reason": "Build task requires spec reference (docs/*.md). Add spec path to prompt or NO_SPEC_REQUIRED to bypass."}'
     exit 0
@@ -51,7 +51,7 @@ if echo "$prompt" | grep -qiE '(generate.*test|create.*schema|implement.*feature
 fi
 
 # Soft-warn tier — general creation tasks without a spec
-if echo "$prompt" | grep -qiE '(create|write|implement|build|generate)'; then
+if < <(echo "$prompt") grep -qiE '(create|write|implement|build|generate)'; then
   if ! has_spec_ref; then
     echo "⚠ Task has no spec reference (docs/*.md). Consider adding one." >&2
   fi

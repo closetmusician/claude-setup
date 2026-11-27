@@ -216,16 +216,16 @@ _verify_acceptance() {
     case "$cmd" in
       *$'\n'*|*$'\r'*) reject_reason="multiline acceptance commands are not allowed" ;;
     esac
-    if [[ -z "$reject_reason" ]] && printf '%s' "$cmd" | grep -qE '[;&|<>`$(){}*?\[\]~"'"'"']'; then
+    if [[ -z "$reject_reason" ]] && < <(printf '%s' "$cmd") grep -qE '[;&|<>`$(){}*?\[\]~"'"'"']'; then
       reject_reason="shell metacharacters are not allowed"
     fi
-    if [[ -z "$reject_reason" ]] && printf '%s' "$cmd" | grep -qiE '(^|[[:space:]])(git[[:space:]]+push|git[[:space:]]+merge|gh[[:space:]]+pr[[:space:]]+(create|merge))([[:space:]]|$)'; then
+    if [[ -z "$reject_reason" ]] && < <(printf '%s' "$cmd") grep -qiE '(^|[[:space:]])(git[[:space:]]+push|git[[:space:]]+merge|gh[[:space:]]+pr[[:space:]]+(create|merge))([[:space:]]|$)'; then
       reject_reason="publishing and merge commands are not allowed in acceptance"
     fi
-    if [[ -z "$reject_reason" ]] && printf '%s' "$cmd" | grep -qiE '(^|[[:space:]])((ba|z|c|k)?sh[[:space:]]+-c|python3?[[:space:]]+-c|perl[[:space:]]+-e|ruby[[:space:]]+-e|node[[:space:]]+-e)([[:space:]]|$)'; then
+    if [[ -z "$reject_reason" ]] && < <(printf '%s' "$cmd") grep -qiE '(^|[[:space:]])((ba|z|c|k)?sh[[:space:]]+-c|python3?[[:space:]]+-c|perl[[:space:]]+-e|ruby[[:space:]]+-e|node[[:space:]]+-e)([[:space:]]|$)'; then
       reject_reason="inline interpreter execution is not allowed"
     fi
-    if [[ -z "$reject_reason" ]] && printf '%s' "$cmd" | grep -qE '(^|[[:space:]])(/|\\.\\./|\\.\\.$|cd[[:space:]])'; then
+    if [[ -z "$reject_reason" ]] && < <(printf '%s' "$cmd") grep -qE '(^|[[:space:]])(/|\\.\\./|\\.\\.$|cd[[:space:]])'; then
       reject_reason="absolute paths, parent paths, and cd are not allowed"
     fi
     if [[ -n "$reject_reason" ]]; then

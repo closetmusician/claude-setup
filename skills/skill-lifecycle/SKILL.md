@@ -23,13 +23,6 @@ allowed-tools:
   - Grep
   - Glob
 ---
-<!--
-Intended final target: /Users/yklin/.claude/skills/skill-lifecycle/SKILL.md
-Draft source: /Users/yklin/.claude/docs/plans/fable-skills/drafts/skills/skill-lifecycle/SKILL.md
-Draft status: candidate (planning artifact, not installed). Verify volatile
-claims (skill counts, archive convention path, cross-repo caller filenames)
-against the live repo before install — see §10.
--->
 
 # skill-lifecycle: fewer, sharper, routed skills — no cruft
 

@@ -19,7 +19,7 @@ FILE_PATH="$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/de
 [[ -z "$FILE_PATH" ]] && exit 0
 
 # Only new documents are checked; editing or overwriting an existing file is fine.
-printf '%s' "$FILE_PATH" | grep -qiE '\.(md|markdown|rst|docx|pptx|xlsx|pdf)$' || exit 0
+< <(printf '%s' "$FILE_PATH") grep -qiE '\.(md|markdown|rst|docx|pptx|xlsx|pdf)$' || exit 0
 ROOT="$(workspace_root "$PWD")"
 FILE="$(physical_path "$FILE_PATH" "$PWD")"
 [[ -e "$FILE" ]] && exit 0
@@ -38,7 +38,7 @@ done < <(get_workspace_doc_paths "$ROOT")
 DIR="$(dirname "$REL")"
 if [[ "$DIR" != "." ]] && git -C "$ROOT" ls-files -- "$DIR" 2>/dev/null \
      | awk -v d="$DIR/" 'index($0, d) == 1 && index(substr($0, length(d) + 1), "/") == 0' \
-     | grep -qiE '\.(md|markdown|rst|docx|pptx|xlsx|pdf)$'; then
+     | grep -iE '\.(md|markdown|rst|docx|pptx|xlsx|pdf)$' >/dev/null; then
   exit 0
 fi
 

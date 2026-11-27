@@ -95,7 +95,7 @@ _fresh
 _seed_run_manifest "q-20260704-220000-fix-emit-latency" "staged" "Fix emit latency regression"
 
 out="$(bash "$BRIEF" 2>&1)"
-if echo "$out" | grep -q "q-20260704-220000-fix-emit-latency"; then
+if grep -q "q-20260704-220000-fix-emit-latency" < <(echo "$out"); then
   _pass "Case 1: overnight run task id appears in brief"
 else
   _fail "Case 1: overnight run task id appears in brief" "got: $(echo "$out" | head -5)"
@@ -109,13 +109,13 @@ _fresh
 echo "[2026-07-04T23:37:00Z] trigger=quota reason=rate-limit" > "$STATE/.AUTONOMOUS_FREEZE"
 
 out="$(bash "$BRIEF" 2>&1)"
-if echo "$out" | grep -qi "FROZEN\|AUTONOMOUS_FREEZE"; then
+if grep -qi "FROZEN\|AUTONOMOUS_FREEZE" < <(echo "$out"); then
   _pass "Case 2: FROZEN banner visible when sentinel present"
 else
   _fail "Case 2: FROZEN banner visible when sentinel present" "got: $(echo "$out" | head -5)"
 fi
 
-if echo "$out" | grep -qi "clear-freeze\|harness queue clear"; then
+if grep -qi "clear-freeze\|harness queue clear" < <(echo "$out"); then
   _pass "Case 2b: FROZEN banner includes how-to-clear instructions"
 else
   _fail "Case 2b: FROZEN banner includes how-to-clear instructions" "got: $(echo "$out" | grep -i "freeze\|clear" | head -3)"
@@ -130,7 +130,7 @@ _seed_queue_task "q-20260705-010000-task-a" "enqueued" "Task A"
 _seed_queue_task "q-20260705-010001-task-b" "staged"   "Task B"
 
 out="$(bash "$BRIEF" 2>&1)"
-if echo "$out" | grep -qiE "queue|enqueued|staged|depth|task"; then
+if grep -qiE "queue|enqueued|staged|depth|task" < <(echo "$out"); then
   _pass "Case 3: queue depth/status section present in brief"
 else
   _fail "Case 3: queue depth/status section present in brief" "got: $(echo "$out" | head -10)"
@@ -174,7 +174,7 @@ else
   _fail "Case 5: brief exits 0 with empty queue/no runs" "exit_code=$rc"
 fi
 
-if echo "$out" | grep -qiE "empty|quiet|no runs|no tasks|nothing"; then
+if grep -qiE "empty|quiet|no runs|no tasks|nothing" < <(echo "$out"); then
   _pass "Case 5b: empty-night message present in brief"
 else
   _fail "Case 5b: empty-night message present in brief" "got: $(echo "$out" | head -5)"
@@ -188,7 +188,7 @@ _fresh
 _seed_run_manifest "q-20260704-230000-patch-task" "staged" "Apply flywheel patch"
 
 out="$(bash "$BRIEF" 2>&1)"
-if echo "$out" | grep -qiE "staged|approve|reject|harness queue"; then
+if grep -qiE "staged|approve|reject|harness queue" < <(echo "$out"); then
   _pass "Case 6: staged-items approval actions visible in brief"
 else
   _fail "Case 6: staged-items approval actions visible in brief" "got: $(echo "$out" | grep -iE 'staged|approve|queue' | head -3)"
@@ -214,7 +214,7 @@ cat > "$TMPROOT/state/runs/honest-task.json" <<'EOF'
 EOF
 
 out="$(bash "$BRIEF" 2>&1)"
-if echo "$out" | grep -qiE "^Status.*done" && ! echo "$out" | grep -qiE "SUSPECT|MISMATCH|FAILED"; then
+if grep -qiE "^Status.*done" < <(echo "$out") && ! grep -qiE "SUSPECT|MISMATCH|FAILED" < <(echo "$out"); then
   _pass "Case 7: honest manifest (all exit_code=0) shows 'done', no false alarm"
 else
   _fail "Case 7: honest manifest shows 'done', no false alarm" "got: $(echo "$out" | grep -i 'status\|SUSPECT\|MISMATCH' | head -5)"
@@ -239,14 +239,14 @@ cat > "$TMPROOT/state/runs/lying-task.json" <<'EOF'
 EOF
 
 out="$(bash "$BRIEF" 2>&1)"
-if echo "$out" | grep -qiE "SUSPECT|MISMATCH|FAILED"; then
+if grep -qiE "SUSPECT|MISMATCH|FAILED" < <(echo "$out"); then
   _pass "Case 8: lying manifest (exit_code=1) flagged as SUSPECT/MISMATCH — NOT laundered as 'done'"
 else
   _fail "Case 8: lying manifest (exit_code=1) flagged as SUSPECT/MISMATCH" "got: $(echo "$out" | grep -i 'status\|suspect\|mismatch\|done' | head -5)"
 fi
 
 # Confirm the lying manifest does NOT print a bare "Status : done" (the launder)
-if ! echo "$out" | grep -Eq '^Status[[:space:]]*:[[:space:]]*done[[:space:]]*$'; then
+if ! grep -Eq '^Status[[:space:]]*:[[:space:]]*done[[:space:]]*$' < <(echo "$out"); then
   _pass "Case 8b: lying manifest does not show bare 'Status : done'"
 else
   _fail "Case 8b: lying manifest does not show bare 'Status : done'" "got: $(echo "$out" | grep -i 'status' | head -3)"

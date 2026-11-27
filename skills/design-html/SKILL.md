@@ -6,7 +6,7 @@ description: |
   Design finalization: generates production-quality Pretext-native HTML/CSS where text
   actually reflows, heights are computed, and layouts are dynamic (30KB, zero deps).
   Smart API routing picks the right Pretext patterns per design type. Works from an
-  approved mockup (/design-shotgun), a CEO plan (/plan-ceo-review), design-review context
+  approved mockup (/design-shotgun), a CEO plan (/ceo-review), design-review context
   (/plan-design-review), or a from-scratch description. Use when asked to "finalize this
   design", "turn this into HTML", "build me a page", "implement this design", or "code the
   mockup". NOT for visual QA of a live site (/design-review) or plan review
@@ -79,7 +79,7 @@ Check for context under `~/.gstack/projects/$SLUG/`: `designs/*/approved.json`,
   feedback + screen name; if prior `finalized.html`, ask evolve vs fresh.
 - **Case B — CEO plan / variants but no approval**: read context; ask run /design-shotgun,
   design directly (plan-driven), or provide a PNG path.
-- **Case C — nothing**: ask /plan-ceo-review, /plan-design-review, /design-shotgun, or
+- **Case C — nothing**: ask /ceo-review, /plan-design-review, /design-shotgun, or
   "just describe it" (freeform).
 Output a context summary: Mode (approved-mockup|plan-driven|freeform|evolve) / visual
 reference / CEO plan / design tokens / screen name.

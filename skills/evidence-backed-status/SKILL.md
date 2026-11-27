@@ -19,13 +19,6 @@ allowed-tools:
   - Grep
   - Glob
 ---
-<!--
-Intended final target: /Users/yklin/.claude/skills/evidence-backed-status/SKILL.md
-Draft source: /Users/yklin/.claude/docs/plans/fable-skills/drafts/skills/evidence-backed-status/SKILL.md
-Draft status: candidate (planning artifact, not installed). Verify all volatile
-claims (incident counts, retention window, guard filenames) against the cited
-sources before install — see §10.
--->
 
 # evidence-backed-status: say only what you can prove, in the turn you say it
 

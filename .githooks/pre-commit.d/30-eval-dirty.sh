@@ -36,7 +36,7 @@ while IFS= read -r path; do
       TOUCHES_GUARDED=1
       break ;;
   esac
-done <<<"$STAGED_PATHS"
+done < <(printf '%s\n' "$STAGED_PATHS")
 
 if [[ "$TOUCHES_GUARDED" -eq 0 ]]; then
   exit 0  # no guarded files staged — skip

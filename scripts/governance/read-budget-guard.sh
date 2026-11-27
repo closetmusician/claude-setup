@@ -57,9 +57,9 @@ if [[ "$TOOL" == "Read" ]]; then
   FILE="$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty')"
   [[ "$FILE" == /* ]] || FILE="$CWD/$FILE"
   [[ -f "$FILE" ]] || exit 0
-  printf '%s' "$FILE" | grep -qiE '\.(png|jpe?g|gif|webp)$' && exit 0
+  < <(printf '%s' "$FILE") grep -qiE '\.(png|jpe?g|gif|webp)$' && exit 0
   # A PDF read with a page range is bounded by the Read tool itself.
-  printf '%s' "$FILE" | grep -qiE '\.pdf$' && [[ -n "$(printf '%s' "$INPUT" | jq -r '.tool_input.pages // empty')" ]] && exit 0
+  < <(printf '%s' "$FILE") grep -qiE '\.pdf$' && [[ -n "$(printf '%s' "$INPUT" | jq -r '.tool_input.pages // empty')" ]] && exit 0
   always_allow "$FILE" && exit 0
   OFFSET="$(printf '%s' "$INPUT" | jq -r '.tool_input.offset // 1')"
   LIMIT="$(printf '%s' "$INPUT" | jq -r '.tool_input.limit // 2000')"
@@ -75,7 +75,7 @@ fi
 if [[ "$TOOL" == "Bash" ]]; then
   CMD="$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty')"
   [[ -z "$CMD" ]] && exit 0
-  read -r BYTES CODE_BYTES FIRST <<<"$(perl "${SCRIPT_DIR}/lib/bash-read-estimate.pl" "$CWD" "$CMD" 2>/dev/null)"
+  read -r BYTES CODE_BYTES FIRST < <(perl "${SCRIPT_DIR}/lib/bash-read-estimate.pl" "$CWD" "$CMD" 2>/dev/null)
   [[ -z "${BYTES:-}" ]] && exit 0
   always_allow "${FIRST:-}" && exit 0
   [[ "${CODE_BYTES:-0}" -gt "$CODE_CAP" ]] && deny "$CODE_BYTES" "$CODE_CAP" "code ($(basename "${FIRST:-file}"))"

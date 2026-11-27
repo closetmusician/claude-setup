@@ -66,7 +66,7 @@ _diff_touches_blocked() {
   local diff_content="$1"
   local blocked
   for blocked in "${_BLOCKED_PATHS[@]}"; do
-    if printf '%s' "$diff_content" | grep -E "^(\+\+\+|---) " | grep -qF "$blocked"; then
+    if printf '%s' "$diff_content" | grep -E "^(\+\+\+|---) " | grep -F "$blocked" >/dev/null; then
       return 0  # blocked
     fi
   done
@@ -75,6 +75,16 @@ _diff_touches_blocked() {
 
 # ── Logging helper ────────────────────────────────────────────────────────────
 _log() { printf '[nightly-flywheel] %s\n' "$*" >&2; }
+
+# Purpose: save one speed-report line for the speed loop (docs/learnings/speed/PLAN.md).
+# Usage: _speed_report   (step 5b, and the empty-delta exit, so a quiet night still logs speed)
+# Gotchas: a test run sets $STATE, so it saves under $STATE/speed and never pollutes the live
+#   trend. No model call. Fail-open.
+_speed_report() {
+  python3 "$HOME/.claude/scripts/speed-report.py" --days 7 --save ${STATE:+--state "$STATE/speed"} >/dev/null 2>&1 || {
+    _log "  WARN: speed-report exited non-zero — continuing"
+  }
+}
 
 # ── Setup directories ─────────────────────────────────────────────────────────
 mkdir -p "${DRAFTS_DIR}" "${_STATE_DIR}/state" 2>/dev/null || true
@@ -141,6 +151,7 @@ _log "  Found $_incident_count incident(s)"
 if [[ "$_incident_count" -eq 0 ]]; then
   _log "  No new incidents — stamping and exiting (empty-delta path)"
   _now_iso > "$LAST_RUN_STAMP" 2>/dev/null || true
+  _speed_report
   rm -f "$_incidents_tmp" 2>/dev/null || true
   exit 0
 fi
@@ -247,7 +258,7 @@ PYEOF
     continue
   }
 
-  # billing: claude.ai plan (scheduled job, Yu-Kuan 2026-10-25); non-scheduled launches use scripts/lib/claude-bedrock.sh
+  # billing: claude.ai plan (scheduled job, Yu-Kuan 2026-10-25); every headless launch uses the Claude.ai plan (owner, 2026-11-22)
   # Run write-incapable claude with timeout
   _raw_output=""
   _claude_exit=0
@@ -284,7 +295,7 @@ PYEOF
   if _diff_touches_blocked "$_raw_output"; then
     _blocked_path=""
     for _bp in "${_BLOCKED_PATHS[@]}"; do
-      if printf '%s' "$_raw_output" | grep -E "^(\+\+\+|---) " | grep -qF "$_bp"; then
+      if printf '%s' "$_raw_output" | grep -E "^(\+\+\+|---) " | grep -F "$_bp" >/dev/null; then
         _blocked_path="$_bp"
         break
       fi
@@ -342,12 +353,10 @@ fi
 # STEP 5b: Speed report (docs/learnings/speed/PLAN.md)
 # =============================================================================
 # Purpose: refresh state/speed/latest.md and append history.jsonl for the speed loop.
-# Gotchas: no model call; reads transcripts only. Fail-open like every other step.
+# Gotchas: no model call; reads transcripts only. The empty-delta exit in step 1 calls it too.
 
 _log "[5b/6] Running speed-report"
-python3 "$HOME/.claude/scripts/speed-report.py" --days 7 --save >/dev/null 2>&1 || {
-  _log "  WARN: speed-report exited non-zero — continuing"
-}
+_speed_report
 
 # =============================================================================
 # STEP 6: Advance cursor + stamp last-run

@@ -80,7 +80,7 @@ fi
 
 # --- Story Title Jargon Heuristic (ban extends to titles + ID mnemonics) ---
 JARGON_TERMS='(CRUD|API|endpoint|SignalR|controller|middleware|schema|DTO|enum|backend|frontend|microservice|refactor|DB migration)'
-if grep -E "^### S-" "$FILE" | grep -qiE "$JARGON_TERMS"; then
+if grep -E "^### S-" "$FILE" | grep -iE "$JARGON_TERMS" >/dev/null; then
   ERRORS+=("Story title jargon (titles/IDs are PM-facing too — rename from the user's domain):")
   while IFS= read -r line; do
     ERRORS+=("  $line")

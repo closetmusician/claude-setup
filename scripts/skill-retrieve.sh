@@ -228,7 +228,7 @@ if declare -f emit_event >/dev/null 2>&1; then
     [ -z "$skill_name" ] && continue
     PAYLOAD="$(jq -cn --arg t "semantic" --arg s "$score_val" '{"trigger":$t,"score":($s|tonumber)}' 2>/dev/null || echo '{"trigger":"semantic"}')"
     emit_event "skill_fire" "$PAYLOAD" source="skill-retrieve.sh" skill="$skill_name" 2>/dev/null || true
-  done <<< "$SCORES"
+  done < <(printf '%s\n' "$SCORES")
 fi
 
 exit 0

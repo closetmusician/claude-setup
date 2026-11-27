@@ -16,6 +16,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOKEN_WEEK_PY="${TOKEN_WEEK_PY:-$SCRIPT_DIR/../token-week.py}"
 
 # Sandbox
+# Fixed clock: fixtures use Nov 2026 dates, so "now" must not drift with the real date.
+export TOKEN_WEEK_NOW="2026-11-13T12:00:00Z"
+
 TMPROOT="$(mktemp -d /tmp/test-token-week-XXXXXX 2>/dev/null)"
 trap 'rm -rf "$TMPROOT" 2>/dev/null' EXIT INT TERM
 

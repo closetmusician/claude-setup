@@ -17,25 +17,15 @@ trap 'exit 0' ERR
 # Guard 1: jq must be present (everything downstream needs it)
 command -v jq >/dev/null 2>&1 || exit 0
 
-# ── Read stdin once ───────────────────────────────────────────────────────────
-INPUT="$(cat 2>/dev/null || true)"
+# ── Read stdin once, slicing the prompt inside jq ─────────────────────────────
+# Purpose: keep only the small fields we need. A 1MB prompt never becomes a bash string.
+# Usage: INPUT holds a small JSON object {p,s,c,t}; .prompt wins over legacy .user_prompt.
+# Gotchas: a present .prompt is never overridden by .user_prompt. Corrections sit in the
+#   first 2000 chars, so the [:2000] slice loses nothing. Bad JSON gives empty INPUT.
+INPUT="$(jq -c '{p: ((.prompt // .user_prompt // empty)[:2000]), s: (.session_id // "unknown"),
+  c: (.cwd // ""), t: (.transcript_path // "")}' 2>/dev/null || true)"
 [ -z "$INPUT" ] && exit 0
-
-# ── Extract prompt (.prompt is the production UserPromptSubmit field; .user_prompt
-#    is a legacy fallback retained for backward compat with older fixture payloads).
-#    CRITICAL: real UserPromptSubmit payloads carry .prompt NOT .user_prompt — a prior
-#    defect shipped green tests on the wrong field (see PART2-verification.md P1-A).
-#    jq expression: use .prompt if present and non-null; fall back to .user_prompt;
-#    never let a present .prompt be overridden by .user_prompt.
-# P1-PERF fix: cap extraction to the first 2000 chars directly in jq with [:2000].
-#   Corrections always appear in the opening of the prompt; the detection regex is
-#   anchored/early-matching.  A 1MB prompt otherwise creates a 1MB bash string and
-#   blows the <100ms budget.  Slicing in jq avoids building the large string at all.
-# Purpose: extract the user's prompt text (first 2000 chars) from hook stdin JSON.
-# Usage: PROMPT is set to the (up to 2000 char) prompt slice, or empty on failure.
-# Gotchas: .prompt takes priority; .user_prompt is legacy fallback only (never override
-#   a present .prompt, even with a correction phrase in .user_prompt).
-PROMPT="$(printf '%s' "$INPUT" | jq -r '(.prompt // .user_prompt // empty)[:2000]' 2>/dev/null || true)"
+PROMPT="$(printf '%s' "$INPUT" | jq -r '.p' 2>/dev/null || true)"
 [ -z "$PROMPT" ] && exit 0
 
 # Guard 2: skip slash commands
@@ -52,14 +42,14 @@ case "$PROMPT" in "/"*) exit 0 ;; esac
 CORRECTION_REGEX='^no[,.!] |^no[,.!]$|i (already |just )?(said|told you|asked)|you (didn'"'"'?t|did not|never|failed to)|that'"'"'?s (not true|wrong|false|incorrect)|did you (actually|really|even)|show me (the |your )?(proof|evidence|output|diff)|stop (lying|guessing|making)|why did you (ignore|skip|not)|read (the|my) (instructions|prompt|CLAUDE)|not what i (asked|said|wanted)|as i (said|asked|instructed)|^again[:,]|^wrong[.,]'
 
 # Test if prompt matches the correction regex
-if ! printf '%s' "$PROMPT" | grep -qiE "$CORRECTION_REGEX" 2>/dev/null; then
+if ! < <(printf '%s' "$PROMPT") grep -qiE "$CORRECTION_REGEX" 2>/dev/null; then
   exit 0
 fi
 
 # ── Match confirmed — extract remaining fields ────────────────────────────────
-SESSION="$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null || echo "unknown")"
-CWD="$(printf '%s' "$INPUT" | jq -r '.cwd // ""' 2>/dev/null || echo "")"
-TRANSCRIPT="$(printf '%s' "$INPUT" | jq -r '.transcript_path // ""' 2>/dev/null || echo "")"
+SESSION="$(printf '%s' "$INPUT" | jq -r '.s' 2>/dev/null || echo "unknown")"
+CWD="$(printf '%s' "$INPUT" | jq -r '.c' 2>/dev/null || echo "")"
+TRANSCRIPT="$(printf '%s' "$INPUT" | jq -r '.t' 2>/dev/null || echo "")"
 
 # Truncate prompt to 500 chars
 PROMPT_TRUNC="${PROMPT:0:500}"
@@ -82,7 +72,7 @@ fi
 # Purpose: flag prompts that may be related to rtk output reformatting defects.
 # Usage: true iff PROMPT matches rtk|reformat|mangl (case-insensitive).
 RTK_SUSPECT="false"
-if printf '%s' "$PROMPT" | grep -qiE 'rtk|reformat|mangl' 2>/dev/null; then
+if < <(printf '%s' "$PROMPT") grep -qiE 'rtk|reformat|mangl' 2>/dev/null; then
   RTK_SUSPECT="true"
 fi
 

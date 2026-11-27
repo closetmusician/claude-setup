@@ -22,11 +22,11 @@ nudge() {
   exit 0
 }
 
-m() { printf '%s' "$P" | grep -qE "$1"; }
+m() { < <(printf '%s' "$P") grep -qE "$1"; }
 
 # Order = first match wins (mirror of rules/skill-routing.md priority).
 m 'orchestrat.* (sub)?agents|fan[- ]?out.*agents|spawn.*agents.*parallel|max.*parallel.*(sub)?agents' \
-  && nudge "lead-orchestrator" "multi-agent orchestration/fan-out"
+  && nudge "lead-orchestrator2" "multi-agent orchestration/fan-out"
 m 'review (this|the|that) pr\b|check (this|the) pr\b|review pr *#?[0-9]|adversarial(ly)? review.*(diff|pr\b)' \
   && nudge "pr-review-pr" "PR diff review"
 m 'review.*(these|multiple|all).*prs|review [0-9]+ prs' \

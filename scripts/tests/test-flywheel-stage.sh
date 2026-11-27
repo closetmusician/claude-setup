@@ -147,12 +147,12 @@ else
   # Verify .evidence.md contains required fields
   if [[ -f "$EVIDENCE_FILE" ]]; then
     EV_CONTENT="$(cat "$EVIDENCE_FILE")"
-    if printf '%s' "$EV_CONTENT" | grep -qi "incident\|class\|eval\|STAGE-OK"; then
+    if grep -qi "incident\|class\|eval\|STAGE-OK" < <(printf '%s' "$EV_CONTENT"); then
       _ok "STAGE-OK: .evidence.md contains eval result"
     else
       _fail "STAGE-OK: .evidence.md contains eval result" "content missing incident/eval fields"
     fi
-    if printf '%s' "$EV_CONTENT" | grep -qi "apply\|approve\|harness"; then
+    if grep -qi "apply\|approve\|harness" < <(printf '%s' "$EV_CONTENT"); then
       _ok "STAGE-OK: .evidence.md contains one-click apply command"
     else
       _fail "STAGE-OK: .evidence.md contains one-click apply command" "no harness eval apply command found"
@@ -202,13 +202,13 @@ if [[ "$BRIEF_EC" -eq 3 ]]; then
   _fail "harness brief: not a stub" "still exits 3 (not yet implemented — expected GREEN failure)"
 else
   BRIEF_CONTENT="$(cat "$BRIEF_OUT")"
-  if printf '%s' "$BRIEF_CONTENT" | grep -qi "STAGED\|PATCH\|proposed"; then
+  if grep -qi "STAGED\|PATCH\|proposed" < <(printf '%s' "$BRIEF_CONTENT"); then
     _ok "harness brief: STAGED PATCHES section present"
   else
     _fail "harness brief: STAGED PATCHES section present" "output missing staged patches section: $(echo "$BRIEF_CONTENT" | head -5)"
   fi
 
-  if printf '%s' "$BRIEF_CONTENT" | grep -qi "incident\|recent"; then
+  if grep -qi "incident\|recent" < <(printf '%s' "$BRIEF_CONTENT"); then
     _ok "harness brief: recent incidents section present"
   else
     _fail "harness brief: recent incidents section present" "no recent incidents in brief"
@@ -231,7 +231,7 @@ if [[ "$APPLY_EC" -eq 3 ]]; then
   _fail "harness eval apply --dry-run: implemented" "exits 3 stub — not yet implemented"
 else
   APPLY_CONTENT="$(cat "$APPLY_OUT")"
-  if printf '%s' "$APPLY_CONTENT" | grep -qi "WOULD-WRITE\|would write\|dry.run"; then
+  if grep -qi "WOULD-WRITE\|would write\|dry.run" < <(printf '%s' "$APPLY_CONTENT"); then
     _ok "eval apply --dry-run: WOULD-WRITE shown"
   else
     _fail "eval apply --dry-run: WOULD-WRITE shown" "output: $(echo "$APPLY_CONTENT" | head -3)"
@@ -315,7 +315,7 @@ if [[ "$APPLY2_EC" -eq 3 ]]; then
   _fail "eval apply nonexistent id: not a stub" "exits 3 stub"
 elif [[ "$APPLY2_EC" -ne 0 ]]; then
   APPLY2_MSG="$(cat "$APPLY2_OUT")"
-  if printf '%s' "$APPLY2_MSG" | grep -qi "not found\|unknown\|no patch\|WOULD-WRITE\|dry.run\|nonexistent"; then
+  if grep -qi "not found\|unknown\|no patch\|WOULD-WRITE\|dry.run\|nonexistent" < <(printf '%s' "$APPLY2_MSG"); then
     _ok "eval apply unknown id: exits nonzero with informative message"
   else
     _ok "eval apply unknown id: exits nonzero (exit=$APPLY2_EC)"

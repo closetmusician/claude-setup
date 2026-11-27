@@ -57,7 +57,7 @@ CMD_FLAT=$(printf '%s' "$CMD" | tr '\n\r' '  ')
 # newline injection.
 for tool in "${SANCTIONED_TOOLS[@]}"; do
   escaped=$(printf '%s' "$tool" | sed 's/\./\\./g')
-  if echo "$CMD_FLAT" | grep -qE "(^|&&|\|\||;|\|)\s*(node\s+\S*/)?${escaped}(\s|$)"; then
+  if < <(echo "$CMD_FLAT") grep -qE "(^|&&|\|\||;|\|)\s*(node\s+\S*/)?${escaped}(\s|$)"; then
     exit 0
   fi
 done
@@ -88,27 +88,27 @@ deny_and_exit() {
 # --- Block pattern checks ---
 
 # 1. graph.microsoft.com.*/chats
-if echo "$STRIPPED" | grep -qiE 'graph\.microsoft\.com.*/chats'; then
+if < <(echo "$STRIPPED") grep -qiE 'graph\.microsoft\.com.*/chats'; then
   deny_and_exit "Blocked: unauthorized access to Graph API /chats endpoint. Use a sanctioned messaging tool (run-send.js, teams-send-chat.js) instead."
 fi
 
 # 2. graph.microsoft.com.*/messages
-if echo "$STRIPPED" | grep -qiE 'graph\.microsoft\.com.*/messages'; then
+if < <(echo "$STRIPPED") grep -qiE 'graph\.microsoft\.com.*/messages'; then
   deny_and_exit "Blocked: unauthorized access to Graph API /messages endpoint. Use a sanctioned messaging tool (run-send.js, outlook-send-mail.js) instead."
 fi
 
 # 3. graph.microsoft.com.*/sendMail
-if echo "$STRIPPED" | grep -qiE 'graph\.microsoft\.com.*/sendMail'; then
+if < <(echo "$STRIPPED") grep -qiE 'graph\.microsoft\.com.*/sendMail'; then
   deny_and_exit "Blocked: unauthorized access to Graph API /sendMail endpoint. Use outlook-send-mail.js via run-send.js instead."
 fi
 
 # 4. teams.*send.*message
-if echo "$STRIPPED" | grep -qiE 'teams.*send.*message'; then
+if < <(echo "$STRIPPED") grep -qiE 'teams.*send.*message'; then
   deny_and_exit "Blocked: detected Teams send-message pattern. Use teams-send-chat.js via run-send.js instead."
 fi
 
 # 5. chat.*create.*member
-if echo "$STRIPPED" | grep -qiE 'chat.*create.*member'; then
+if < <(echo "$STRIPPED") grep -qiE 'chat.*create.*member'; then
   deny_and_exit "Blocked: detected chat create-member pattern. This operation requires explicit user approval."
 fi
 

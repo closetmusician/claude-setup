@@ -17,13 +17,6 @@ allowed-tools:
   - Grep
   - Glob
 ---
-<!--
-Intended final target: /Users/yklin/.claude/skills/harness-orientation/SKILL.md
-Draft source: /Users/yklin/.claude/docs/plans/fable-skills/drafts/skills/harness-orientation/SKILL.md
-Draft status: candidate (planning artifact, not installed). Every structural
-count and live-state fact below is a snapshot — verify with the listed probe
-commands before trusting it. See §10.
--->
 
 # harness-orientation: a 5-minute map of ~/.claude, with probes
 
@@ -62,20 +55,14 @@ mis-reports `~/.claude` as "not a git repo" (§8).
 
 ### 5a. Context chain (what's always loaded)
 
-`CLAUDE.md` + three @-includes: `rules/code-style.md`, `rules/personal.md`,
-`RTK.md` (recorded ~115 lines total — confirm with `wc -l`). Plus SIX
-read-on-demand rules and their triggers (from the CLAUDE.md table):
+`CLAUDE.md` + two @-includes: `rules/code-style.md` and `RTK.md`. Every other
+`rules/*.md` file also loads at session start, except `rules/vibe-protocol.md`
+and `rules/tool-registry.md`, which load only where their `paths:` filter matches.
+The CLAUDE.md read-on-demand table points at the `docs/plans/harness/` files,
+`rules/model-roles.md`, `rules/writing-style.md`, `rules/vibe-protocol.md` and
+`rules/tool-registry.md`.
 
-| Rule | Trigger |
-|---|---|
-| `rules/vibe-protocol.md` | repo has `.claude/phase.json` |
-| `rules/tool-registry.md` | Office/SharePoint/GitHub ops / file I/O |
-| `rules/memory-routing.md` | memory store decisions |
-| `rules/session-handoff.md` | session start (auto-pickup) |
-| `rules/skill-routing.md` | skill dispatch decisions |
-| `rules/protected-files.md` | before editing protected files |
-
-Probe: `ls rules/` and read `CLAUDE.md` top-of-file table.
+Probe: `ls rules/` and read the CLAUDE.md read-on-demand table.
 
 ### 5b. Where doctrine lives (four operating files)
 
@@ -98,8 +85,9 @@ Do NOT duplicate their content; reference by path and read on the trigger.
   secret-leak incident. **Probe it's active:** `git config core.hooksPath`
   (must print `.githooks`, else the gate does nothing).
 - `~/.claude/scripts/autonomous-push-guard.sh` — blocks push outside sanctioned
-  solo-owned repos; "push" in `~/.claude` targets closetmusician ONLY
-  (`MEMORY.md` feedback_push_target_closetmusician).
+  solo-owned repos. Push main to the `diligent` remote, and a secret-free copy to
+  the public `origin` remote through `scripts/public-snapshot.sh`. Never push
+  private main to `origin` (`MEMORY.md` feedback_push_target_closetmusician).
 - `rules/protected-files.md` — 11 named files that must not be deleted/emptied
   (CLAUDE.md, the four operating files, code-style, tool-registry, etc.).
 
@@ -110,7 +98,7 @@ Do NOT duplicate their content; reference by path and read on the trigger.
 | journal (`memory/journal.md`) | `harness recall "<q>"` | NEVER load whole; raw, not citable |
 | lessons (`memory/lessons.md`) | read directly (≤200L) | curated patterns |
 | project memory (`projects/.../memory/MEMORY.md`) | read directly | persists across sessions |
-| handoffs (`handoffs/<slug>.md`) | auto-loaded at start if <48h old | session continuity |
+| handoffs (`handoffs/<slug>/<session-id>.md`) | auto-loaded by the same session only, if <48h old | session continuity |
 | gbrain | `gbrain query` (binary has been MISSING — verify) | work docs |
 
 ### 5e. What runs automatically

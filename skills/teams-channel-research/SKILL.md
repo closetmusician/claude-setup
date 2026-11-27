@@ -1,3 +1,8 @@
+---
+name: teams-channel-research
+description: "Mine Teams channels for customer feedback, dedupe it, cross-check it with Jira and the FA Tracker, verify each thread, and write a ranked complaint report. Use on \"research the channel\", \"mine the channel\", \"what are customers complaining about\", \"aggregate feedback\", or /teams-channel-research. NOT for web-only research (deep-research). NOT for posting replies (csm-response)."
+---
+
 # Teams Channel Research
 
 <!-- ABOUTME:

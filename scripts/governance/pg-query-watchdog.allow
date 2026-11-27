@@ -1,0 +1,7 @@
+# ABOUTME: Approved database application names for pg_query_watchdog.py. One exact name per line.
+# ABOUTME: A query from a listed name may run longer than 5 minutes. No wildcards. "#" starts a comment.
+# ABOUTME: Names are set by the client: PGAPPNAME=<name> or application_name=<name> in the connection.
+# ABOUTME: Spec: ~/.claude/docs/plans/harness/sql-lint-guard/spec.md (W-03).
+pt_daily
+pt_pilot_copy
+pg_query_watchdog

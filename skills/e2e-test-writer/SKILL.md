@@ -5,7 +5,7 @@ description: >
   criteria. Use when asked to "write e2e tests", "create test specs from this PRD",
   "generate acceptance test YAML", or "translate requirements into YAML tests".
   NOT for running tests (qa), NOT for reviewing code (garry-review).
-  Outputs YAML spec files; the qa skill (or e2e-qa-runner) runs them.
+  Outputs YAML spec files only. The qa skill tests live apps and does not read these files.
 ---
 
 # E2E Test Writer
@@ -561,8 +561,6 @@ expected_outcomes:
 | YAML Schema | `boardroom-ai/e2e/schemas/test-case.schema.yaml` | Canonical format definition with all step types |
 | Config / Routes | `boardroom-ai/e2e/config.py` | All URLs, ports, credentials, route maps |
 | Existing Visual Test | `boardroom-ai/e2e/visual/p0_action_items.yaml` | Real-world example of a P0 visual test |
-| E2E Testing Skill | `e2e-testing` (personal skill) | How to RUN tests (prerequisites, Chrome DevTools, troubleshooting) |
-| E2E QA Runner Skill | `e2e-qa-runner` (personal skill) | Skill for executing generated tests (under construction) |
 | FE Route Map | `config.py` -> `FE_ROUTES` | Singular `/project/{id}`, NOT `/projects/{id}` |
 | BE Route Map | `config.py` -> `API_ROUTES` | Action items and agent use `/api/` prefix; auth/projects/health do NOT |
 
@@ -572,11 +570,11 @@ The `/qa` skill tests running web apps live via the browse CLI — it does NOT c
 YAML spec files this skill produces. These are complementary, non-competing flows:
 
 - `e2e-test-writer` → produces YAML spec files (this skill)
-- `e2e-testing` or `e2e-qa-runner` → consumes YAML spec files (the runner skills)
+- No runner skill is installed in `~/.claude/skills/`. Check the target repo's `e2e/` folder for its runner.
 - `/qa` → tests a live running app directly (separate flow; no YAML involved)
 
 There is no runner/YAML contract conflict. The YAML schema (`test-case.schema.yaml`) is
-the authoritative contract for what `e2e-testing`/`e2e-qa-runner` can consume.
+the authoritative contract for what a runner can consume.
 
 ## 10. Route Gotchas (Memorize These)
 

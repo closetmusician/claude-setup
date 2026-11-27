@@ -159,25 +159,25 @@ else
   _fail "${T}" "got '${tier}', want opus"
 fi
 
-# ── 11: prose-voice subtask_class → fable ───────────────────────────────────
+# ── 11: prose-voice subtask_class → opus (rules/model-roles.md D1, D7) ────────────────────────────────────
 _fresh
-T="prose-voice subtask_class → fable"
+T="prose-voice subtask_class → opus"
 tier=$(printf '{"intent":"write stakeholder communication in yk-voice","subtask_class":"prose-voice"}' | bash "${DISPATCH}" 2>/dev/null)
 events_n=$(_count_route_events)
-if [ "${tier}" = "fable" ] && [ "${events_n}" -ge 1 ]; then
+if [ "${tier}" = "opus" ] && [ "${events_n}" -ge 1 ]; then
   _pass "${T}"
 else
-  _fail "${T}" "got tier='${tier}' events=${events_n}, want tier=fable events>=1"
+  _fail "${T}" "got tier='${tier}' events=${events_n}, want tier=opus events>=1"
 fi
 
-# ── 12: briefing subtask_class → fable ──────────────────────────────────────
+# ── 12: briefing subtask_class → opus (rules/model-roles.md D1) ───────────────────────────────────────
 _fresh
-T="briefing subtask_class → fable"
+T="briefing subtask_class → opus"
 tier=$(printf '{"intent":"draft PR briefing","subtask_class":"briefing"}' | bash "${DISPATCH}" 2>/dev/null)
-if [ "${tier}" = "fable" ]; then
+if [ "${tier}" = "opus" ]; then
   _pass "${T}"
 else
-  _fail "${T}" "got '${tier}', want fable"
+  _fail "${T}" "got '${tier}', want opus"
 fi
 
 # ── 13: unknown verb + PATH-shim fake claude returning "sonnet" → classifier ─

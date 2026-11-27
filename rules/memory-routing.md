@@ -5,7 +5,7 @@
 | Raw events, errors, decisions | journal (`memory/journal.md`) | Stop-hook `session-journal.py` (auto) | `harness recall "<q>"`; sqlite3 FTS direct fallback — never load whole |
 | High-signal patterns, curated pitfalls | lessons (`memory/lessons.md`) | `synthesize-lessons` (Stop-hook) or manual | Read directly (≤200 lines) |
 | Work docs: roadmap, customers, org, board | gbrain | `gbrain put <slug> < f.md` | `gbrain query "<q>"` or `gbrain get <slug>` |
-| Session continuity across resets | handoffs (`handoffs/<slug>.md`) | `/handoff` skill | Auto-loaded at start if <48h old |
+| Session continuity across resets | handoffs (`handoffs/<slug>/<session-id>.md`, one per Claude session) | `/handoff` skill | Auto-loaded only by the same session (resume, or /clear via PID pointer) if <48h old |
 | Hard constraints, routing, standards | rules (`rules/*.md`) | Edit in-place only | @-included or Read on demand |
 
 ## Anti-rules

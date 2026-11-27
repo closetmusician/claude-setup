@@ -37,7 +37,7 @@ while IFS= read -r fpath; do
       break
       ;;
   esac
-done <<< "$STAGED_CHANGED"
+done < <(printf '%s\n' "$STAGED_CHANGED")
 
 if [[ "$TOUCHES_HARNESS" -eq 1 ]]; then
   # Fail-open ONLY on missing harness binary (so a fresh clone without harness can still commit).

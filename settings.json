@@ -1,15 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "cleanupPeriodDays": 180,
-  "promptCacheTtl": "1h",
-  "idleCompaction": false,
   "env": {
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "60",
     "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0",
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
     "MAX_THINKING_TOKENS": "128000",
     "SLASH_COMMAND_TOOL_CHAR_BUDGET": "16000",
-    "CLAUDE_CODE_ENABLE_AUTO_MODE": "1"
+    "CLAUDE_CODE_ENABLE_AUTO_MODE": "1",
+    "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1"
   },
   "permissions": {
     "allow": [
@@ -165,6 +164,11 @@
           {
             "type": "command",
             "command": "/Users/yklin/.claude/scripts/governance/read-budget-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/governance/sql-lint-guard.sh",
+            "timeout": 15
           }
         ]
       },
@@ -280,12 +284,19 @@
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "AskUserQuestion",
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/yklin/.claude/scripts/governance/headless-bedrock-guard.sh",
-            "timeout": 10
+            "command": "python3 -I ~/.claude/scripts/governance/question-clarity-guard.py",
+            "timeout": 5
+          },
+          {
+            "type": "prompt",
+            "prompt": "You check one question that an AI assistant is about to show its user. The user is a busy product manager. They see ONLY the question, its short header, and its options. They have not read the assistant's files, notes, plans or agent reports.\n\nAsk one thing: can the user tell WHAT is being decided, and WHAT each option does to their goal, from this text alone?\n\nBLOCK only when the answer is no, for one of these reasons:\n1. The core of the choice rests on a name the assistant made up during its work, used as if the user knows it. Examples: \"rows mode\", \"dedupe\", \"cut 4\", \"peer a2\", \"the June mistake\", \"the old judge\", \"version 1\". If the user cannot tell what that thing is, they cannot choose.\n2. The question leans on something the user cannot see: \"as in the table\", \"the limits in §15.18.5\", \"your 11-12 rule\", \"the three original options\".\n3. The options name actions, but the user cannot tell what changes for them, or an option hides a clear downside.\n\nPASS in every other case, including when:\n- One or two side terms are unexplained, but the choice itself is still clear.\n- Short codes such as \"B4\", \"T-7\" or \"item 10\" appear. Another check handles codes, so ignore them here.\n- The question is a short yes/no or pick-one with an obvious meaning. It needs no pros and cons.\n- The text is long. Clear questions are often longer than cryptic ones.\n\nMost questions should pass. Block only when you are sure the user would have to ask \"what does this mean?\" before they could answer. A wrong block wastes the user's time.\n\nBlock: \"Dedupe (cut 4) passed its safety test (state answers matched 90% vs 97% when re-asked without it). When should we turn it on?\" Reason: the user cannot tell what \"dedupe\" or \"state answers\" are, so they cannot judge the risk.\n\nBlock: \"Peer a2 wants to run the next live run. It redoes the 5 projects and the 5,306 derived files the June mistake touched. What spend cap?\" Reason: \"peer a2\", \"the June mistake\" and \"derived files\" are unknown, so the user cannot tell why the run is needed.\n\nBlock: \"Go with the minimal version 1 (whole-request cache, cards in path order, one small B3 record)?\" Reason: \"version 1\" and its parts are never explained, so the user cannot tell what they approve.\n\nPass: \"Shortening the AI's question (dedupe) saves about 1/3 of the B4 cost, but makes about 7 extra features per 100 flip their answer (for example 'built' to 'partly built') for no real reason. When should we turn it on?\" The made-up name is explained in place, and the code B4 does not hide the choice.\n\nPass: option \"Drop it. Saves about 4 min per run. The page and every forecast stay the same. You lose one early warning, which nobody reads today.\"\n\nPass: \"Push these 3 commits to main now?\" with options \"Push now\" and \"Wait\".\n\nIf tool_input.metadata.source is \"clarity-retry\", reply {\"ok\": true} at once. That means the question was already rewritten twice and must now be shown.\n\nThe question to check is the tool_input in this JSON: $ARGUMENTS\n\nReply with JSON only, no other text.\nIf it passes: {\"ok\": true}\nIf it fails: {\"ok\": false, \"reason\": \"Rewrite the question in plain English. Fix: <the exact phrases to fix and why, at most 2 sentences>. Each option must say what happens, the good side and the bad side. If two rewrites are blocked, resend with metadata {\\\"source\\\": \\\"clarity-retry\\\"}.\"}",
+            "timeout": 10,
+            "model": "claude-haiku-5-5",
+            "continueOnBlock": true
           }
         ]
       }
@@ -396,6 +407,30 @@
             "command": "/Users/yklin/.claude/scripts/governance/read-meter.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/method-lint-hook.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 -I ~/.claude/scripts/governance/doc-clarity-guard.py",
+            "timeout": 8
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yklin/.claude/scripts/codex-broker-stop-hook.sh"
+          }
+        ]
       }
     ],
     "Stop": [
@@ -444,6 +479,11 @@
             "type": "command",
             "command": "/Users/yklin/.claude/scripts/ste-lint.sh",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "python3 -I ~/.claude/scripts/governance/reply-clarity-gate.py",
+            "timeout": 8
           }
         ]
       }
@@ -519,7 +559,8 @@
     "codex@openai-codex": true,
     "typescript-lsp@claude-plugins-official": true,
     "typesafe@typesafe-ai": true,
-    "pendo-analytics@pendo-plugins": true
+    "pendo-analytics@pendo-plugins": false,
+    "fast-compact@fast-compact": true
   },
   "extraKnownMarketplaces": {
     "code-review-graph": {
@@ -544,6 +585,12 @@
       "source": {
         "source": "github",
         "repo": "pendo-io/claude-pendo-plugin"
+      }
+    },
+    "fast-compact": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/yklin/.claude/plugins/local/fast-compact"
       }
     }
   },
@@ -592,6 +639,7 @@
       "git"
     ]
   },
+  "promptCacheTtl": "1h",
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
   "modelSettings": {
@@ -602,7 +650,16 @@
       "effortLevel": "high"
     },
     "claude-opus-5-5": {
-      "effortLevel": "high"
+      "effortLevel": "medium"
+    }
+  },
+  "advisorModel": "fable",
+  "pluginConfigs": {
+    "fast-compact@fast-compact": {
+      "options": {
+        "provider": "none",
+        "cutTo": 600
+      }
     }
   },
   "autoUpdatesChannel": "latest",
@@ -610,6 +667,7 @@
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
+  "idleCompaction": false,
   "switchModelsOnFlag": false,
   "agentPushNotifEnabled": true,
   "autoMode": {
@@ -617,6 +675,7 @@
       "$defaults",
       "rtk-prefixed commands (`rtk ...`) are a token-optimizing passthrough and are as safe as the command they wrap.",
       "Routine git operations are allowed: status, add (explicit paths), commit, diff, log, show, fetch, pull, branch, checkout, and push to the closetmusician remote. The git-safety PreToolUse hook independently blocks the dangerous cases (git add -A, force-push, protected-file rm).",
+      "Opening a pull request with `gh pr create` for a branch the user asked to ship is routine and user-authorized, including on DiligentCorp repos. Merging a PR (`gh pr merge`) or pushing to main is never covered by this rule and needs a fresh user instruction.",
       "The gong-connect CLI (~/.claude/skills/gong-connect/bin/gong) is a user-authorized read-only transcript retrieval tool. It accesses the user's own provisioned Gong account (tenant us-10290) for call listing, transcript retrieval, and keyword mining. The CLI and its underlying agent-browser commands are pre-approved by the user for autonomous execution — they perform read-only data retrieval, not credential exploration or write operations."
     ],
     "environment": [

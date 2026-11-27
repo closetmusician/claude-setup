@@ -80,7 +80,7 @@ EOF
   fi
 
   # Output should mention DRY-RUN
-  if echo "$output" | grep -qi "dry.run"; then
+  if grep -qi "dry.run" < <(echo "$output"); then
     _pass "a-dryrun-reported"
   else
     _fail "a-dryrun-reported" "no dry-run indicator in output"
@@ -157,7 +157,7 @@ EOF
   output="$(_run "$env")"
 
   # Script must complete (shows TOTAL)
-  if echo "$output" | grep -qi "TOTAL"; then
+  if grep -qi "TOTAL" < <(echo "$output"); then
     _pass "c-no-crash"
   else
     _fail "c-no-crash" "script crashed or no TOTAL: $output"
@@ -250,21 +250,21 @@ EOF
   output="$(_run "$env")"
 
   # Must detect the secret
-  if echo "$output" | grep -qi "SECRET\?"; then
+  if grep -qi "SECRET\?" < <(echo "$output"); then
     _pass "e-secret-detected"
   else
     _fail "e-secret-detected" "no SECRET? line in output: $output"
   fi
 
   # Must abort tsv_sessions
-  if echo "$output" | grep -qi "ABORT.*tsv_sessions\|tsv_sessions.*ABORT"; then
+  if grep -qi "ABORT.*tsv_sessions\|tsv_sessions.*ABORT" < <(echo "$output"); then
     _pass "e-source-aborted"
   else
     _fail "e-source-aborted" "tsv_sessions not aborted in output: $output"
   fi
 
   # Must NOT print raw secret
-  if echo "$output" | grep -q "ghp""_ABCDEFGHIJKLMNOPQRSTU"; then
+  if grep -q "ghp""_ABCDEFGHIJKLMNOPQRSTU" < <(echo "$output"); then
     _fail "e-no-raw-secret" "raw secret value appears in output"
   else
     _pass "e-no-raw-secret"
@@ -291,7 +291,7 @@ echo "[f] empty source dirs — runs without error, reports 0 events"
   output="$(_run "$env")"
 
   # Must complete and show TOTAL
-  if echo "$output" | grep -qi "TOTAL"; then
+  if grep -qi "TOTAL" < <(echo "$output"); then
     _pass "f-completes"
   else
     _fail "f-completes" "script didn't complete or no TOTAL: $output"

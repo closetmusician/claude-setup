@@ -1,3 +1,9 @@
+<!-- ABOUTME: Template for the seven-section feature messaging foundation, the source of truth for downstream assets -->
+<!-- ABOUTME: Populated first from PRD, Pendo sizing, Gong evidence, designs and PM-confirmed gaps -->
+<!-- ABOUTME: Source tags and known field misconceptions are preserved into internal downstream assets -->
+<!-- ABOUTME: Customer-facing usage figures require explicit PM approval in Messaging Guardrails -->
+<!-- ABOUTME: Sub-agent evidence source files live in assets/validation/ -->
+
 # Launch Messaging Template: {{FEATURE_NAME}}
 
 **Launch Date:** {{LAUNCH_DATE}}  
@@ -151,6 +157,14 @@
 
 **Positioning, partner relationships, timing-related considerations.**
 
+### Known Field Misconceptions
+
+> What reps and CSMs are already telling customers that contradicts the PRD (from the Gong Field Check). Each row also becomes an FAQ entry and a battle-card objection.
+
+| Claim heard in the field | Correct answer | PRD source |
+|--------------------------|----------------|--------|
+{{FIELD_MISCONCEPTIONS}}
+
 ---
 
 ## 7. Availability & Packaging
@@ -170,7 +184,8 @@
 
 **PRD:** {{PRD_URL}} (v{{PRD_VERSION}})  
 **Figma:** {{FIGMA_LINKS}}  
-**Gong Calls:** {{GONG_LINKS}}  
+**Pendo Sizing:** {{PENDO_SIZING}}  
+**Gong Evidence:** {{GONG_EVIDENCE}}  
 **Insider Sessions:** {{INSIDER_LINKS}}  
 **Competitive Research:** {{COMPETITIVE_RESEARCH_LINKS}}
 

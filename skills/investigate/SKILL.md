@@ -48,13 +48,15 @@ The Iron Law binds every subagent you spawn, too.
 
 You may not declare the investigation DONE unless your final message contains:
 1. The **DEBUG REPORT** block (Phase 5), fully filled in — no empty fields.
-2. A **regression test**: file:line, shown to FAIL without the fix and PASS
-   with it (paste both runs, or the passing run plus the pre-fix failure output).
+2. A **regression test**, only when the owner asks for tests on this job: file:line,
+   shown to FAIL without the fix and PASS with it (paste both runs, or the passing
+   run plus the pre-fix failure output). By default (arm D, no new tests), paste
+   the original repro run before the fix (fails) and after it (passes) instead.
 3. **Full test suite output** pasted — no regressions.
 
 Under time pressure the status becomes DONE_WITH_CONCERNS or BLOCKED and you
 name exactly which gate element is missing. "The fix works, I'll skip the
-test" is not an available option — the regression test IS the proof that the
+test" is not an available option — the fail-then-pass proof IS the proof that the
 root cause was real. Time pressure historically breaks this verification tail,
 not the root-causing; the gate exists for exactly that moment.
 
@@ -211,7 +213,7 @@ Once root cause is confirmed:
    eliminates the actual problem.
 2. **Minimal diff:** fewest files touched, fewest lines changed. Do not
    refactor adjacent code.
-3. **Write the regression test** (required by the Completion Gate):
+3. **Write the regression test** (only when the owner asks for tests on this job; otherwise skip it and keep the repro proof the Completion Gate names):
    - **Fails** without the fix — run it against the pre-fix code (stash the
      fix or write the test first) and paste the failure.
    - **Passes** with the fix — paste the passing run.
@@ -241,7 +243,7 @@ Method:          [parallel-convergence (N agents, verdict) | linear-solo]
 Mitigation:      [none | what was applied, and whether removed or kept]
 Fix:             [what changed, with file:line references]
 Evidence:        [test output + original-repro re-run showing it's fixed]
-Regression test: [file:line of the new test + fail-then-pass proof]
+Regression test: [only if the owner asked for tests: file:line + fail-then-pass proof | n/a]
 Related:         [TODOS.md items, prior bugs in same area, architectural notes]
 Status:          DONE | DONE_WITH_CONCERNS | BLOCKED
 ════════════════════════════════════════
@@ -263,7 +265,7 @@ Status:          DONE | DONE_WITH_CONCERNS | BLOCKED
   they never close an investigation.
 - **Completion status:**
   - DONE — root cause found, fix applied, regression test written
-    (fail→pass shown), full suite passes, original repro re-verified
+    if the owner asked for tests (fail→pass shown), full suite passes, original repro re-verified
   - DONE_WITH_CONCERNS — fixed but cannot fully verify (intermittent bug,
     needs staging); missing gate elements named
   - BLOCKED — root cause unclear after investigation, escalated

@@ -38,7 +38,7 @@ case "$TOOL" in
 esac
 
 # Escape hatch 2 (per-call token inside the tool call itself).
-printf '%s' "$TOOL_INPUT" | grep -q 'MODEL-ROLE-EXEMPT' && exit 0
+< <(printf '%s' "$TOOL_INPUT") grep -q 'MODEL-ROLE-EXEMPT' && exit 0
 
 # ─── Reverse a file portably (BSD tail -r, GNU tac) ───
 _rev() { tail -r "$1" 2>/dev/null || tac "$1" 2>/dev/null; }
@@ -103,7 +103,7 @@ user_said_exempt() {
   local tp="$1" line=""
   [ -n "$tp" ] && [ -f "$tp" ] || return 1
   line="$(_rev "$tp" | perl -ne 'next if /"toolUseResult"/; if (/"type":"user"/) { print; exit }' 2>/dev/null)"
-  printf '%s' "$line" | grep -qi 'FABLE-OK'
+  < <(printf '%s' "$line") grep -qi 'FABLE-OK'
 }
 
 deny_and_exit() {
@@ -139,7 +139,7 @@ if [ "$TOOL" = "Agent" ] || [ "$TOOL" = "Task" ]; then
     *) deny_and_exit "MODEL ROLE GUARD: '${MODEL_ARG}' is not a worker tier. Use haiku, sonnet, opus, or fable (review/critique only). See ~/.claude/rules/model-roles.md." ;;
   esac
 
-  if [ "$MODEL_ARG" = "fable" ] && ! printf '%s' "$INTENT" | grep -qiE "$REVIEW_RE"; then
+  if [ "$MODEL_ARG" = "fable" ] && ! < <(printf '%s' "$INTENT") grep -qiE "$REVIEW_RE"; then
     deny_and_exit "MODEL ROLE GUARD: Fable subagents are for orchestration and review/critique only, and this dispatch reads as production work. Send it to sonnet (or haiku if it is mechanical, opus if it needs judgment). Override: add MODEL-ROLE-EXEMPT to the prompt."
   fi
 fi
@@ -158,7 +158,7 @@ DELEGATE="Delegate it: Agent(model: \"sonnet\") for standard execution, \"haiku\
 
 if [ "$TOOL" = "Edit" ] || [ "$TOOL" = "Write" ] || [ "$TOOL" = "NotebookEdit" ]; then
   FILE="$(printf '%s' "$TOOL_INPUT" | jq -r '.file_path // .notebook_path // empty')"
-  if ! printf '%s' "$FILE" | grep -qE "$ALLOW_RE"; then
+  if ! < <(printf '%s' "$FILE") grep -qE "$ALLOW_RE"; then
     deny_and_exit "MODEL ROLE GUARD: Fable orchestrates and reviews; it does not edit files. '${FILE}' is not a plan, spec, or review artifact. ${DELEGATE}"
   fi
   exit 0
@@ -177,14 +177,14 @@ STRIPPED="$(printf '%s' "$CMD" \
 CLEAN="$(printf '%s' "$STRIPPED" | sed -E 's/[0-9]?>&[0-9]//g; s/[0-9]>[[:space:]]*\/dev\/null//g; s/&>[[:space:]]*\/dev\/null//g')"
 
 MUTATING=0
-printf '%s' "$CLEAN" | grep -qE '(^|[;&|`(]|[[:space:]])(rm|mv|cp|mkdir|rmdir|touch|ln|chmod|chown|dd|truncate|install|tee|patch|unlink)([[:space:]]|$)' && MUTATING=1
-printf '%s' "$CLEAN" | grep -qE 'sed([[:space:]]+-[a-zA-Z]+)*[[:space:]]+-i|perl[[:space:]]+-[a-zA-Z]*i' && MUTATING=1
+< <(printf '%s' "$CLEAN") grep -qE '(^|[;&|`(]|[[:space:]])(rm|mv|cp|mkdir|rmdir|touch|ln|chmod|chown|dd|truncate|install|tee|patch|unlink)([[:space:]]|$)' && MUTATING=1
+< <(printf '%s' "$CLEAN") grep -qE 'sed([[:space:]]+-[a-zA-Z]+)*[[:space:]]+-i|perl[[:space:]]+-[a-zA-Z]*i' && MUTATING=1
 # Git splits in two. Moving work FORWARD (add, commit, push, tag) is orchestrator
 # duty and stays with Fable. Anything that rewrites or discards existing state is
 # hands-on repair work and is delegated.
-printf '%s' "$CLEAN" | grep -qE 'git[[:space:]]+(rm|mv|checkout|switch|restore|reset|revert|merge|rebase|stash|apply|cherry-pick|init|clean|config|filter-branch)' && MUTATING=1
-printf '%s' "$CLEAN" | grep -qE '(npm|pnpm|yarn|pip|pip3|uv|cargo|gem|brew)[[:space:]]+(install|add|remove|uninstall|publish|link)' && MUTATING=1
-printf '%s' "$CLEAN" | grep -qE '>>?' && MUTATING=1
+< <(printf '%s' "$CLEAN") grep -qE 'git[[:space:]]+(rm|mv|checkout|switch|restore|reset|revert|merge|rebase|stash|apply|cherry-pick|init|clean|config|filter-branch)' && MUTATING=1
+< <(printf '%s' "$CLEAN") grep -qE '(npm|pnpm|yarn|pip|pip3|uv|cargo|gem|brew)[[:space:]]+(install|add|remove|uninstall|publish|link)' && MUTATING=1
+< <(printf '%s' "$CLEAN") grep -qE '>>?' && MUTATING=1
 
 [ "$MUTATING" -eq 0 ] && exit 0
 
@@ -195,9 +195,9 @@ if [ -z "$PATHS" ]; then
 fi
 while IFS= read -r p; do
   [ -z "$p" ] && continue
-  if ! printf '%s' "$p" | grep -qE "$ALLOW_RE"; then
+  if ! < <(printf '%s' "$p") grep -qE "$ALLOW_RE"; then
     deny_and_exit "MODEL ROLE GUARD: Fable orchestrates and reviews; it does not edit files. '${p}' is not a plan, spec, or review artifact. ${DELEGATE}"
   fi
-done <<< "$PATHS"
+done < <(printf '%s\n' "$PATHS")
 
 exit 0

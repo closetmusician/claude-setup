@@ -78,14 +78,14 @@ Determine the PRD file path:
 - Use AskUserQuestion ONCE to confirm which file to review:
   ```
   Which PRD should I review?
-  A) [most recent .md file found]
-  B) [second most recent]
-  C) Other — provide path
-  D) The PRD is the text I pasted in this conversation
+  - Review [most recent .md file found]
+  - Review [second most recent]
+  - Give another path
+  - Review the PRD I pasted in this conversation
   ```
 
 **Escape hatches — never hard-stop for lack of a path:** search finds nothing → ask
-once for the path (options C/D only). User pasted the PRD in conversation (or picks D)
+once for the path (offer only "Give another path" and "Review the PRD I pasted"). User pasted the PRD in conversation (or picks the pasted option)
 → write it to `.prd-review/<slug>/prd-under-review.md` and review that file (subagents
 need a file path); say so in the final report header.
 
@@ -207,10 +207,10 @@ PREMISE N: [Concrete claim]
 Evidence: [Quote or "none — assumed"]
 Risk if wrong: [What breaks]
 
-A) Correct as stated — no change needed
-B) [Suggested adjustment 1 — your best guess at how this premise might be wrong]
-C) [Suggested adjustment 2 — a different way it could be wrong]
-D) Other — let me reframe this premise
+- Keep the premise as stated: no change needed
+- [Adjustment 1 as a plain verb phrase]: your best guess at how this premise might be wrong
+- [Adjustment 2 as a plain verb phrase]: a different way it could be wrong
+- Reframe it myself: free-text answer
 ```
 
 **Rules for per-premise questions:**
@@ -239,15 +239,15 @@ challenge resolution to `.prd-review/<slug>/premises.md` before moving on.
 
 **Escape hatches (offer as the LAST question after all premises):**
 ```
-A) Proceed to deep review with adjusted premises (Recommended)
-B) Go deeper — run /ceo-review for full strategic treatment first
+- Proceed to deep review (Recommended): uses the adjusted premises
+- Run /ceo-review first: full strategic treatment, then back to this review
 ```
 
-If user picks B: invoke the installed `ceo-review` skill via the Skill tool. After it
+If user picks /ceo-review: invoke the installed `ceo-review` skill via the Skill tool. After it
 completes, resume Phase 2 with any updated framing. (If the Skill call fails for any
-reason, say so and proceed with option A — do not stall the review.)
+reason, say so and proceed with the deep review — do not stall the review.)
 
-If user picks A: proceed to Phase 2.
+If user picks deep review: proceed to Phase 2.
 
 ---
 
@@ -538,9 +538,9 @@ for the answer, record it, then ask the next:
 Decision N of T: [Question]
 If deferred: [Concrete harm]
 
-A) [Option 1 — proposed by reviewer]
-B) [Option 2 — alternative]
-C) Defer — accept the risk described above
+- [Plain verb phrase for the reviewer's option]: what happens, one gain, one cost
+- [Plain verb phrase for the alternative]: what happens, one gain, one cost
+- Defer the decision: accept the risk described above
 ```
 
 Rules:

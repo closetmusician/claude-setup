@@ -33,7 +33,7 @@ LAST_ASSISTANT=$(tail -"$WINDOW_SIZE" "$TRANSCRIPT" 2>/dev/null | jq -rs '
 
 # ── Promise detection ────────────────────────────────────────────────────────
 PROMISE_REGEX="(I'?ll |I will |let me know when|next I|once you)"
-if ! echo "$LAST_ASSISTANT" | grep -qiE "$PROMISE_REGEX"; then
+if ! < <(echo "$LAST_ASSISTANT") grep -qiE "$PROMISE_REGEX"; then
   # No future-work promise — nothing to warn about.
   exit 0
 fi
@@ -51,7 +51,7 @@ HAS_ARTIFACT=0
 TOOL_USES=$(tail -"$WINDOW_SIZE" "$TRANSCRIPT" 2>/dev/null | jq -r '
   select(.type=="assistant") | .message.content // []
   | map(select(.type=="tool_use") | .name) | .[]' 2>/dev/null | tr '\n' ' ')
-if echo "$TOOL_USES" | grep -qiE '(Write|Edit|Bash)'; then
+if < <(echo "$TOOL_USES") grep -qiE '(Write|Edit|Bash)'; then
   HAS_ARTIFACT=1
 fi
 
@@ -60,7 +60,7 @@ if [[ "$HAS_ARTIFACT" -eq 0 ]]; then
   TOOL_RESULTS=$(tail -"$WINDOW_SIZE" "$TRANSCRIPT" 2>/dev/null | jq -r '
     select(.type=="user") | .message.content // []
     | map(select(.type=="tool_result") | .content) | .[]' 2>/dev/null)
-  if echo "$TOOL_RESULTS" | grep -qiE "$ARTIFACT_REGEX"; then
+  if < <(echo "$TOOL_RESULTS") grep -qiE "$ARTIFACT_REGEX"; then
     HAS_ARTIFACT=1
   fi
 fi
@@ -69,13 +69,13 @@ fi
 # assistant message text itself. A message that contains evidence alongside a
 # promise is NOT an idle-promise — it has accompanying work output.
 if [[ "$HAS_ARTIFACT" -eq 0 ]]; then
-  if echo "$LAST_ASSISTANT" | grep -qiE "$ARTIFACT_REGEX"; then
+  if < <(echo "$LAST_ASSISTANT") grep -qiE "$ARTIFACT_REGEX"; then
     HAS_ARTIFACT=1
   fi
 fi
 if [[ "$HAS_ARTIFACT" -eq 0 ]]; then
   # A fenced code block (``` ... ```) in the final text is treated as evidence.
-  if echo "$LAST_ASSISTANT" | grep -qF '```'; then
+  if < <(echo "$LAST_ASSISTANT") grep -qF '```'; then
     HAS_ARTIFACT=1
   fi
 fi

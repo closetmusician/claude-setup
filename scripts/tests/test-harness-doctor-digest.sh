@@ -16,14 +16,14 @@ check() {
   local name="$1" expected="$2" actual="$3"
   if [[ "$expected" == "contains:"* ]]; then
     local needle="${expected#contains:}"
-    if echo "$actual" | grep -qF "$needle"; then
+    if grep -qF "$needle" < <(printf "%s\n" "$actual"); then
       echo "PASS: $name"; PASS=$((PASS+1))
     else
       echo "FAIL: $name — expected to contain '$needle', got: $(echo "$actual" | head -5)"; FAIL=$((FAIL+1))
     fi
   elif [[ "$expected" == "not_contains:"* ]]; then
     local needle="${expected#not_contains:}"
-    if echo "$actual" | grep -qF "$needle"; then
+    if grep -qF "$needle" < <(printf "%s\n" "$actual"); then
       echo "FAIL: $name — expected NOT to contain '$needle'"; FAIL=$((FAIL+1))
     else
       echo "PASS: $name"; PASS=$((PASS+1))
@@ -165,14 +165,15 @@ JSONL
 # counted in the "guard blocks" headline, inflating the production signal.
 # With the fix, synthetic events are reported separately as "(+N synthetic/test)".
 T9_DIR="$TMP/case9"
+NOW_TS=$(date -u -v-1H +%Y-%m-%dT%H:%M:%S.000Z)  # inside the 7-day window whatever today is
 mkdir -p "$T9_DIR/state/state" "$T9_DIR/projects/proj9" "$T9_DIR/state"
 {
   # Real block (real session_id)
-  jq -cn '{"ts":"2026-07-04T22:00:00.000Z","schema":1,"session_id":"real-session-abc","event_type":"trust_decision","source":"completion-claim-guard.sh","project":"test","payload":{},"outcome":"denied"}'
+  jq -cn '{"ts":"'"$NOW_TS"'","schema":1,"session_id":"real-session-abc","event_type":"trust_decision","source":"completion-claim-guard.sh","project":"test","payload":{},"outcome":"denied"}'
   # Synthetic block (session_id="unknown" — emitted by test suite)
-  jq -cn '{"ts":"2026-07-04T21:00:00.000Z","schema":1,"session_id":"unknown","event_type":"trust_decision","source":"completion-claim-guard.sh","project":"test","payload":{},"outcome":"denied"}'
+  jq -cn '{"ts":"'"$NOW_TS"'","schema":1,"session_id":"unknown","event_type":"trust_decision","source":"completion-claim-guard.sh","project":"test","payload":{},"outcome":"denied"}'
   # Another synthetic (session_id="test")
-  jq -cn '{"ts":"2026-07-04T20:00:00.000Z","schema":1,"session_id":"test","event_type":"trust_decision","source":"completion-claim-guard.sh","project":"test","payload":{},"outcome":"denied"}'
+  jq -cn '{"ts":"'"$NOW_TS"'","schema":1,"session_id":"test","event_type":"trust_decision","source":"completion-claim-guard.sh","project":"test","payload":{},"outcome":"denied"}'
 } > "$T9_DIR/state/state/events.ndjson"
 make_transcript "hello" "hi" > /dev/null  # just need a transcript for canary
 T9_TRANSCRIPT=$(make_transcript "hello" "hi")
@@ -307,6 +308,31 @@ out9=$(CLAUDE_DIR="$T9_DIR" STATE_DIR="$T9_DIR/state" TRANSCRIPT_DIR="$T9_DIR/pr
 # Should show "1 this week" (real) with "(+2 synthetic/test)" annotation
 check "9a real block count is 1 (not 3)" "contains:Guard blocks: 1 this week" "$out9"
 check "9b synthetic annotation present" "contains:synthetic/test" "$out9"
+
+echo ""
+# Case 10: lint flags `echo|printf ... | grep -q` in a hook script that runs under pipefail
+echo "--- Case 10: pipefail grep -q lint ---"
+T10_DIR="$TMP/case10"
+mkdir -p "$T10_DIR/state/state" "$T10_DIR/projects" "$T10_DIR/hooks" "$T10_DIR/.githooks"
+cat > "$T10_DIR/hooks/bad.sh" <<'SH'
+set -euo pipefail
+if echo "$X" | grep -q foo; then :; fi
+if printf '%s' "$X" | tr a b | grep -q foo; then :; fi
+if grep -q foo < <(echo "$X"); then :; fi
+SH
+cat > "$T10_DIR/hooks/nopipefail.sh" <<'SH'
+if echo "$X" | grep -q foo; then :; fi
+SH
+printf 'set -o pipefail\nif echo "$X" | grep -q foo; then :; fi\n' > "$T10_DIR/.githooks/pre-commit"
+echo '{"hooks":{"PreToolUse":[{"hooks":[{"command":"bash '"$T10_DIR"'/hooks/bad.sh"},{"command":"bash '"$T10_DIR"'/hooks/nopipefail.sh"}]}]}}' > "$T10_DIR/settings.json"
+out10=$(CLAUDE_DIR="$T10_DIR" STATE_DIR="$T10_DIR/state" TRANSCRIPT_DIR="$T10_DIR/projects" \
+  EVENTS_FILE="$T10_DIR/state/state/events.ndjson" DIGEST_FILE="$T10_DIR/state/weekly-digest.md" \
+  bash "$DOCTOR" 2>&1 || true)
+check "10a echo|grep -q flagged in settings hook" "contains:bad.sh:2" "$out10"
+check "10b printf|tr|grep -q flagged" "contains:bad.sh:3" "$out10"
+check "10c process-substitution form not flagged" "not_contains:bad.sh:4" "$out10"
+check "10d script without pipefail not flagged" "not_contains:nopipefail.sh:" "$out10"
+check "10e .githooks script flagged" "contains:pre-commit:2" "$out10"
 
 echo ""
 echo "harness-doctor-digest: $PASS passed, $FAIL failed"

@@ -50,7 +50,7 @@ _has_acceptance_items() {
   # Check that there is at least one non-empty acceptance list item (lines starting with "  - ").
   grep -E '^[[:space:]]*-[[:space:]]+".+"|^[[:space:]]*-[[:space:]]+[^#[:space:]]' "$FM_FILE" 2>/dev/null \
     | grep -v '^\s*#' \
-    | grep -q . 2>/dev/null
+    | grep . >/dev/null 2>/dev/null
 }
 
 # Extract frontmatter to a temp file

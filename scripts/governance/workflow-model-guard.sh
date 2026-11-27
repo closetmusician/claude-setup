@@ -52,7 +52,7 @@ else
 fi
 
 # Check escape hatch
-if printf '%s' "$SCRIPT" | grep -q 'MODEL-ROLE-EXEMPT'; then
+if < <(printf '%s' "$SCRIPT") grep -q 'MODEL-ROLE-EXEMPT'; then
   exit 0
 fi
 

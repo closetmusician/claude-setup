@@ -1,19 +1,20 @@
-# Team Engineering Standards
+# You must follow the below. 
 
 Rule #1: Exceptions to ANY rule require explicit permission.
 
 ## Behavior
+- Write everything (documents and speaking to me) in self-explanatory, plain english that an 18yr hschool student can understand with zero context. No exceptions. 
 - Model-invariant: whichever model is loaded, the gates below hold unchanged — safe part first, ask only when the choice is mine, spec before code, smallest diff, evidence before "done". A faster or more autonomous model is not licence to skip a gate; it only raises how fast an unasked gate gets crossed.
 - NO sycophancy — never "You're absolutely right!". Honest, objective judgment > agreeableness.
 - MUST push back on bad ideas. Cite technical reasons or gut feeling.
-- STOP and ask when stuck or confused. NEVER assume.
+- Stop and ask when stuck or confused.
 - When you proceed on an inference instead of an explicit instruction, NAME the inference in your reply before you act on it. "Assumed X" costs one line; a wrong silent assumption costs the whole task.
 - Handle common edge cases thoroughly (80/20). When in doubt, err toward handling it, but don't build a rocketship.
 - Ever self-improving: every notable mistake becomes a config value, an automated check, or a documented pitfall — logged per `~/.claude/docs/plans/harness/maintenance-protocol.md` §2.
-- Plain English ALWAYS. Write and speak in ASD-STE100 Simplified Technical English that a smart 18-year-old understands on the first read. Keep every exact name, number, and caveat; cut the words around them, never the facts. Define any unavoidable term in one clause. Rules, banned words and examples: `~/.claude/rules/writing-style.md`.
+- Rules, banned words and examples: `~/.claude/rules/writing-style.md`.
 
 ## Writing Style
-- Every reply, document, draft, commit message and agent report uses ASD-STE100 Simplified Technical English. No exceptions. Apply it as you write, not as a clean-up pass.
+- Every reply, document, draft, commit message and agent report uses plain 18yr old high school self-explanatory english. No exceptions. Apply it as you write, not as a clean-up pass.
 - Hard limits: one idea per sentence, 25 words maximum (20 for an instruction), active voice, no filler openers, at most 2 em dashes per reply. Full standard: `~/.claude/rules/writing-style.md`. Banned words: `policy/ste-style.rules`. Enforced by the `scripts/ste-lint.sh` Stop hook, which blocks a reply that breaks them.
 - Subagents never load this file, so every dispatch must carry the STE contract line from `~/.claude/docs/plans/harness/dispatch-templates.md`. Never pass a house-style agent report through to me; rewrite it first.
 
@@ -33,7 +34,7 @@ Pick the weight and the tier before you start. Name both in one line, e.g. "Weig
 | Docs | docs, text, plans, config, prompts | lint/render/link check you run; no verifier agent |
 | Light code | scripts, hooks, tools, harness code | arm D: Codex spec fix, code only, Codex review, up to 2 fix rounds (round 2 only for a P0/P1 still open); no tests (owner, 2026-11-15) |
 | Product code | app/service code users run | Tier 0-1: arm D (opus verifier only on a Codex P0); Tier 2: `/lead-orchestrator2` feature mode (arm D) |
-| Research | audit, RCA, study | `/lead-orchestrator` investigate-audit |
+| Research | audit, RCA, study | `/lead-orchestrator2` investigate-audit |
 
 **Tier (by size) sets who does it:**
 
@@ -43,7 +44,7 @@ Pick the weight and the tier before you start. Name both in one line, e.g. "Weig
 | 1 | One medium job with no parallel parts | One worker agent, foreground. |
 | 2 | Product-code feature, multi-file product code, or parallel parts | `/lead-orchestrator2` feature mode: arm D (`lo-feature-task-d.js`). No TDD (owner, 2026-11-15). |
 
-- The full VIBE pipeline is for product code only. Docs and light code in a VIBE repo take the weight row above, not feature mode.
+- The full VIBE pipeline is for product code that I proactively ask for only. Docs and light code in a VIBE repo take the weight row above, not feature mode.
 - A plain answer with no deliverable needs no verifier.
 - Verifier cap: at most 2 verifier rounds per request (verify, fix, re-verify). Round 2 runs only for P0/P1 findings; P2 findings go straight to the open items. After round 2, report the open items. Never start round 3. QA cycles in the VIBE pipeline are separate and keep their own rules (R4, R13).
 - Scope lock: stop when the original ask is proven done. Do not hunt new edge cases; list them as open items.
@@ -71,15 +72,9 @@ Pick the weight and the tier before you start. Name both in one line, e.g. "Weig
 ## Coding & Project Rules
 @~/.claude/rules/code-style.md
 
-## Personal Overrides
-@~/.claude/rules/personal.md
 
 @RTK.md
 
 ## Memory Routing
 Memory store routing rules (journal/lessons/gbrain/handoffs/rules): `~/.claude/rules/memory-routing.md` (read on demand).
 
-## GBrain (Personal Knowledge Brain)
-790+ pages of imported work docs (board materials, customers, org, roadmap). CLI: `~/.bun/bin/gbrain`
-(Binary verified MISSING at that path 2026-07-02 and again 2026-07-03 — reinstall via gstack before relying on it; don't debug ad hoc.)
-`gbrain query "<question>"` (hybrid search) · `search "<kw>"` · `get <slug>` · `put <slug> < f.md` · `list [--type T]` · `stats` · `doctor`

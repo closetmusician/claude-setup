@@ -201,9 +201,9 @@ Exploration parallelizes by **(repo, cluster)** pair — no hard cap (3 repos ×
 **If source repos were skipped (interactive checklist-only):** skip Steps 4-5 entirely; story generation runs on PRD + PM judgment.
 
 **4c — Non-blocking verification:** do NOT poll file counts, wait for stragglers, or block until 100%.
-1. Wait ~30 seconds, then run ONE check: `ls docs/.eng-planning/{feature_id}/summary-*.md | wc -l`
+1. Let agent completion notices wake you; do not sleep or poll. On each notice, count `ls docs/.eng-planning/{feature_id}/summary-*.md | wc -l`.
 2. **≥50% of expected summaries** → proceed immediately (late output = bonus context; Step 7 catches gaps).
-3. **<50%** → wait 60 more seconds, re-check ONCE. Still <50% → interactive: AskUserQuestion (proceed partial / wait once more / abort); headless: proceed, set `partial_coverage: true`, list missing clusters in the stories-doc appendix. Never loop-poll silently.
+3. **<50% after every explorer has returned** → interactive: AskUserQuestion (proceed partial / abort); headless: proceed, set `partial_coverage: true`, list missing clusters in the stories-doc appendix. A fallback check, if you need one, waits 5 minutes or longer.
 4. Spawn a background sonnet agent to merge per-cluster files into `explorer-report.md` + `behavioral-inventory.md` — audit artifacts only; Step 6 never blocks on them.
 
 **Checkpoint:** `last_completed_step: "4"`

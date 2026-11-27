@@ -1,6 +1,6 @@
 ---
 name: lead-orchestrator
-description: Tier 2 only (CLAUDE.md task size tiers). Coordinates teams of parallel subagents for feature builds, backlog burn-downs, codebase/doc audits, and live-site debugging — with a mandatory check, sized by work weight (docs, light code, product code, research), that RE-RUNS the work before any completion claim reaches the user. Four modes — feature (full TDD/QA pipeline), backlog (light), investigate-audit (fan-out + synthesize), live-debug (reproduce → fix → re-verify). Use when the user says "orchestrate", "act as orchestrator", "spawn agent teams", "max parallel subagents", "work through the backlog", "fan out N agents", or asks to execute a plan/wave file. NOT for Tier 0/1 work: a small fix (1-2 files, no new behaviour) runs RED then GREEN in the session, and one medium job gets one worker, and NOT for non-engineering content synthesis with nothing to verify (plain parallel Task calls suffice).
+description: OPT-IN ONLY. Run this skill only when the user types /lead-orchestrator by name or asks for the TDD pipeline by name. For every other orchestrate, fan-out, backlog, audit, live-debug or plan-execution ask, use lead-orchestrator2 instead (the default since 2026-11-17, owner). This is the older TDD/VIBE pipeline with four modes: feature, backlog, investigate-audit and live-debug. Its templates and gate scripts stay here because lead-orchestrator2 reuses them.
 ---
 
 # Lead Orchestrator
@@ -16,7 +16,7 @@ Orchestrator tools: Task (spawn) · Read/Grep/Glob (gate checks, digests) · Wri
 ## Step 0 — Pick Mode + Parameters (announce both in your first message)
 
 ### Weight and tier check (before mode routing)
-Name the weight and tier first (CLAUDE.md "Task size tiers"). This skill is Tier 2. A Tier 0 or Tier 1 ask leaves the skill.
+Name the weight and tier first (CLAUDE.md "Task size tiers"). CLAUDE.md sends Tier 2 to lead-orchestrator2. This skill runs only when the owner names it or asks for TDD. A Tier 0 or Tier 1 ask leaves the skill.
 
 | Weight | In this skill |
 |---|---|
@@ -25,7 +25,7 @@ Name the weight and tier first (CLAUDE.md "Task size tiers"). This skill is Tier
 | Product code | `feature` mode, full pipeline, no shortcuts |
 | Research (audit, RCA, study) | `investigate-audit` |
 
-- A small product fix (1-2 files, no new behaviour) is Tier 0: the session runs RED then GREEN itself, then spawns one opus verifier.
+- A small product fix (1-2 files, no new behaviour) is Tier 0. It leaves the skill and follows CLAUDE.md (arm D), unless the owner asked for TDD on it.
 - A mixed ask splits by weight: the product-code tasks go to `feature`, the rest to `backlog`.
 
 ### Mode routing (first match wins)

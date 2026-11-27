@@ -75,33 +75,33 @@ deny_and_exit() {
 
 # 1. git add -A / git add --all / git add . (should use specific file names)
 #    Match "git add -A", "git add --all", "git add .", and common variants like "git add -a".
-if echo "$STRIPPED" | grep -qE '\bgit\s+add\s+(-A\b|--all\b|\.\s*(;|$|&&|\|))'; then
+if < <(echo "$STRIPPED") grep -qE '\bgit\s+add\s+(-A\b|--all\b|\.\s*(;|$|&&|\|))'; then
   deny_and_exit "Banned: 'git add -A' / 'git add --all' / 'git add .' -- use specific file names instead. Run 'git status' first to review what will be staged."
 fi
 
 # 2. --no-verify on any git command
-if echo "$STRIPPED" | grep -qE '\bgit\b.*--no-verify\b'; then
+if < <(echo "$STRIPPED") grep -qE '\bgit\b.*--no-verify\b'; then
   deny_and_exit "Banned: '--no-verify' skips git hooks. Remove the flag and let hooks run."
 fi
 
 # 3. git push --force / git push -f (dangerous force push)
 #    Allow --force-with-lease (the safe alternative).
-if echo "$STRIPPED" | grep -qE '\bgit\s+push\s+.*(-f\b|--force\b)'; then
-  if ! echo "$CMD" | grep -qE '\bgit\s+push\s+.*--force-with-lease\b'; then
+if < <(echo "$STRIPPED") grep -qE '\bgit\s+push\s+.*(-f\b|--force\b)'; then
+  if ! < <(echo "$CMD") grep -qE '\bgit\s+push\s+.*--force-with-lease\b'; then
     deny_and_exit "Banned: 'git push --force' is destructive. Use '--force-with-lease' or rethink the push."
   fi
 fi
 
 # 4. git reset --hard (destructive)
-if echo "$STRIPPED" | grep -qE '\bgit\s+reset\s+.*--hard\b'; then
+if < <(echo "$STRIPPED") grep -qE '\bgit\s+reset\s+.*--hard\b'; then
   deny_and_exit "Banned: 'git reset --hard' discards changes permanently. Consider 'git stash' or a safer alternative."
 fi
 
 # 5. git checkout -- . / git restore . (discard all changes)
-if echo "$STRIPPED" | grep -qE '\bgit\s+checkout\s+--\s+\.\s*(;|$|&&|\|)'; then
+if < <(echo "$STRIPPED") grep -qE '\bgit\s+checkout\s+--\s+\.\s*(;|$|&&|\|)'; then
   deny_and_exit "Banned: 'git checkout -- .' discards all unstaged changes. Be specific about which files to restore."
 fi
-if echo "$STRIPPED" | grep -qE '\bgit\s+restore\s+\.\s*(;|$|&&|\|)'; then
+if < <(echo "$STRIPPED") grep -qE '\bgit\s+restore\s+\.\s*(;|$|&&|\|)'; then
   deny_and_exit "Banned: 'git restore .' discards all unstaged changes. Be specific about which files to restore."
 fi
 
@@ -114,7 +114,7 @@ PROTECTED_FILES=(
   "CLAUDE.md"
 )
 for pf in "${PROTECTED_FILES[@]}"; do
-  if echo "$STRIPPED" | grep -qE "(rm|git\s+rm)\s.*$pf"; then
+  if < <(echo "$STRIPPED") grep -qE "(rm|git\s+rm)\s.*$pf"; then
     deny_and_exit "Banned: '$pf' is a protected file (see ~/.claude/rules/protected-files.md). Cannot delete."
   fi
 done
@@ -123,7 +123,7 @@ done
 #    Claude Code's built-in permission prompt handle the actual approval gate.
 #    Previous behavior: hard deny (exit 2) which could not be overridden even
 #    after the user approved. Now: advisory message, no block.
-if echo "$STRIPPED" | grep -qE '\bgh\s+pr\s+create\b'; then
+if < <(echo "$STRIPPED") grep -qE '\bgh\s+pr\s+create\b'; then
   echo "git-safety-hook: 'gh pr create' detected — Claude Code will prompt for approval." >&2
 fi
 

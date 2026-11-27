@@ -1,7 +1,7 @@
 ## Design Philosophy
 - YAGNI: no code > code. Extensibility only when it doesn't conflict. No error handling for scenarios that cannot occur (80/20 edge-case rule in CLAUDE.md still governs real cases).
 - BUILD METHOD = arm D (owner, 2026-11-15): Codex fixes the design against the requirements → code only → Codex review, one row per REQ → up to 2 fix rounds (P0/P1 with a repro; round 2 only for a P0/P1 still open). No failing-test-first and no new tests unless the owner asks for them on that job. Evidence: product-ai-tools `apps/progress-tracking/docs/research/tdd-audit-2026-11-14/results-4arm.md`.
-- Multi-step tasks: state a brief plan with a verification per step ("do X → verify: Y"). Turn vague asks into verifiable goals ("fix the bug" → "write a test that reproduces it, make it pass").
+- Multi-step tasks: state a brief plan with a verification per step ("do X → verify: Y"). Turn vague asks into verifiable goals ("fix the bug" → "reproduce it, fix it, show it no longer reproduces"; write a test only when the owner asks).
 - DRY: flag repetition aggressively.
 - Explicit > clever. "Engineered enough" — not fragile, not over-abstracted.
 - Size self-check before handing code back: if it could be half the lines and still read clearly, rewrite it. Ask "would a senior engineer call this overcomplicated?" — if yes, simplify.

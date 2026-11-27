@@ -2028,7 +2028,7 @@ print(json.dumps(arr))
     touched_files="$(grep -E '^(\+\+\+|---) ' "$diff_file" | grep -v '/dev/null' | sed 's|^[+-][+-][+-] [ab]/||' || echo '')"
     local p
     for p in "${protected_patterns[@]}"; do
-      if printf '%s\n' "$touched_files" | grep -q "^$p"; then
+      if grep -q "^$p" < <(printf '%s\n' "$touched_files"); then
         echo "CORPUS_TAMPER: patch touches protected path '$p' — refusing" >&2
         exit 3
       fi
@@ -2612,7 +2612,7 @@ cmd_replay() {
 
       # Determine workdir for the guard
       local workdir="/tmp"
-      if [[ -n "$sentinel_cwd" ]] && printf '%s\n' "$step_json" | grep -q '"requires_sentinel"'; then
+      if [[ -n "$sentinel_cwd" ]] && grep -q '"requires_sentinel"' < <(printf '%s\n' "$step_json"); then
         workdir="$sentinel_cwd"
       fi
 

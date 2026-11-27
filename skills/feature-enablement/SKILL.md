@@ -1,13 +1,20 @@
 ---
 name: feature-enablement
-description: "Generates sales and customer success enablement materials from PRDs, designs, and competitive research. Produces a 7-section messaging foundation document (Command of Message, Solution, Personas, Positioning, Proof, Guardrails, Availability) as the source of truth, then derives downstream assets: battle cards, FAQs, competitive analysis, sales 1-pagers, and demo scripts. Use when a PM or product marketer wants to create enablement docs, sales collateral, battle cards, competitive positioning, demo scripts, or a messaging foundation for a feature — including phrases like 'create enablement docs', 'build a battle card', 'sales 1-pager', 'demo script', or 'competitive positioning'. Supports Confluence PRDs (via atlassian-connect), Gong calls, and Diligent Insider sessions as inputs. Commands: init, update, demo, add-competitor, roadmap."
+description: Use when a PM or product marketer needs sales or customer success enablement for a feature (messaging foundation, battle cards, FAQs, competitive positioning, sales 1-pagers, demo scripts), or when PRD details, Pendo usage evidence or Gong customer-call feedback must inform product messaging. Triggers include 'create enablement docs', 'build a battle card', 'sales 1-pager', 'demo script', 'competitive positioning'.
 ---
+# ABOUTME: Generates sales/CS enablement content from PRDs and designs
+# ABOUTME: Creates messaging foundation doc (7-section template) then derives downstream assets
+# ABOUTME: Auto-gathers Pendo problem sizing and Gong evidence; supports Insider sessions and competitive research
+# ABOUTME: Commands: init, update, evidence, demo, add-competitor, roadmap
+# ABOUTME: Last updated: 2026-11-25
 
 # Feature Enablement Generator
 
 Automates creation of sales and customer success enablement materials from PRDs, designs, and competitive research. 
 
 **New in v2.0:** Generates a **messaging foundation document** (Command of Message, Solution, Personas, Positioning, Proof, Guardrails, Availability) first, then derives all downstream assets from it (battle cards, FAQs, competitive analysis, roadmap docs).
+
+**New in v2.1:** An **evidence step** gathers Pendo problem sizing (when the PRD has none) and Gong call evidence (customer voice, field misconceptions, demand signal) automatically, so PMs confirm evidence instead of hunting for it.
 
 ## Usage
 
@@ -17,6 +24,9 @@ Automates creation of sales and customer success enablement materials from PRDs,
 
 # Update existing project with latest PRD/design changes
 /feature-enablement update
+
+# Refresh Pendo sizing and Gong evidence (runs automatically inside init/update)
+/feature-enablement evidence [--pendo] [--gong]
 
 # Generate demo materials (1-pager + demo script) with screenshots
 /feature-enablement demo
@@ -34,7 +44,7 @@ Automates creation of sales and customer success enablement materials from PRDs,
 
 The skill follows a **"PRD-First with PM Validation"** approach to minimize PM effort:
 
-1. **Extract First:** Read PRD, Gong calls, Insider sessions, Figma to extract answers for all 7 messaging foundation sections
+1. **Extract First:** Read PRD, the evidence files (Pendo sizing + Gong evidence, gathered automatically), Insider sessions, Figma to extract answers for all 7 messaging foundation sections
 2. **Propose Answers:** Present extracted content to PM with three options:
    - ✓ Use as-is
    - ✎ Enhance/clarify
@@ -48,12 +58,12 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
 
 | Messaging Section | PRD Sections Extracted From |
 |-------------------|------------------------------|
-| Command of Message | problem_statement, current_state, pain_points, goals, vision, success_criteria, business_case, context, market_analysis |
+| Command of Message | problem_statement, current_state, pain_points, goals, vision, success_criteria, business_case, context, market_analysis + Pendo sizing (only if PRD has none) + Gong demand signal (Why Now, only on ✓) |
 | Solution & Functionality | features, capabilities, functionality, scope, out_of_scope, future_work, limitations, integrations, related_products |
 | Personas | target_audience, ideal_customer, personas, user_types, use_cases |
 | Competitive Positioning | competitive_analysis, differentiation, positioning, alternatives, market_landscape |
-| Proof & Validation | success_metrics, customer_stories, beta_results, validation, proof_points + Gong/Insider transcripts |
-| Guardrails | risks, legal_notes, compliance, constraints, cautions (but always ask PM for internal sensitivities) |
+| Proof & Validation | success_metrics, customer_stories, beta_results, validation, proof_points + Gong Customer Voice + Insider transcripts |
+| Guardrails | risks, legal_notes, compliance, constraints, cautions + Gong Field Check (Known Field Misconceptions) (but always ask PM for internal sensitivities) |
 | Availability | timeline, phases, rollout, launch_plan, pricing, packaging, entitlement |
 
 ---
@@ -76,7 +86,6 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
    - PRD URL (Confluence page URL)
    - Figma design links (optional, comma-separated)
    - Target competitors (optional, comma-separated - e.g., "Convene, OnBoard, Board Intelligence")
-   - **Gong call links** (optional, comma-separated URLs - for customer validation)
    - **Diligent Insider session transcripts/links** (optional - for proof points)
    - **Pricing/packaging details** (optional, can be TBD)
    - Project path (where to create docs, default: `~/feature-enablement-<feature-slug>`)
@@ -128,25 +137,27 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
    - Save HTML to `prd-content.html`
    - Save metadata to `prd-metadata.txt`
 
-5. **Fetch validation sources** (if provided):
-   - **Gong calls:** Fetch transcripts via URL (if accessible)
-   - **Insider sessions:** Fetch transcripts/notes via URL
+5. **Gather evidence and fetch validation sources:**
+   - **Pendo sizing + Gong evidence:** Run the `/feature-enablement evidence` process (see below). It confirms search scope with the PM in one message (this replaces asking for Gong call links), then writes `assets/validation/pendo-sizing.md` and `assets/validation/gong-evidence.md`
+   - **Insider sessions:** Fetch transcripts/notes via URL (if provided)
    - Extract customer quotes, pain points, outcomes
    - **Anonymize by default:** Replace company/individual names with "[Industry] company in [Region]", "[Role]"
    - Save to `assets/validation/` with anonymization applied
 
 6. **Extract messaging foundation from source documents, then validate with PM:**
    
-   **Phase 1: Extraction** (from PRD, Gong calls, Insider sessions, Figma)
+   **Phase 1: Extraction** (from PRD, evidence files, Insider sessions, Figma)
    
-   Read and analyze all source documents to extract answers:
+   Read and analyze all source documents to extract answers. Read the evidence files in `assets/validation/`, not the sub-agents' chat replies. Ignore any evidence file whose `Status:` is `unavailable` (and say so in the summary):
    
    - **Command of Message:**
      - Current state: Extract pain points, current workflows, what users tolerate today
+     - Problem size: If `pendo-sizing.md` has `Status: measured` and a proposed claim, propose that claim with its inline source tag, e.g. `[Pendo, Aug–Oct 2026, base: 2,700 enabled accts]`. The PM confirms both the **proxy** and the number in Phase 2; save the confirmed proxy ID to `prd-metadata.txt` as `Pendo_Proxy:`
+     - Customer pain: Add Gong **Customer Voice** pain quotes (already anonymised)
      - Risks & consequences: Extract cost/time/risk statements from PRD problem statement
      - Desired future state: Extract from PRD goals, vision, success criteria
      - Business outcomes: Extract metrics from PRD (time savings, error reduction, etc.)
-     - Why now: Extract from PRD context, market analysis, competitive pressure sections
+     - Why now: Extract from PRD context, market analysis, competitive pressure sections. Propose the Gong **Demand Signal** (with its caveats and source tag `[Gong, <Mon–Mon YYYY>, <n> calls]`) as a separate item; it goes into Why Now only if the PM ticks ✓
    
    - **Solution & Functionality:**
      - Core capabilities: Extract from PRD features section → populate capabilities table
@@ -162,13 +173,14 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
      - Draft positioning statement using extracted differentiators
    
    - **Proof & Validation:**
-     - Extract customer quotes from Gong calls/Insider sessions (auto-anonymize)
+     - Use Gong **Customer Voice** outcome quotes (already anonymised; never copy their call links downstream) and extract quotes from Insider sessions (auto-anonymize)
      - Extract metrics from PRD or validation sources
      - Identify if any customers are named (flag for approval check)
    
    - **Guardrails:**
      - Extract from PRD risks, legal notes, compliance sections
      - Check for claims that need substantiation
+     - **Known Field Misconceptions:** every Gong **Field Check** row tagged `contradicts PRD` becomes a row (claim → correct answer from the PRD → PRD section/line). Recurring objections feed the battle card. Do not copy Gong call links out of the evidence file.
    
    - **Availability:**
      - Extract from PRD timeline, phases, rollout plan sections
@@ -204,6 +216,7 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
    **Always ask (even if extracted):**
    - Guardrails (words to avoid, legal claims, sensitivities) - PM knows internal sensitivities PRD may not capture
    - Named customer approval - Explicit confirmation required
+   - "OK to use usage figures externally?" - Only if the doc contains Pendo or Gong figures. Default is no: internal figures stay in internal assets. Record the answer under Strategic Sensitivities
    
    **Result:** Messaging foundation populated with extracted content, enhanced where PM provided clarification, and gaps filled via targeted questions.
 
@@ -229,6 +242,11 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
    - **This becomes the source of truth for all downstream assets**
 
 9. **Generate downstream assets** (derived from messaging foundation):
+   
+   **Evidence rules for every downstream asset:**
+   - Each Known Field Misconception becomes an FAQ entry (asked the way the field asks it) and a battle-card objection row
+   - Pendo and Gong figures keep their source tags in internal assets (overview, battle card, FAQ). They appear in the customer-facing 1-pager only if the PM answered yes to "OK to use usage figures externally?"
+   - Gong call links never leave `assets/validation/gong-evidence.md`
    
    **a. Overview document:**
    - Parse messaging foundation
@@ -268,7 +286,7 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
 
 10. **Initialize git and push to GitHub:**
     - `git init` (if not already a repo)
-    - `git add -A && git commit -m "Initial enablement docs for <feature>"`
+    - `git add .claude/phase.json CLAUDE.md README.md messaging-foundation.md docs/ assets/ memory/ qa/ prd-content.html prd-metadata.txt && git commit -m "Initial enablement docs for <feature>"`
     - Use GitHub CLI to create repo: `gh repo create <feature-slug>-enablement-docs --private --source=. --push`
     - Return GitHub URL
 
@@ -287,8 +305,9 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
     - ✅ Sales battle card
     - ✅ FAQ (<N> questions)
     
-    Validation sources:
-    - 🎙️ Gong calls: <N> transcripts analyzed
+    Evidence & validation sources:
+    - 📊 Pendo sizing: <measured (confidence) | skipped: PRD has sizing | unavailable>
+    - 🎙️ Gong: <found | thin | unavailable> — <N> relevant calls, <M> transcripts read, <K> field misconceptions
     - 📝 Insider sessions: <N> sessions reviewed
     
     Next steps:
@@ -314,7 +333,8 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
 2. **Check for updates:**
    - Fetch latest Confluence page version
    - Compare to stored version in `prd-metadata.txt`
-   - If no changes: "PRD v<X> is current. No updates needed."
+   - If no changes and `Evidence_Last_Run` in `prd-metadata.txt` is `evidence.rerun_after_days` days old or less (or evidence is disabled in config): "PRD v<X> is current and evidence is fresh. No updates needed."
+   - If no changes but `Evidence_Last_Run` is more than `evidence.rerun_after_days` days old (or absent / `never`): skip steps 3–4, run the `/feature-enablement evidence` process, then continue at step 5 so the PM reviews the evidence diff before anything is regenerated
    - If changed: proceed
 
 3. **Fetch updated PRD:**
@@ -330,9 +350,10 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
      - Requirements modified
      - New personas/use cases
    - Log changes to `memory/prd-changelog.md`
+   - Run the `/feature-enablement evidence` process against the new PRD (Pendo re-measures `Pendo_Proxy`; Gong re-sweeps the full window and re-checks field claims against the new PRD)
 
 5. **Re-interview PM for updated sections** via `AskUserQuestion`:
-   - Present the detected changes
+   - Present the detected changes, plus the evidence diff (new field misconceptions, moved Pendo/Gong figures)
    - Ask which sections of messaging foundation need updates:
      - Command of Message (if value prop changed)
      - Solution & Functionality (if features added/removed)
@@ -351,7 +372,7 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
    - **Competitive analysis:** Re-check if new capabilities affect positioning
 
 7. **Git commit:**
-   - `git add -A && git commit -m "Update docs for PRD v<new> (was v<old>): <summary-of-changes>"`
+   - `git add messaging-foundation.md docs/ assets/validation/ memory/prd-changelog.md prd-content.html prd-metadata.txt && git commit -m "Update docs for PRD v<new> (was v<old>): <summary-of-changes>"`
    - `git push`
 
 8. **Summary:**
@@ -371,8 +392,72 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
    - docs/sales-kit/battle-card.md (added 2 new differentiators)
    - docs/sales-kit/faq.md (added 8 questions)
    
+   Evidence changes:
+   - New field misconceptions: <N>
+   - Pendo sizing: <old claim> → <new claim>
+   
    Commit: <sha>
    ```
+
+---
+
+### `/feature-enablement evidence`
+
+**Purpose:** Gather Pendo problem sizing and Gong call evidence into `assets/validation/`. Runs automatically inside `init` (step 5) and `update` (steps 2/4); run it on its own to refresh evidence without touching the PRD. Both sources run by default; a flag limits it to one.
+
+**Config:** `evidence` block in `config.yaml`. **Reference:** `references/evidence-sources.md` (Pendo app IDs, bases, dead tags, Gong search rules, noise products, feature renames). If `evidence.enabled` is false, or a source's `enabled` is false, skip it and note "disabled in config" in the summary.
+
+**Process:**
+
+1. **Confirm search scope** via ONE `AskUserQuestion` message (the only PM touchpoint this step adds; it replaces asking for Gong call links). Derive from the PRD and `references/evidence-sources.md`, and present for confirm/edit:
+   - Product/app scope (e.g. "Boards on Diligent One → BWA + BWD") → `Pendo_Apps`
+   - Gong search terms: feature name, aliases and old names (`## Feature renames`), plus 2–4 phrases describing the problem → `Gong_Terms`
+   - Gong window: last `evidence.gong.window_months` months ending today
+   - Optional: specific Gong call links that must be read in full → `Gong_Calls`
+   On `update` and standalone re-runs, reuse the stored `Pendo_Apps`, `Gong_Terms` and `Gong_Calls` from `prd-metadata.txt` and only ask if the PRD changed the feature's name or scope. **Recompute the Gong window** on every run as the last `window_months` months ending today; `Gong_Window` only records the window last used.
+
+2. **PRD sizing gate (Pendo):** check the PRD's problem statement, current state and business case for a quantified problem size (an account/user count, a percentage, or volume). If found, write `assets/validation/pendo-sizing.md` yourself:
+   ```
+   Status: skipped
+   Reason: PRD has sizing
+   PRD evidence: <quoted line and section>
+   Run: <ISO date>
+   ```
+   Don't send out the Pendo sub-agent. Extraction then uses the PRD figure, never a Pendo estimate.
+
+3. **Send out the sub-agents in parallel** (Agent tool, `general-purpose`, `model: "sonnet"`, one message with both calls). Read each prompt file, fill its `{{...}}` placeholders, and pass the result as the prompt:
+   - `prompts/gong-evidence.md` → writes `assets/validation/gong-evidence.md`
+   - `prompts/pendo-sizing.md` (unless the gate skipped it) → writes `assets/validation/pendo-sizing.md`
+   
+   Fill every placeholder with an **absolute path** or a literal value; sub-agents don't know the skill directory or the project directory:
+
+   | Placeholder | Value |
+   |---|---|
+   | `{{FEATURE_NAME}}` | Feature name from `prd-metadata.txt` `Title` |
+   | `{{PROJECT_PATH}}` | Absolute path of the enablement project |
+   | `{{PRD_PATH}}` | Absolute path of `prd-content.html` in the project |
+   | `{{REFERENCE_FILE}}` | `evidence.reference_file` resolved against the skill directory (`~/.claude/skills/feature-enablement/`), as an absolute path |
+   | `{{SEARCH_TERMS}}` | Confirmed `Gong_Terms` |
+   | `{{WINDOW_START}}` / `{{WINDOW_END}}` | The recomputed window (step 1), `YYYY-MM-DD` |
+   | `{{MUST_INCLUDE_CALLS}}` | `Gong_Calls`, or `none` |
+   | `{{CONFIG_GONG}}` / `{{CONFIG_PENDO}}` | The `evidence.gong` / `evidence.pendo` blocks from `config.yaml`, as YAML |
+   | `{{PENDO_APPS}}` | Confirmed `Pendo_Apps`, with app names and IDs |
+   | `{{PROBLEM_SUMMARY}}` | The PRD's problem statement / current state, quoted (2–6 sentences) |
+   | `{{CONFIRMED_PROXY}}` | `Pendo_Proxy` from `prd-metadata.txt`; leave empty if absent or `NONE` |
+
+   Sub-agents reply with one status line. **Read the files, not the replies.**
+
+4. **Failure handling:** a file with `Status: unavailable` (or a sub-agent that errors without writing its file) never blocks. Continue PRD-only for that source and warn in the summary. If Pendo finds no live candidate, the existing gap question for problem size is asked as before.
+
+5. **Compare with the previous run** (re-runs only): evidence files are replaced on each run, with the previous version in git history. Diff old and new: new `contradicts PRD` field claims, moved Pendo/Gong figures, status changes.
+
+6. **Review changed claims:** on `init`, the claims flow into extraction (step 6). On standalone runs, present only the **changed** claims through the ✓ use / ✎ enhance / ✗ replace step, then regenerate the affected messaging-foundation sections and downstream assets (same rules as `update` step 6).
+
+7. **Record metadata** in `prd-metadata.txt`: `Evidence_Last_Run` (today), `Gong_Terms`, `Gong_Window`, `Pendo_Apps`, and `Pendo_Proxy` once the PM confirms a proxy. Fill the template's **Pendo Sizing:** and **Gong Evidence:** source lines with the file paths, statuses and run date.
+
+8. **Surface reference updates:** list any "Proposed Reference Updates" from either file in the summary for the PM. Nobody edits `references/evidence-sources.md` automatically.
+
+9. **Git commit** (standalone runs): `git add assets/validation/ messaging-foundation.md docs/ prd-metadata.txt && git commit -m "Refresh evidence: <summary>"` then `git push`.
 
 ---
 
@@ -400,7 +485,7 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
    - Add competitive positioning to `docs/sales-kit/battle-card.md`
 
 4. **Git commit:**
-   - `git add -A && git commit -m "Add competitive analysis for <competitor>"`
+   - `git add messaging-foundation.md docs/ assets/competitive/ && git commit -m "Add competitive analysis for <competitor>"`
    - `git push`
 
 ---
@@ -445,6 +530,7 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
      - Customer proof (from Proof & Validation, anonymized)
      - Competitive differentiator (from Competitive Positioning)
      - CTA and availability
+   - **Evidence gate (customer-facing):** check the recorded answer to "OK to use usage figures externally?" under Strategic Sensitivities in the messaging foundation. Unless it is yes, leave out every source-tagged Pendo or Gong figure (`[Pendo, …]`, `[Gong, …]`) and restate the point qualitatively. If no answer is recorded, treat it as no. Gong call links never appear.
    - **HTML-specific features:**
      - Annotated screenshots with callout arrows (point to UI elements)
      - Competitive comparison table
@@ -474,7 +560,7 @@ The skill follows a **"PRD-First with PM Validation"** approach to minimize PM e
    - Save to `docs/enablement/demo-script.md`
 
 6. **Git commit:**
-   - `git add -A && git commit -m "Add demo materials (1-pager + script) with <N> screenshots"`
+   - `git add docs/sales-kit/ docs/enablement/ assets/demo/ && git commit -m "Add demo materials (1-pager + script) with <N> screenshots"`
    - `git push`
 
 7. **Summary:**
@@ -559,7 +645,7 @@ This becomes a 6-step Act 2 with screenshots mapped to each step.
      - Roadmap FAQ
 
 4. **Git commit:**
-   - `git add -A && git commit -m "Add future roadmap vision docs"`
+   - `git add docs/future-roadmap/ && git commit -m "Add future roadmap vision docs"`
    - `git push`
 
 ---
@@ -587,7 +673,7 @@ input_sources:
   
   customer_calls:
     - type: "gong"
-      prompt: "Gong call links (optional)"
+      prompt: "Must-include Gong call links (optional; other calls are found automatically)"
     - type: "insider_sessions"  # Change to your org's customer interview format
       prompt: "Customer session transcripts (optional)"
 
@@ -651,7 +737,14 @@ Launch_Tier: <Tier 1/2/3 or TBD>
 Pricing: <Details or TBD>
 Approved_References: <Company Name, Contact, Date | NONE (default)>
 Approved_Use_Cases: <case_study,battle_card,webinar | NONE (default)>
+Evidence_Last_Run: <ISO Date | never>
+Gong_Terms: <Comma-separated search terms, incl. old names>
+Gong_Window: <start–end>
+Pendo_Apps: <Comma-separated Pendo app IDs>
+Pendo_Proxy: <Confirmed Pendo entity ID | NONE>
 ```
+
+`Gong_Calls:` now holds only the optional must-include call links from the evidence scope confirmation.
 
 **Note:** `Approved_References` defaults to NONE. All customer references are anonymized unless explicit approval is documented here.
 
@@ -662,6 +755,8 @@ Approved_Use_Cases: <case_study,battle_card,webinar | NONE (default)>
 - **Atlassian API access:** Must run `/atlassian-connect` first
 - **GitHub CLI:** For creating/pushing repos
 - **Network access:** For WebFetch competitive research
+- **Pendo MCP:** For problem sizing (optional; skipped with a warning if unavailable)
+- **Glean MCP with Gong indexed:** For Gong evidence (optional; skipped with a warning if unavailable)
 
 ---
 
@@ -1110,7 +1205,6 @@ When processing Gong calls or Insider sessions:
 Potential future capabilities for this skill:
 
 - **Figma screenshot extraction:** Auto-capture design mockups for demo flows
-- **Customer quote integration:** Pull actual quotes from Salesforce/Gong calls
 - **ROI calculator generation:** Auto-create spreadsheet for time/cost savings
 - **Video script creation:** Generate demo scripts for InVideo-style walkthroughs
 - **Slack/Email templates:** Pre-written messages for sales outreach
@@ -1118,5 +1212,5 @@ Potential future capabilities for this skill:
 
 ---
 
-**Last Updated:** 2026-04-16
-**Version:** 1.0
+**Last Updated:** 2026-11-25
+**Version:** 2.1

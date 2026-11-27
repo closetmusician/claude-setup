@@ -1,7 +1,14 @@
+---
+# Loads only in VIBE repos (they hold .claude/phase.json, qa/ and docs/contracts/). Owner yes, 2026-11-26: saves ~2.7k tokens per session elsewhere.
+paths:
+  - "**/.claude/phase.json"
+  - "**/qa/**"
+  - "**/docs/contracts/**"
+---
 # VIBE Protocol — Hard Gates & Loop (quick reference)
 
 Applies ONLY in repos with `.claude/phase.json`. Full manual: `~/.claude/docs/vibe-manual.md`.
-Orchestration mechanics + prompt templates: `~/.claude/skills/lead-orchestrator/` (invoke the skill).
+Orchestration: invoke `lead-orchestrator2` (the default). Prompt templates and gate scripts live in `~/.claude/skills/lead-orchestrator/`.
 
 ## Context (branch → role mode)
 `main`/`master` = Management (PO / Architect / Orchestrator — never implement, R14).
@@ -10,7 +17,7 @@ Orchestration mechanics + prompt templates: `~/.claude/skills/lead-orchestrator/
 ## Hard Gates (non-negotiable)
 - **R0 Zero Assumption** — never guess requirements; AskUserQuestion until explicit.
 - **R1 Spec Wall** — no code without an approved spec in `docs/`.
-- **R2 Arm D build (owner, 2026-11-15; replaces TDD)** — Codex spec fix + gate, coder writes code only, Codex review with one row per REQ, up to 2 fix rounds (round 2 only for a P0/P1 still open). No RED step, no new tests unless the owner asks. Old text, kept for history: QA Test Writer commits acceptance tests RED first (sentinel `.gate-pre-coder`); Coder writes unit tests RED → minimal GREEN for both. No evidence & no TDD-EXEMPT ⇒ P0 reject.
+- **R2 Arm D build (owner, 2026-11-15; replaces TDD)** — Codex spec fix + gate, coder writes code only, Codex review with one row per REQ, up to 2 fix rounds (round 2 only for a P0/P1 still open). No RED step, no new tests unless the owner asks. Only when the owner asks for TDD on a job: QA Test Writer commits acceptance tests RED first (sentinel `.gate-pre-coder`); Coder writes unit tests RED → minimal GREEN for both.
 - **R3 Mock-First Parallelism** — FE mocks API responses conforming to contract; never block on BE.
 - **R4 QA cycles** — 2 documented passes (`full`) / 1 (`light`) before merge.
 - **R5 Phase Gates** — respect `.claude/phase.json`; no code until phase = BUILD.
@@ -63,8 +70,8 @@ Subagents MUST persist intermediates (notes, partial analyses, digests) to `docs
 
 ## Subagent models per role
 Explore / code-architect / coder / QA = **sonnet**; audit, garry-review, synthesis, final verification = **opus**. Override only on user request.
-Fable is for orchestration and review/critique ONLY — never implementation, never QA execution. Every spawn must name a `model`; an omitted one inherits the parent and is denied. Rule + escape hatches: `~/.claude/rules/model-roles.md`.
+Fable reviews and critiques only. It never chairs, implements or runs QA. Every spawn must name a `model`; an omitted one inherits the parent and is denied. Rule + escape hatches: `~/.claude/rules/model-roles.md`.
 
-## Roles, subagent/skill mapping, merge flow → lead-orchestrator skill (`~/.claude/skills/lead-orchestrator/SKILL.md`, feature mode = the full VIBE pipeline); escalation template → manual §11.
+## Roles, subagent/skill mapping, merge flow → lead-orchestrator2 skill (`~/.claude/skills/lead-orchestrator2/SKILL.md`; it copies these from lead-orchestrator); escalation template → manual §11.
 Debugging: `/investigate` first; `superpowers:systematic-debugging` only if that plugin is enabled.
 Output discipline each turn: state Phase, Role, Next Actions, Questions, Artifacts to Update.

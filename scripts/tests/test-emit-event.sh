@@ -248,7 +248,7 @@ echo "[g] 15 concurrent writers × 20 events = 300 lines, zero torn/corrupt line
 _fresh_events
 
 # Write a helper script each background job will run
-HELPER=$(mktemp /tmp/stress-helper-XXXXXX.sh)
+HELPER=$(mktemp "$TMPROOT/stress-helper.XXXXXX")
 cat > "$HELPER" << 'HELPER_SCRIPT'
 #!/usr/bin/env bash
 source "$1" 2>/dev/null || true
@@ -390,7 +390,7 @@ fi
 echo "[l] REQ-01 concurrency: 200 parallel 8KB+ payloads → 200 intact lines, 0 torn"
 _fresh_events
 
-STRESS_HELPER=$(mktemp /tmp/stress8k-XXXXXX.sh)
+STRESS_HELPER=$(mktemp "$TMPROOT/stress8k.XXXXXX")
 cat > "$STRESS_HELPER" << 'HSCRIPT'
 #!/usr/bin/env bash
 source "$1" 2>/dev/null || true
@@ -539,7 +539,7 @@ fi
 echo "[p] REQ-03 p95 latency < 15ms over 50 sequential sourced emits"
 _fresh_events
 
-P95_LOG=$(mktemp /tmp/p95-XXXXXX.log)
+P95_LOG=$(mktemp "$TMPROOT/p95.XXXXXX")
 cat > "$P95_LOG.runner.sh" << RUNNER
 #!/usr/bin/env bash
 SB="\$1"

@@ -69,7 +69,7 @@ if [[ -z "$CLAIM" ]]; then
 fi
 
 # If the last message contains no completion claim, nothing to check.
-if ! printf '%s' "$LAST" | grep -qiE "$CLAIM"; then
+if ! < <(printf '%s' "$LAST") grep -qiE "$CLAIM"; then
   exit 0
 fi
 

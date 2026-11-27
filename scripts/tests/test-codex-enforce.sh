@@ -31,7 +31,7 @@ echo "== nudge =="
 # 1. Codex trigger arms the sentinel and emits the directive.
 rm -f "$FLAG"
 out=$(run_nudge '{"prompt":"please run a codex adversarial review on my diff"}')
-[ -f "$FLAG" ] && printf '%s' "$out" | grep -q 'CODEX (hook)' && ok "codex prompt arms sentinel + emits directive" || bad "codex prompt should arm + emit"
+[ -f "$FLAG" ] && grep -q 'CODEX (hook)' < <(printf '%s' "$out") && ok "codex prompt arms sentinel + emits directive" || bad "codex prompt should arm + emit"
 
 # 2. Non-codex prompt disarms the sentinel and stays silent.
 date +%s > "$FLAG"
@@ -48,7 +48,7 @@ date +%s > "$FLAG"
 
 # 4. Claude/general agent doing the adversarial review → DENY.
 out=$(run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","prompt":"You are an adversarial auditor. Independently verify each claim and try to refute it."}}')
-printf '%s' "$out" | grep -q '"permissionDecision":"deny"' && ok "blocks Claude subagent imitating the review" || bad "should DENY Claude imitation"
+grep -q '"permissionDecision":"deny"' < <(printf '%s' "$out") && ok "blocks Claude subagent imitating the review" || bad "should DENY Claude imitation"
 
 # 5. Real codex agent → ALLOW.
 out=$(run_guard '{"tool_name":"Agent","tool_input":{"subagent_type":"codex:codex-rescue","prompt":"adversarial review of the diff"}}')

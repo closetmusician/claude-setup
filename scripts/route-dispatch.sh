@@ -124,7 +124,7 @@ _match_rules() {
     rule_vre="$(jq -r ".rules[${i}].match.verb_re // \"\"" "${POLICY_FILE}" 2>/dev/null || echo "")"
     if [ -n "${rule_vre}" ]; then
       # Verb match: use rule pattern directly (exact)
-      if printf '%s' "${VERB}" | grep -qE "${rule_vre}" 2>/dev/null; then
+      if < <(printf '%s' "${VERB}") grep -qE "${rule_vre}" 2>/dev/null; then
         printf '%s\t%s' "${tier}" "${reason}"
         return 0
       fi
@@ -133,7 +133,7 @@ _match_rules() {
       local intent_vre
       intent_vre="$(printf '%s' "${rule_vre}" | sed 's/^\^//;s/\$$//')"
       if [ -n "${INTENT}" ] && [ -n "${intent_vre}" ] && \
-         printf '%s' "${INTENT}" | grep -qEi "(^|[^[:alpha:]])${intent_vre}([^[:alpha:]]|$)" 2>/dev/null; then
+         < <(printf '%s' "${INTENT}") grep -qEi "(^|[^[:alpha:]])${intent_vre}([^[:alpha:]]|$)" 2>/dev/null; then
         printf '%s\t%s' "${tier}" "${reason}"
         return 0
       fi

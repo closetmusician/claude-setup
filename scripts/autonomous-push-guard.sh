@@ -80,8 +80,8 @@ deny_and_exit() {
 # Returns 0 only for the explicit solo GitHub owner.
 _is_solo_remote_url() {
   local url="${1:-}"
-  printf '%s' "$url" | grep -qiE '(^|[:/])github\.com[:/]closetmusician/' && return 0
-  printf '%s' "$url" | grep -qiE '^git@github\.com:closetmusician/' && return 0
+  < <(printf '%s' "$url") grep -qiE '(^|[:/])github\.com[:/]closetmusician/' && return 0
+  < <(printf '%s' "$url") grep -qiE '^git@github\.com:closetmusician/' && return 0
   return 1
 }
 
@@ -102,7 +102,7 @@ _push_targets_are_solo() {
   while IFS= read -r url; do
     [[ -z "$url" ]] && continue
     _is_solo_remote_url "$url" || return 1
-  done <<< "$urls"
+  done < <(printf '%s\n' "$urls")
   return 0
 }
 
@@ -133,7 +133,7 @@ _repo_has_only_solo_remotes() {
   while IFS= read -r url; do
     [[ -z "$url" ]] && continue
     _is_solo_remote_url "$url" || return 1
-  done <<< "$urls"
+  done < <(printf '%s\n' "$urls")
   return 0
 }
 
@@ -146,10 +146,10 @@ STRIPPED=$(printf '%s' "${COMMAND}" | \
   printf '%s' "${COMMAND}")
 
 # Detect git push or git merge.
-if printf '%s' "${STRIPPED}" | grep -qE '^\s*git\s+(push|merge)\b'; then
+if < <(printf '%s' "${STRIPPED}") grep -qE '^\s*git\s+(push|merge)\b'; then
 
   # git merge is hard-denied in all autonomous contexts (branches only).
-  if printf '%s' "${STRIPPED}" | grep -qE '^\s*git\s+merge\b'; then
+  if < <(printf '%s' "${STRIPPED}") grep -qE '^\s*git\s+merge\b'; then
     deny_and_exit \
       "AUTONOMOUS PLANE: git merge is hard-denied. Autonomous runs must commit to branches only — leave merges for morning review." \
       "autonomous-merge-denied"
@@ -158,7 +158,7 @@ if printf '%s' "${STRIPPED}" | grep -qE '^\s*git\s+(push|merge)\b'; then
   # git push: allow only explicit closetmusician push targets. Unknown target
   # or any non-solo remote is denied in the autonomous plane.
   PUSH_REMOTE="$(_push_remote_from_command "$STRIPPED")"
-  if printf '%s' "$PUSH_REMOTE" | grep -qiE '^(https?|ssh|git)://|^git@'; then
+  if < <(printf '%s' "$PUSH_REMOTE") grep -qiE '^(https?|ssh|git)://|^git@'; then
     _is_solo_remote_url "$PUSH_REMOTE" || deny_and_exit \
       "AUTONOMOUS PLANE: git push to a shared/corporate remote is hard-denied. Stage output as a branch and leave it for morning review." \
       "autonomous-push-shared"

@@ -110,6 +110,15 @@ _mint_one() {
   class="$(echo "$class" | tr -cd 'A-Za-z0-9-')"
   [[ -z "$class" ]] && { echo "[mint-fixture] SKIP: empty class after sanitize" >&2; return 0; }
 
+  # The fixture always targets completion-claim-guard.sh with a Stop-style payload, so only
+  # its trust classes (C1, C2, ... and U-classes) can replay. Other guards' incidents
+  # (git-safety, model-role, freeze, skill-routing) carry no tool input and minted dead
+  # fixtures that the runner skipped (13 found 2026-11-22). Skip them here instead.
+  if [[ ! "$class" =~ ^[CU][0-9]+$ ]]; then
+    echo "[mint-fixture] SKIP: class=$class is not a completion-claim class; no replayable fixture" >&2
+    return 0
+  fi
+
   # Idempotency check
   if _already_minted "$class" "$session_id"; then
     echo "[mint-fixture] SKIP: already minted class=$class session_id=$session_id" >&2

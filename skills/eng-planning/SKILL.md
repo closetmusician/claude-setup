@@ -151,7 +151,7 @@ Step 4 runs parallel with Step 1 — its completion rides on whichever Phase B c
 ## Step -1: Resume Detection
 
 Derive `feature_id` (per Step 0), then Glob `{FEATURE_DIR}/progress.json`.
-- Found, no `--fresh` → **ALWAYS AskUserQuestion:** "Found progress for {feature_id} at Step [N], Tier [T], PRD [path]. A) Resume from Step [next] B) Start fresh (deletes intermediates)". Never silently resume (stale progress once resumed the wrong run) and never silently restart (destroys paid-for work).
+- Found, no `--fresh` → **ALWAYS AskUserQuestion:** "Found progress for {feature_id} at Step [N], Tier [T], PRD [path]. Options: "Resume from Step [next]" (keeps your paid-for work, but stale files may carry over) or "Start fresh" (clean state, but deletes intermediates)". Never silently resume (stale progress once resumed the wrong run) and never silently restart (destroys paid-for work).
 - Resume → use the STORED tier (don't re-detect), re-read PRD from stored `prd_path` + surviving intermediates, continue from the next step — never skip remaining steps.
 - Fresh (chosen or `--fresh`) → `rm -rf {FEATURE_DIR}`, start at Step 0.
 - Not found → Step 0.
@@ -196,7 +196,7 @@ Derive `feature_id` (per Step 0), then Glob `{FEATURE_DIR}/progress.json`.
 
 From PRD + scope-challenge + explorer-summary, identify every significant decision: architecture approach, data model, tech selection (R17-subject), integration pattern, performance tradeoffs. For each: context-complete question, 2-3 options with CONCRETE costs (LoC, latency, files, complexity — not vague pros/cons), and your recommendation with reasoning. Default: present via AskUserQuestion one at a time. With `--questions-upfront`: batch all decisions into the fewest calls (≤4 questions each) NOW — later phases must not prompt again except for escalations.
 
-Example option line: "A) JSONB column on users — zero new infra, queryable, 1 migration. Downside: slower than typed columns at scale."
+Example option: label "Add a JSONB column on users"; description "Good: zero new infra, queryable, 1 migration. Bad: slower than typed columns at scale."
 
 **→ Append each decision + rationale to `{FEATURE_DIR}/design-decisions.md`** (Step 5a inlines them with `**Design decision:**` prefix and indexes them in the Appendix).
 

@@ -29,6 +29,7 @@ PROMPTS="$SCRIPTS/prompts"
 source "$SCRIPTS/armd-lib.sh"
 
 cd "$REPO"
+trap 'node "$HOME/.claude/scripts/codex-broker-stop.mjs" "$REPO" >/dev/null 2>&1 || true' EXIT
 mkdir -p "$RUN_DIR"
 date -u +"spec-start %FT%TZ" >> "$RUN_DIR/times.txt"
 # The pass file is the coder's second lock. Remove a stale one from an earlier run first.

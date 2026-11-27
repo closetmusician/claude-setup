@@ -110,7 +110,7 @@ echo "── Case 1: harness eval run (baseline) → STAGE-OK ──────
 ec=0
 out="$(_eval_run 2>&1)" || ec=$?
 if [[ "$ec" -eq 0 ]]; then
-  if printf '%s\n' "$out" | grep -q 'STAGE-OK'; then
+  if grep -q 'STAGE-OK' <<<"$out"; then
     _ok "baseline run exits 0 with STAGE-OK"
   else
     _fail "baseline run STAGE-OK in output" "output: ${out:0:200}"
@@ -149,7 +149,7 @@ if [[ -z "$SABOTAGE_DIFF" ]]; then
 else
   ec=0
   out="$(_eval_run --with-patch "$SABOTAGE_DIFF" 2>&1)" || ec=$?
-  if [[ "$ec" -ne 0 ]] && printf '%s\n' "$out" | grep -q 'STAGE-REFUSED'; then
+  if [[ "$ec" -ne 0 ]] && grep -q 'STAGE-REFUSED' <<<"$out"; then
     _ok "sabotage patch exits nonzero with STAGE-REFUSED"
   else
     _fail "sabotage patch exits nonzero with STAGE-REFUSED" "exit=$ec; output: ${out:0:300}"
@@ -186,7 +186,7 @@ if [[ "$ec" -eq 3 ]]; then
 else
   _fail "CORPUS_TAMPER diff exits 3" "got exit $ec; output: ${out:0:200}"
 fi
-if printf '%s\n' "$out" | grep -qi "CORPUS_TAMPER"; then
+if grep -qi "CORPUS_TAMPER" <<<"$out"; then
   _ok "CORPUS_TAMPER output contains CORPUS_TAMPER message"
 else
   _fail "CORPUS_TAMPER message in output" "output: ${out:0:200}"
@@ -221,7 +221,7 @@ if [[ -z "$NOOP_DIFF" ]]; then
 else
   ec=0
   out="$(_eval_run --with-patch "$NOOP_DIFF" 2>&1)" || ec=$?
-  if [[ "$ec" -eq 0 ]] && printf '%s\n' "$out" | grep -q 'STAGE-OK'; then
+  if [[ "$ec" -eq 0 ]] && grep -q 'STAGE-OK' <<<"$out"; then
     _ok "no-op patch exits 0 with STAGE-OK"
   else
     _fail "no-op patch STAGE-OK" "exit=$ec; output: ${out:0:300}"
@@ -233,7 +233,7 @@ echo ""
 echo "── Case 7: harness eval ls lists fixtures ───────────────────────────────"
 ec=0
 out="$(HARNESS_EVAL_CORPUS_DIR="$CORPUS_DIR" "$HARNESS" eval ls 2>&1)" || ec=$?
-if [[ "$ec" -eq 0 ]] && printf '%s\n' "$out" | grep -q 'Total:'; then
+if [[ "$ec" -eq 0 ]] && grep -q 'Total:' <<<"$out"; then
   _ok "harness eval ls exits 0 and shows Total: line"
 else
   _fail "harness eval ls" "exit=$ec; output: ${out:0:200}"
@@ -253,7 +253,7 @@ if [[ -z "$SABOTAGE_DIFF" ]]; then
 else
   ec=0
   out="$(_eval_run --with-patch "$SABOTAGE_DIFF" 2>&1)" || ec=$?
-  if printf '%s\n' "$out" | grep -q 'C2-002'; then
+  if grep -q 'C2-002' <<<"$out"; then
     _ok "sabotage summary names C2-002 as regressed fixture"
   else
     _fail "sabotage summary names C2-002" "output: ${out:0:300}"

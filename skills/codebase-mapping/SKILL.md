@@ -9,7 +9,7 @@ Orchestrate a comprehensive codebase exploration to create architecture document
 
 ## Overview
 
-This skill uses the `lead-orchestrator` pattern to spawn multiple specialized subagents (`code-explorer`, `code-architect`) that thoroughly explore the codebase and produce a complete architecture document at `docs/arch-plan.md`.
+This skill uses the `lead-orchestrator2` pattern to spawn multiple specialized subagents (parallel `lo-audit` lanes) that thoroughly explore the codebase and produce a complete architecture document at `docs/arch-plan.md`.
 
 **Output**: A PM-friendly architecture document with:
 - Feature-to-code mapping
@@ -44,7 +44,7 @@ python ~/.claude/scripts/generate-repomap.py --repo {project_path} --max-lines 2
 ```
 
 - The output shows files ranked by recent commit frequency with extracted class/function definitions
-- Include this output in code-explorer agent prompts as initial context (prefix with "Here is a repomap of the most active files:")
+- Include this output in the exploration lane prompts as initial context (prefix with "Here is a repomap of the most active files:")
 - If the script fails (not a git repo, no activity, Python not available), proceed without it -- this step is purely additive
 
 ### Step 0a: Code Review Graph (Auto-Detected)
@@ -107,32 +107,31 @@ Before spawning agents, gather context:
 
 ### Step 2: Orchestration Setup
 
-Invoke the **lead-orchestrator** skill to manage subagents:
+Invoke the **lead-orchestrator2** skill (investigate-audit mode). It runs `lo-audit.js`: parallel lanes, then one synthesis, then a verifier.
+Pass Tasks 1-3 below as lanes (`{id, prompt, model}`): Tasks 1-2 `sonnet`, Task 3 `opus`.
+Lanes run at the same time. So give each lane the repomap and `GRAPH_CONTEXT` instead of another lane's output.
+Pass Task 4 as the synthesis step, with `deliverable_path` = `docs/arch-plan.md`.
 
 ```
-/lead-orchestrator
+/lead-orchestrator2
 ```
 
-The orchestrator will coordinate the following subagent sequence:
+The lanes cover these two roles:
 
-1. **code-explorer** (Exploration Phase)
+1. **Exploration** (Exploration Phase)
    - Scan entire codebase structure
    - Identify main directories, entry points, config files
    - Map major features to their code locations
    - Document external integrations
 
-2. **code-architect** (Architecture Analysis Phase)
+2. **Architecture analysis** (Architecture Analysis Phase)
    - Analyze component interactions
    - Trace data flows for major features
    - Document database schema and relationships
    - Map API endpoints
    - Create dependency graphs
 
-**Agent availability pre-flight:** the `code-explorer` / `code-architect` agent types
-come from the `feature-dev` plugin, which may not be installed. If a dispatch fails
-with "No such tool/agent available", use `general-purpose` subagents instead — the
-Step 3 task descriptions are self-contained prompts and work with either agent type.
-Do not abort the workflow over a missing agent type.
+Lanes take a prompt and a model only. No agent type is needed. The Step 3 task descriptions are self-contained lane prompts.
 
 **When `GRAPH_AVAILABLE = true`**: Include the full `GRAPH_CONTEXT` in every subagent
 prompt. Instruct agents to use graph data as their primary source and only read source
@@ -142,11 +141,11 @@ handful of targeted reads.
 
 ### Step 3: Subagent Task Breakdown
 
-The orchestrator should spawn agents with these specific tasks. Each task has a
+The orchestrator passes these tasks as lanes (Task 4 as the synthesis step). Each task has a
 **graph-accelerated** variant (used when `GRAPH_AVAILABLE = true`) and a **standalone**
 variant (original behavior, used when graph is unavailable).
 
-**Task 1: Structure Mapping** (code-explorer)
+**Task 1: Structure Mapping** (lane, sonnet)
 
 *Standalone:*
 - Scan directory tree and identify purposes
@@ -165,7 +164,7 @@ variant (original behavior, used when graph is unavailable).
   or `semantic_search_nodes_tool(query="<concept>")` to find specific code entities
 - **Output**: Same — directory structure map + initial feature list
 
-**Task 2: Feature Tracing** (code-explorer)
+**Task 2: Feature Tracing** (lane, sonnet)
 
 *Standalone:*
 - For each major feature identified:
@@ -186,7 +185,7 @@ variant (original behavior, used when graph is unavailable).
   (unless the graph captured ORM model nodes)
 - **Output**: Same — feature-to-code mapping table
 
-**Task 3: Architecture Analysis** (code-architect)
+**Task 3: Architecture Analysis** (lane, opus)
 
 *Standalone:*
 - Analyze database schema (tables, columns, relationships, indexes)
@@ -208,7 +207,7 @@ variant (original behavior, used when graph is unavailable).
 - Still read source files for: database schema details, auth flow specifics, env vars
 - **Output**: Same — architecture diagrams + technical reference
 
-**Task 4: Integration** (code-architect)
+**Task 4: Integration** (synthesis step)
 - Compile all findings into unified `docs/arch-plan.md`
 - Create change guidance section
 - Flag technical debt or undocumented areas (if `GRAPH_AVAILABLE`: incorporate
@@ -334,20 +333,9 @@ If the codebase contains these, document them **extra thoroughly**:
 
 ## Subagent Communication Protocol
 
-Agents communicate ONLY through committed artifacts:
-
-1. **code-explorer** creates:
-   - `docs/arch-plan-structure.md` (directory map)
-   - `docs/arch-plan-features.md` (feature mapping)
-
-2. **code-architect** reads those files and creates:
-   - `docs/arch-plan-diagrams.md` (ASCII diagrams)
-   - `docs/arch-plan-api.md` (API reference)
-
-3. **Final integration** combines all into:
-   - `docs/arch-plan.md` (complete document)
-
-All intermediate files are committed. The orchestrator reviews the final output.
+Each lane writes its output in the `lo-audit` run folder (`docs/temp/<run-slug>/`).
+The synthesis step writes `docs/arch-plan.md`. The verifier then checks it.
+The session commits the deliverable after the workflow returns.
 
 ---
 
@@ -375,9 +363,9 @@ Before marking complete, verify:
 
 **Process**:
 1. Invoke `codebase-mapping` skill
-2. Orchestrator spawns `code-explorer` to map structure and find transcription feature
-3. `code-explorer` traces: `/api/transcribe` → `transcription.controller.ts` → `transcription.service.ts` → `audio-processing.py` → `transcripts` table
-4. `code-architect` creates sequence diagram showing: Upload → FastAPI processing → pgvector embedding → storage → frontend display
+2. Orchestrator runs lanes to map structure and find the transcription feature
+3. The feature-tracing lane traces: `/api/transcribe` → `transcription.controller.ts` → `transcription.service.ts` → `audio-processing.py` → `transcripts` table
+4. The architecture lane creates a sequence diagram showing: Upload → FastAPI processing → pgvector embedding → storage → frontend display
 5. Final `docs/arch-plan.md` shows complete feature map with change guidance: "To modify transcription: touch these 4 files, watch out for async job processing, test with these endpoints"
 
 **Outcome**: PM can now confidently plan changes without guessing which files to modify.
@@ -387,8 +375,8 @@ Before marking complete, verify:
 ## Tips & Best Practices
 
 - **Start broad, then narrow**: Full codebase scan first, then deep dives on specific features
-- **Use parallel exploration**: Multiple code-explorer agents can scan different subsystems simultaneously
-- **Commit frequently**: Each subagent commits findings before next agent starts
+- **Use parallel exploration**: Multiple exploration lanes can scan different subsystems simultaneously
+- **Commit after the run**: The session commits the deliverable after the workflow returns
 - **Flag unknowns**: If a pattern is unclear or undocumented, say so explicitly
 - **Update over time**: This document should be living; update as architecture changes
 - **Graph as primary, files as supplement**: When the graph is available, treat its communities/flows/hubs as ground truth for structure; read source files only for business logic, config details, and schema columns the graph doesn't capture
@@ -407,10 +395,7 @@ Before marking complete, verify:
 - **Solution**: Flag conflicts explicitly in "Technical Debt" section
 
 **Issue**: Authentication flow unclear
-- **Solution**: Spawn dedicated code-explorer focused ONLY on auth; trace from login endpoint
-
-**Issue**: `code-explorer` / `code-architect` dispatch fails ("No such tool/agent available")
-- **Solution**: The `feature-dev` plugin is not installed. Use `general-purpose` subagents with the same Step 3 task prompts. Do not abort.
+- **Solution**: Add a dedicated lane focused ONLY on auth; trace from login endpoint
 
 **Issue**: Code review graph build fails or plugin not installed
 - **Solution**: This is expected — the skill falls back to standalone mode automatically. No action needed. The graph is purely additive; all exploration tasks have standalone variants that work without it.
@@ -422,8 +407,8 @@ Before marking complete, verify:
 
 ## Dependencies
 
-- **lead-orchestrator**: Required for coordinating subagents
-- **feature-dev:code-explorer / feature-dev:code-architect**: Preferred agent types for scanning and architecture analysis. NOT guaranteed to be installed — fall back to `general-purpose` subagents with the same Step 3 task prompts if dispatch fails.
+- **lead-orchestrator2**: Required for coordinating subagents
+- **Agent types:** none needed. `lo-audit` lanes take a prompt and a model only.
 - **code-review-graph plugin**: Optional — auto-detected and auto-built at Step 0a. When available, provides pre-computed architecture data (communities, flows, hubs, bridges) that accelerates all exploration tasks. The skill works fully without it.
 
 ---
@@ -432,7 +417,7 @@ Before marking complete, verify:
 
 When acting as orchestrator:
 - **Never implement code yourself** — only spawn and coordinate subagents
-- **Review each agent's output** before spawning the next
+- **Review the synthesis and verifier output** before accepting the deliverable
 - **Escalate if >1 fix cycle needed** on any subtask
-- **Commit all artifacts** as agents complete work
+- **Commit the deliverable** after the workflow returns
 - **Final review**: Read complete `docs/arch-plan.md` and verify quality checklist

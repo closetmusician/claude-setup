@@ -17,11 +17,11 @@ disarm() { rm -f "$FLAG" 2>/dev/null || true; exit 0; }
 INPUT=$(cat 2>/dev/null || true)
 PROMPT=$(printf '%s' "$INPUT" | jq -r '.prompt // empty' 2>/dev/null || true)
 [ -z "$PROMPT" ] && disarm
-P=$(printf '%s' "$PROMPT" | tr '[:upper:]' '[:lower:]' | head -c 2000)
+P=$(head -c 2000 < <(printf '%s' "$PROMPT" | tr '[:upper:]' '[:lower:]'))
 
 # Codex intent = the literal tool name (+ speech-to-text aliases "code x"/"code ex"), or a
 # bare "adversarial review/audit" / "second opinion" ask that the codex skill owns.
-if printf '%s' "$P" | grep -qE '\bcodex\b|\bcode ?ex\b|adversarial(ly)? (review|audit)|second opinion|another opinion'; then
+if < <(printf '%s' "$P") grep -qE '\bcodex\b|\bcode ?ex\b|adversarial(ly)? (review|audit)|second opinion|another opinion'; then
   mkdir -p "$STATE_DIR" 2>/dev/null || true
   date +%s > "$FLAG" 2>/dev/null || true
   # Resolve the newest installed companion script so this never rots when the plugin updates.

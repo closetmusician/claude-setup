@@ -44,13 +44,15 @@ if [[ -z "$CMD" ]]; then
 fi
 
 # Allow bypass: if the command contains '# SKILL-BYPASS', let it through.
-if echo "$CMD" | grep -qF '# SKILL-BYPASS'; then
+if < <(echo "$CMD") grep -qF '# SKILL-BYPASS'; then
   exit 0
 fi
 
 # Strip heredoc bodies and quoted strings to avoid false positives on
 # text like 'git commit' inside commit messages or echo output.
-STRIPPED=$(echo "$CMD" | perl -0777 -pe "s/<<'?EOF'?.*?^EOF\$/__HEREDOC__/gms" | sed "s/\"[^\"]*\"/__STR__/g; s/'[^']*'/__STR__/g")
+# perl -0777 (whole input) so a quoted string that spans several lines is stripped too;
+# line-based sed missed multi-line commit messages.
+STRIPPED=$(echo "$CMD" | perl -0777 -pe "s/<<'?EOF'?.*?^EOF\$/__HEREDOC__/gms; s/\"[^\"]*\"/__STR__/gs; s/'[^']*'/__STR__/gs")
 
 # deny_and_exit <reason>
 # Outputs a hookSpecificOutput JSON blob that tells Claude Code to deny the
@@ -73,7 +75,7 @@ deny_and_exit() {
 }
 
 # 1. gh pr create → use /pr-briefing
-if echo "$STRIPPED" | grep -qE '\bgh\s+pr\s+create\b'; then
+if < <(echo "$STRIPPED") grep -qE '\bgh\s+pr\s+create\b'; then
   deny_and_exit "SKILL ROUTING GUARD: 'gh pr create' matches 'Generate PR briefing after PR creation' workflow. Use /pr-briefing skill first (see skill-routing.md). Add # SKILL-BYPASS to the command if intentionally bypassing."
 fi
 
